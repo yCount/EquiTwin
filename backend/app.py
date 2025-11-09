@@ -1,3 +1,10 @@
+"""
+FastAPI entrypoint for Energy Management System.
+- Exposes REST: /mpc/optimize, /forecast/energy, /kpis, /timeseries
+- Exposes WebSocket: /telemetry/ws to push live EM/AQ/OC updates to frontend
+Glues: services/* + adapters/* + security
+"""
+
 from fastapi import FastAPI, WebSocket, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
