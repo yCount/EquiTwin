@@ -140,3 +140,6 @@ vite.config.ts.timestamp-*
 
 # VSCode settings
 .vscode/
+
+# Environment Variables
+.env
