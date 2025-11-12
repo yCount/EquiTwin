@@ -1,3 +1,8 @@
+"""
+Forecast-then-Optimise core. Consumes the recent data window, constraints, and weights; returns optimal setpoints.
+
+"""
+
 from typing import List
 from app import MpcRequest, MpcSuggestion
 

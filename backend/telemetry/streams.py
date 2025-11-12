@@ -1,3 +1,3 @@
 """
-Manahegs WebSocket clients, broadcasts normalised packets to frontend.
+Manages WebSocket clients, broadcasts normalised packets to frontend.
 """
