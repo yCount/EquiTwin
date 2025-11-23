@@ -6,6 +6,11 @@
 
 import "./App.scss";
 
+import HomeTab from "./tabs/HomeTab";
+import DashboardTab from "./tabs/DashboardTab";
+import ForecastTab from "./tabs/ForecastTab";
+import TuningTab from "./tabs/TuningTab";
+
 import type { ScreenViewport } from "@itwin/core-frontend";
 import { FitViewTool, IModelApp, StandardViewId } from "@itwin/core-frontend";
 import { ECSchemaRpcInterface } from "@itwin/ecschema-rpcinterface-common";
@@ -52,6 +57,11 @@ const App: React.FC = () => {
   const accessToken = useAccessToken();
 
   const authClient = Auth.getClient();
+
+  const [activeTab, setActiveTab] = useState<
+    "home" | "dashboard" | "forecast" | "tuning"
+  >("home");
+
 
   const login = useCallback(async () => {
     try {
@@ -141,7 +151,8 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="viewer-container">
+    <div className="app-root">
+      {/* Keep the original "Signing in..." indicator */}
       {!accessToken && (
         <Flex justifyContent="center" style={{ height: "100%" }}>
           <div className="signin-content">
@@ -149,95 +160,135 @@ const App: React.FC = () => {
           </div>
         </Flex>
       )}
-      <Viewer
-        iTwinId={iTwinId ?? ""}
-        iModelId={iModelId ?? ""}
-        changeSetId={changesetId}
-        authClient={authClient}
-        viewCreatorOptions={viewCreatorOptions}
-        enablePerformanceMonitors={true} // see description in the README (https://www.npmjs.com/package/@itwin/web-viewer-react)
-        onIModelAppInit={onIModelAppInit}
-        mapLayerOptions={{
-          BingMaps: {
-            key: "key",
-            value: process.env.IMJS_BING_MAPS_KEY ?? "",
-          },
-        }}
-        backendConfiguration={{
-          defaultBackend: {
-            rpcInterfaces: [ECSchemaRpcInterface],
-          },
-        }}
-        uiProviders={[
-          new ViewerNavigationToolsProvider(),
-          new ViewerContentToolsProvider({
-            vertical: {
-              measureGroup: false,
-            },
-          }),
-          new ViewerStatusbarItemsProvider(),
-          {
-            id: "TreeWidgetUIProvider",
-            getWidgets: () => [
-              createTreeWidget({
-                trees: [
-                  {
-                    id: ModelsTreeComponent.id,
-                    getLabel: () => ModelsTreeComponent.getLabel(),
-                    render: (props) => (
-                      <ModelsTreeComponent
-                        getSchemaContext={(iModel) => iModel.schemaContext}
-                        density={props.density}
-                        selectionStorage={unifiedSelectionStorage}
-                        selectionMode={"extended"}
-                        onPerformanceMeasured={props.onPerformanceMeasured}
-                        onFeatureUsed={props.onFeatureUsed}
-                      />
-                    ),
-                  },
-                  {
-                    id: CategoriesTreeComponent.id,
-                    getLabel: () => CategoriesTreeComponent.getLabel(),
-                    render: (props) => (
-                      <CategoriesTreeComponent
-                        getSchemaContext={(iModel) => iModel.schemaContext}
-                        density={props.density}
-                        selectionStorage={unifiedSelectionStorage}
-                        onPerformanceMeasured={props.onPerformanceMeasured}
-                        onFeatureUsed={props.onFeatureUsed}
-                      />
-                    ),
-                  },
-                ],
-              }),
-            ],
-          },
-          {
-            id: "PropertyGridUIProvider",
-            getWidgets: () => [
-              createPropertyGrid({
-                autoExpandChildCategories: true,
-                ancestorsNavigationControls: (props) => (
-                  <AncestorsNavigationControls {...props} />
-                ),
-                contextMenuItems: [
-                  (props) => <CopyPropertyTextContextMenuItem {...props} />,
-                ],
-                settingsMenuItems: [
-                  (props) => (
-                    <ShowHideNullValuesSettingsMenuItem
-                      {...props}
-                      persist={true}
-                    />
-                  ),
-                ],
-              }),
-            ],
-          },
-          new MeasureToolsUiItemsProvider(),
-        ]}
-        selectionStorage={unifiedSelectionStorage}
-      />
+
+      <div className="app-shell">
+        {/* Left navigation sidebar */}
+        <nav className="app-sidebar">
+          <button
+            type="button"
+            className={`tab-button ${activeTab === "home" ? "active" : ""}`}
+            onClick={() => setActiveTab("home")}
+          >
+            <span className="tab-icon">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-4H10v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
+              </svg>
+            </span>
+            <span className="tab-label">Home</span>
+            <span className="tab-caption">3D Model Alerts</span>
+          </button>
+
+          <button
+            type="button"
+            className={`tab-button ${activeTab === "dashboard" ? "active" : ""}`}
+            onClick={() => setActiveTab("dashboard")}
+          >
+            <span className="tab-icon">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="5"></rect>
+                <rect x="14" y="11" width="7" height="10"></rect>
+                <rect x="3" y="12" width="7" height="9"></rect>
+              </svg>
+            </span>
+            <span className="tab-label">Dashboard</span>
+            <span className="tab-caption">Analytics Trends</span>
+          </button>
+
+          <button
+            type="button"
+            className={`tab-button ${activeTab === "forecast" ? "active" : ""}`}
+            onClick={() => setActiveTab("forecast")}
+          >
+            <span className="tab-icon">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 17l6-6 4 4 8-8"></path>
+                <path d="M14 7h7v7"></path>
+              </svg>
+            </span>
+            <span className="tab-label">Prediction</span>
+            <span className="tab-caption">Forecast MPC</span>
+          </button>
+
+          <button
+            type="button"
+            className={`tab-button ${activeTab === "tuning" ? "active" : ""}`}
+            onClick={() => setActiveTab("tuning")}
+          >
+            <span className="tab-icon">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="4" y1="21" x2="4" y2="14"></line>
+                <line x1="4" y1="10" x2="4" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12" y2="3"></line>
+                <line x1="20" y1="21" x2="20" y2="16"></line>
+                <line x1="20" y1="12" x2="20" y2="3"></line>
+                <line x1="1" y1="14" x2="7" y2="14"></line>
+                <line x1="9" y1="8" x2="15" y2="8"></line>
+                <line x1="17" y1="16" x2="23" y2="16"></line>
+              </svg>
+            </span>
+            <span className="tab-label">Tuning</span>
+            <span className="tab-caption">Comfort Energy</span>
+          </button>
+        </nav>
+
+        {/* Main content area */}
+        <main className="app-main">
+          {activeTab === "home" && (
+            <HomeTab
+              iTwinId={iTwinId}
+              iModelId={iModelId}
+              changesetId={changesetId}
+              authClient={authClient}
+              viewCreatorOptions={viewCreatorOptions}
+              onIModelAppInit={onIModelAppInit}
+            />
+          )}
+
+          {activeTab === "dashboard" && <DashboardTab />}
+
+          {activeTab === "forecast" && <ForecastTab />}
+
+          {activeTab === "tuning" && <TuningTab />}
+        </main>
+      </div>
     </div>
   );
 };

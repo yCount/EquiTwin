@@ -9,3 +9,90 @@
     width: 400px;
   }
 }
+
+.app-root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+/* Left navigation sidebar */
+.app-sidebar {
+  width: 80px;
+  background: #020617;
+  border-right: 1px solid #1f2937;
+  padding: 0.75rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tab-button {
+  width: 100%;
+  text-align: center;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  padding: 0.25rem 0.4rem;
+  background: transparent;
+  cursor: pointer;
+  color: #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.82rem;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.08s ease;
+}
+
+.tab-button .tab-label {
+  font-weight: 500;
+}
+
+.tab-button .tab-caption {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.tab-button:hover {
+  background: rgba(37, 99, 235, 0.15);
+  border-color: rgba(59, 130, 246, 0.6);
+  transform: translateY(-1px);
+}
+
+.tab-button.active {
+  background: rgba(37, 99, 235, 0.25);
+  border-color: rgba(59, 130, 246, 0.9);
+}
+
+/* Main content area (where Viewer lives) */
+.app-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+/* Keep viewer full-height within the main area */
+.app-main .viewer-container {
+  flex: 1 1 auto;
+  height: 100vh;
+}
+
+/* Placeholder styles for tabs under development */
+.tab-placeholder {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 0.9rem;
+  padding: 1rem;
+  text-align: center;
+}
