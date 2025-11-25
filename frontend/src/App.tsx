@@ -163,6 +163,7 @@ const App: React.FC = () => {
 
       <div className="app-shell">
         {/* Left navigation sidebar */}
+        <div className="padding-sidebar">
         <nav className="app-sidebar">
           <button
             type="button"
@@ -171,8 +172,8 @@ const App: React.FC = () => {
           >
             <span className="tab-icon">
               <svg
-                width="18"
-                height="18"
+                width="38"
+                height="38"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -184,7 +185,6 @@ const App: React.FC = () => {
               </svg>
             </span>
             <span className="tab-label">Home</span>
-            <span className="tab-caption">3D Model Alerts</span>
           </button>
 
           <button
@@ -194,8 +194,8 @@ const App: React.FC = () => {
           >
             <span className="tab-icon">
               <svg
-                width="18"
-                height="18"
+                width="38"
+                height="38"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -210,7 +210,6 @@ const App: React.FC = () => {
               </svg>
             </span>
             <span className="tab-label">Dashboard</span>
-            <span className="tab-caption">Analytics Trends</span>
           </button>
 
           <button
@@ -220,8 +219,8 @@ const App: React.FC = () => {
           >
             <span className="tab-icon">
               <svg
-                width="18"
-                height="18"
+                width="38"
+                height="38"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -234,7 +233,6 @@ const App: React.FC = () => {
               </svg>
             </span>
             <span className="tab-label">Prediction</span>
-            <span className="tab-caption">Forecast MPC</span>
           </button>
 
           <button
@@ -244,8 +242,8 @@ const App: React.FC = () => {
           >
             <span className="tab-icon">
               <svg
-                width="18"
-                height="18"
+                width="38"
+                height="38"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -265,9 +263,9 @@ const App: React.FC = () => {
               </svg>
             </span>
             <span className="tab-label">Tuning</span>
-            <span className="tab-caption">Comfort Energy</span>
           </button>
         </nav>
+        </div>
 
         {/* Main content area */}
         <main className="app-main">

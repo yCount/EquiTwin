@@ -23,14 +23,20 @@
 }
 
 /* Left navigation sidebar */
-.app-sidebar {
-  width: 80px;
+.padding-sidebar {
   background: #020617;
   border-right: 1px solid #1f2937;
+  display: flex;
+}
+
+.app-sidebar {
+  width: 80px;
   padding: 0.75rem 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 
 .tab-button {
@@ -38,7 +44,9 @@
   text-align: center;
   border-radius: 0.75rem;
   border: 1px solid transparent;
-  padding: 0.25rem 0.4rem;
+  padding: 0.5rem 0.4rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
   background: transparent;
   cursor: pointer;
   color: #e5e7eb;
