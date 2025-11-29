@@ -6,6 +6,7 @@
 
 import "./App.scss";
 
+import LeftNavBar from "./LeftNavBar";
 import HomeTab from "./tabs/HomeTab";
 import DashboardTab from "./tabs/DashboardTab";
 import ForecastTab from "./tabs/ForecastTab";
@@ -13,33 +14,20 @@ import TuningTab from "./tabs/TuningTab";
 
 import type { ScreenViewport } from "@itwin/core-frontend";
 import { FitViewTool, IModelApp, StandardViewId } from "@itwin/core-frontend";
-import { ECSchemaRpcInterface } from "@itwin/ecschema-rpcinterface-common";
 import { Flex, ProgressLinear } from "@itwin/itwinui-react";
 import {
   MeasurementActionToolbar,
   MeasureTools,
-  MeasureToolsUiItemsProvider,
 } from "@itwin/measure-tools-react";
 import {
-  AncestorsNavigationControls,
-  CopyPropertyTextContextMenuItem,
-  createPropertyGrid,
   PropertyGridManager,
-  ShowHideNullValuesSettingsMenuItem,
 } from "@itwin/property-grid-react";
 import {
-  CategoriesTreeComponent,
-  createTreeWidget,
-  ModelsTreeComponent,
   TreeWidget,
 } from "@itwin/tree-widget-react";
 import {
   useAccessToken,
-  Viewer,
-  ViewerContentToolsProvider,
-  ViewerNavigationToolsProvider,
   ViewerPerformance,
-  ViewerStatusbarItemsProvider,
 } from "@itwin/web-viewer-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -162,114 +150,8 @@ const App: React.FC = () => {
       )}
 
       <div className="app-shell">
-        {/* Left navigation sidebar */}
-        <nav className="app-sidebar">
-          <button
-            type="button"
-            className={`tab-button ${activeTab === "home" ? "active" : ""}`}
-            onClick={() => setActiveTab("home")}
-          >
-            <span className="tab-icon">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-4H10v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
-              </svg>
-            </span>
-            <span className="tab-label">Home</span>
-            <span className="tab-caption">3D Model Alerts</span>
-          </button>
+        <LeftNavBar activeTab={activeTab} setActiveTab={setActiveTab} />
 
-          <button
-            type="button"
-            className={`tab-button ${activeTab === "dashboard" ? "active" : ""}`}
-            onClick={() => setActiveTab("dashboard")}
-          >
-            <span className="tab-icon">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="3" y="3" width="7" height="7"></rect>
-                <rect x="14" y="3" width="7" height="5"></rect>
-                <rect x="14" y="11" width="7" height="10"></rect>
-                <rect x="3" y="12" width="7" height="9"></rect>
-              </svg>
-            </span>
-            <span className="tab-label">Dashboard</span>
-            <span className="tab-caption">Analytics Trends</span>
-          </button>
-
-          <button
-            type="button"
-            className={`tab-button ${activeTab === "forecast" ? "active" : ""}`}
-            onClick={() => setActiveTab("forecast")}
-          >
-            <span className="tab-icon">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M3 17l6-6 4 4 8-8"></path>
-                <path d="M14 7h7v7"></path>
-              </svg>
-            </span>
-            <span className="tab-label">Prediction</span>
-            <span className="tab-caption">Forecast MPC</span>
-          </button>
-
-          <button
-            type="button"
-            className={`tab-button ${activeTab === "tuning" ? "active" : ""}`}
-            onClick={() => setActiveTab("tuning")}
-          >
-            <span className="tab-icon">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="4" y1="21" x2="4" y2="14"></line>
-                <line x1="4" y1="10" x2="4" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12" y2="3"></line>
-                <line x1="20" y1="21" x2="20" y2="16"></line>
-                <line x1="20" y1="12" x2="20" y2="3"></line>
-                <line x1="1" y1="14" x2="7" y2="14"></line>
-                <line x1="9" y1="8" x2="15" y2="8"></line>
-                <line x1="17" y1="16" x2="23" y2="16"></line>
-              </svg>
-            </span>
-            <span className="tab-label">Tuning</span>
-            <span className="tab-caption">Comfort Energy</span>
-          </button>
-        </nav>
-
-        {/* Main content area */}
         <main className="app-main">
           {activeTab === "home" && (
             <HomeTab
