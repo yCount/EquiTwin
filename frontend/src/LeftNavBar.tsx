@@ -18,11 +18,11 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
         >
           <span>
             <img src="/images/EquiTwin_logo.png"
-            alt="EquiTwin Logo"
+            alt="EquiTwin"
             style={{ width: '50px', backgroundColor: 'transparent' }}
             />
           </span>
-          <span className="tab-label">EquiTwin</span>
+          <span className="togo-label">EquiTwin</span>
         </button>
 
         <button

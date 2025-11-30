@@ -15,7 +15,7 @@
   flex-direction: column;
 }
 
-.tab-button, .info-button {
+.logo-button, .tab-button, .info-button {
   width: 100%;
   text-align: center;
   border-radius: 0.75rem;
@@ -31,7 +31,7 @@
   transition: background 0.16s ease, border-color 0.16s ease, transform 0.08s ease;
 }
 
-.tab-button .tab-label, info-button .info-label {
+.logo-button .logo-label, .tab-button .tab-label, info-button .info-label {
   font-weight: 500;
 }
 
