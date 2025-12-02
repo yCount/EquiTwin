@@ -15,7 +15,7 @@ import * as serviceWorker from "./serviceWorker";
 // Debugging: catch unhandled promise rejections and log them into the debugger
 window.addEventListener("unhandledrejection", (event) => {
   try {
-    console.groupCollapsed("🔥 UNHANDLED PROMISE REJECTION");
+    console.groupCollapsed("UNHANDLED PROMISE REJECTION");
     console.error("event.reason (raw):", event.reason);
 
     // If it's an Error object, print stack
