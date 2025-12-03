@@ -22,7 +22,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
             style={{ width: '50px', backgroundColor: 'transparent' }}
             />
           </span>
-          <span className="togo-label">EquiTwin</span>
+          <span className="logo-label">EquiTwin</span>
         </button>
 
         <button
