@@ -1,6 +1,6 @@
 /* Left navigation sidebar */
 .app-sidebar {
-  width: 80px;
+  width: 85px;
   background: #020617;
   border-right: 1px solid #1f2937;
   padding: 0.75rem 0.5rem;
@@ -8,40 +8,150 @@
   flex-direction: column;
   justify-content: space-between;
   gap: 0.35rem;
+  transition: width 0.3s ease;
+  overflow: hidden;
+  position: relative;
 }
 
-.nav-buttons .info-buttons {
+.app-sidebar:hover {
+  width: 200px;
+  padding-right: 1rem;
+}
+
+.nav-buttons, .info-buttons {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.nav-buttons {
+  min-height: 370px;
+}
+
+.info-buttons {
+  min-height: 205px;
 }
 
 .logo-button, .tab-button, .info-button {
   width: 100%;
-  text-align: center;
+  text-align: left;
   border-radius: 0.75rem;
   border: 1px solid transparent;
-  padding: 0.25rem 0.4rem;
   background: transparent;
-  cursor: pointer;
   color: #e5e7eb;
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
   font-size: 0.82rem;
   transition: background 0.16s ease, border-color 0.16s ease, transform 0.08s ease;
+  white-space: nowrap;
 }
 
-.logo-button .logo-label, .tab-button .tab-label, info-button .info-label {
+.tab-button {
+  padding: 12px 0.4rem;
+  padding-left: 8px;
+  cursor: pointer;
+}
+
+.info-button {
+  padding: 6px 0.4rem;
+  padding-left: 8px;
+  cursor: pointer;
+}
+
+.logo-button {
+  padding: 12px 0.4rem;
+  padding-left: 8px;
+}
+
+.tab-icon, .info-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 50px;
+}
+
+.tab-icon, .info-icon {
+  width: 38px;
+  height: 38px;
+}
+
+.tab-icon svg{
+  width: 38px;
+  height: 38px;
+}
+
+.info-icon svg {
+  width: 30px;
+  height: 30px;
+}
+
+.logo-label, .tab-label, .info-label {
   font-weight: 500;
+  font-size: 15px;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  transition: opacity 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+
+.app-sidebar:hover .logo-label,
+.app-sidebar:hover .tab-label,
+.app-sidebar:hover .info-label {
+  opacity: 1;
+  width: auto;
+  height: auto;
+  transition-delay: 0.1s;
 }
 
 .tab-button:hover {
   background: rgba(37, 99, 235, 0.15);
   border-color: rgba(59, 130, 246, 0.6);
-  transform: translateY(-1px);
 }
 
 .tab-button.active {
   background: rgba(37, 99, 235, 0.25);
   border-color: rgba(59, 130, 246, 0.9);
+}
+
+.info-button:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.4);
+  transform: translateX(2px);
+}
+
+/* Logo specific styling */
+.logo-button {
+  justify-content: flex-start;
+}
+
+.logo-button .tab-icon {
+  min-width: 50px;
+  width: 50px;
+  height: 50px;
+}
+
+.logo-button img {
+  width: 50px;
+  height: auto;
+  background-color: transparent;
+}
+
+/* Building image styling */
+.info-button:last-child .info-icon {
+  min-width: 50px;
+  width: 50px;
+  height: 50px;
+}
+
+.info-button:last-child img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
 }

@@ -2,16 +2,12 @@
 * Copyright (c) Bentley Systems, Incorporated. All rights reserved.
 * See LICENSE.md in the project root for license terms and full copyright notice.
 *--------------------------------------------------------------------------------------------*/
-
-
 import "./App.scss";
-
 import LeftNavBar from "./LeftNavBar";
 import HomeTab from "./tabs/HomeTab";
 import DashboardTab from "./tabs/DashboardTab";
 import ForecastTab from "./tabs/ForecastTab";
 import TuningTab from "./tabs/TuningTab";
-
 import type { ScreenViewport } from "@itwin/core-frontend";
 import { FitViewTool, IModelApp, StandardViewId } from "@itwin/core-frontend";
 import { Flex, ProgressLinear } from "@itwin/itwinui-react";
@@ -30,7 +26,6 @@ import {
   ViewerPerformance,
 } from "@itwin/web-viewer-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-
 import { Auth } from "./Auth";
 import { history } from "./history";
 import { unifiedSelectionStorage } from "./selectionStorage";
@@ -41,15 +36,18 @@ const App: React.FC = () => {
   const [changesetId, setChangesetId] = useState(
     process.env.IMJS_AUTH_CLIENT_CHANGESET_ID
   );
-
   const accessToken = useAccessToken();
-
   const authClient = Auth.getClient();
-
+  
   const [activeTab, setActiveTab] = useState<
     "home" | "dashboard" | "forecast" | "tuning"
   >("home");
-
+  
+  // Track which tabs have been visited to avoid initial render cost
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set(["home"]));
+  
+  // Use ref to track the actual active tab for immediate DOM updates
+  const activeTabRef = React.useRef<string>(activeTab);
 
   const login = useCallback(async () => {
     try {
@@ -78,24 +76,34 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let url = `viewer?iTwinId=${iTwinId}`;
-
     if (iModelId) {
       url = `${url}&iModelId=${iModelId}`;
     }
-
     if (changesetId) {
       url = `${url}&changesetId=${changesetId}`;
     }
     history.push(url);
   }, [iTwinId, iModelId, changesetId]);
 
-  /** NOTE: This function will execute the "Fit View" tool after the iModel is loaded into the Viewer.
-   * This will provide an "optimal" view of the model. However, it will override any default views that are
-   * stored in the iModel. Delete this function and the prop that it is passed to if you prefer
-   * to honor default views when they are present instead (the Viewer will still apply a similar function to iModels that do not have a default view).
-   */
+  // Track visited tabs when active tab changes
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+    setVisitedTabs((prev) => new Set(prev).add(activeTab));
+    
+    // Force immediate style update on all tab elements
+    const allTabs = document.querySelectorAll('.tab-content');
+    allTabs.forEach((tab) => {
+      const tabElement = tab as HTMLElement;
+      if (tabElement.classList.contains('active')) {
+        if (!tabElement.getAttribute('data-tab')?.includes(activeTab)) {
+          tabElement.classList.remove('active');
+          tabElement.classList.add('inactive');
+        }
+      }
+    });
+  }, [activeTab]);
+
   const viewConfiguration = useCallback((viewPort: ScreenViewport) => {
-    // default execute the fitview tool and use the iso standard view after tile trees are loaded
     const tileTreesLoaded = () => {
       return new Promise((resolve, reject) => {
         const start = new Date();
@@ -111,14 +119,12 @@ const App: React.FC = () => {
             resolve(true);
           }
           const now = new Date();
-          // after 20 seconds, stop waiting and fit the view
           if (now.getTime() - start.getTime() > 20000) {
             reject();
           }
         }, 100);
       });
     };
-
     tileTreesLoaded().finally(() => {
       void IModelApp.tools.run(FitViewTool.toolId, viewPort, true, false);
       viewPort.view.setStandardRotation(StandardViewId.Iso);
@@ -131,7 +137,6 @@ const App: React.FC = () => {
   );
 
   const onIModelAppInit = useCallback(async () => {
-    // iModel now initialized
     await TreeWidget.initialize();
     await PropertyGridManager.initialize();
     await MeasureTools.startup();
@@ -140,7 +145,6 @@ const App: React.FC = () => {
 
   return (
     <div className="app-root">
-      {/* Keep the original "Signing in..." indicator */}
       {!accessToken && (
         <Flex justifyContent="center" style={{ height: "100%" }}>
           <div className="signin-content">
@@ -148,27 +152,53 @@ const App: React.FC = () => {
           </div>
         </Flex>
       )}
-
       <div className="app-shell">
         <LeftNavBar activeTab={activeTab} setActiveTab={setActiveTab} />
-
         <main className="app-main">
-          {activeTab === "home" && (
-            <HomeTab
-              iTwinId={iTwinId}
-              iModelId={iModelId}
-              changesetId={changesetId}
-              authClient={authClient}
-              viewCreatorOptions={viewCreatorOptions}
-              onIModelAppInit={onIModelAppInit}
-            />
-          )}
-
-          {activeTab === "dashboard" && <DashboardTab />}
-
-          {activeTab === "forecast" && <ForecastTab />}
-
-          {activeTab === "tuning" && <TuningTab />}
+          <div className="tabs-container">
+            {visitedTabs.has("home") && (
+              <div 
+                className={`tab-content ${activeTab === "home" ? "active" : "inactive"}`}
+                data-tab="home"
+              >
+                <HomeTab
+                  iTwinId={iTwinId}
+                  iModelId={iModelId}
+                  changesetId={changesetId}
+                  authClient={authClient}
+                  viewCreatorOptions={viewCreatorOptions}
+                  onIModelAppInit={onIModelAppInit}
+                />
+              </div>
+            )}
+            
+            {visitedTabs.has("dashboard") && (
+              <div 
+                className={`tab-content ${activeTab === "dashboard" ? "active" : "inactive"}`}
+                data-tab="dashboard"
+              >
+                <DashboardTab />
+              </div>
+            )}
+            
+            {visitedTabs.has("forecast") && (
+              <div 
+                className={`tab-content ${activeTab === "forecast" ? "active" : "inactive"}`}
+                data-tab="forecast"
+              >
+                <ForecastTab />
+              </div>
+            )}
+            
+            {visitedTabs.has("tuning") && (
+              <div 
+                className={`tab-content ${activeTab === "tuning" ? "active" : "inactive"}`}
+                data-tab="tuning"
+              >
+                <TuningTab />
+              </div>
+            )}
+          </div>
         </main>
       </div>
     </div>

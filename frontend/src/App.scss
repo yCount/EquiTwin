@@ -49,3 +49,75 @@
   padding: 1rem;
   text-align: center;
 }
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.app-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.app-main {
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.tabs-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  
+  .tab-content {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+    
+    &.inactive {
+      visibility: hidden;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+    }
+    
+    &.active {
+      visibility: visible;
+      pointer-events: auto;
+      z-index: 10;
+      opacity: 1;
+    }
+  }
+}
+
+* {
+  box-sizing: border-box;
+}

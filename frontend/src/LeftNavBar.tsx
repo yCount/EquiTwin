@@ -14,7 +14,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
         <button
           type="button" 
           className="logo-button"
-          style={{ backgroundColor: 'transparent', border: 'none'}}
+          style={{ backgroundColor: 'transparent', border: 'none', marginBottom: '6px' }}
         >
           <span>
             <img src="/images/EquiTwin_logo.png"
@@ -22,7 +22,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
             style={{ width: '50px', backgroundColor: 'transparent' }}
             />
           </span>
-          <span className="logo-label">EquiTwin</span>
+          <span className="logo-label" style={{ fontSize: '17px'}}>EquiTwin</span>
         </button>
 
         <button
@@ -172,13 +172,13 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
           <span className="info-label">Settings</span>
         </button>
         <button
-          className="info-button"
+          className="logo-button"
           type="button"
         >
-          <span className="info-icon">
+          <span className="logo-icon">
             <img src="/images/SAWB.png"
             alt="Sir Alwyn Willam Building"
-            style={{ width: '50px', borderRadius: '50%', objectFit: 'cover' }}
+            style={{ width: '50px', borderRadius: '50%', objectFit: 'cover', marginTop: '3px' }}
             />
           </span>
           <span className="info-label">SAW Building</span>
