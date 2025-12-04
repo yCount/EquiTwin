@@ -13,7 +13,7 @@
   position: relative;
 }
 
-.app-sidebar:hover {
+.app-sidebar.expanded {
   width: 200px;
   padding-right: 1rem;
 }
@@ -57,14 +57,15 @@
 }
 
 .info-button {
-  padding: 6px 0.4rem;
+  padding: 10px 0.4rem;
   padding-left: 8px;
   cursor: pointer;
 }
 
 .logo-button {
-  padding: 12px 0.4rem;
+  padding: 14px 0.4rem;
   padding-left: 8px;
+  cursor: pointer;
 }
 
 .tab-icon, .info-icon {
@@ -100,9 +101,9 @@
   transition: opacity 0.3s ease, width 0.3s ease, height 0.3s ease;
 }
 
-.app-sidebar:hover .logo-label,
-.app-sidebar:hover .tab-label,
-.app-sidebar:hover .info-label {
+.app-sidebar.expanded .logo-label,
+.app-sidebar.expanded .tab-label,
+.app-sidebar.expanded .info-label {
   opacity: 1;
   width: auto;
   height: auto;
@@ -122,7 +123,6 @@
 .info-button:hover {
   background: rgba(59, 130, 246, 0.1);
   border-color: rgba(59, 130, 246, 0.4);
-  transform: translateX(2px);
 }
 
 /* Logo specific styling */
@@ -154,4 +154,11 @@
   height: 50px;
   border-radius: 50%;
   object-fit: cover;
+}
+
+.nav-divider {
+  height: 1px;
+  background: #374151;
+  margin: 0.5rem 0;
+  width: calc(100% - 0.4rem);
 }

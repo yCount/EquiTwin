@@ -1,5 +1,4 @@
-import React from "react";
-
+import React, { useState } from "react";
 import "./LeftNavBar.scss";
 
 interface LeftNavBarProps {
@@ -8,13 +7,20 @@ interface LeftNavBarProps {
 }
 
 const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const toggleExpanded = () => {
+    setIsExpanded(!isExpanded);
+  };
+
   return (
-    <nav className="app-sidebar">
+    <nav className={`app-sidebar ${isExpanded ? "expanded" : ""}`}>
       <div className="nav-buttons">
         <button
           type="button" 
           className="logo-button"
-          style={{ backgroundColor: 'transparent', border: 'none', marginBottom: '6px' }}
+          style={{ backgroundColor: 'transparent', border: 'none' }}
+          onClick={toggleExpanded}
         >
           <span>
             <img src="/images/EquiTwin_logo.png"
@@ -24,7 +30,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
           </span>
           <span className="logo-label" style={{ fontSize: '17px'}}>EquiTwin</span>
         </button>
-
+        <div className="nav-divider" style={{ marginBottom: '12px' }}></div>
         <button
           type="button"
           className={`tab-button ${activeTab === "home" ? "active" : ""}`}
@@ -46,7 +52,6 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
           </span>
           <span className="tab-label">Home</span>
         </button>
-
         <button
           type="button"
           className={`tab-button ${activeTab === "dashboard" ? "active" : ""}`}
@@ -71,7 +76,6 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
           </span>
           <span className="tab-label">Dashboard</span>
         </button>
-
         <button
           type="button"
           className={`tab-button ${activeTab === "forecast" ? "active" : ""}`}
@@ -94,7 +98,6 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
           </span>
           <span className="tab-label">Prediction</span>
         </button>
-
         <button
           type="button"
           className={`tab-button ${activeTab === "tuning" ? "active" : ""}`}
@@ -150,6 +153,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
         <button
           className="info-button"
           type="button"
+          style={{ marginBottom: '3px', marginTop: '3px' }}
         >
           <span className="info-icon">
             <svg
@@ -171,14 +175,16 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
           </span>
           <span className="info-label">Settings</span>
         </button>
+        <div className="nav-divider"></div>
         <button
           className="logo-button"
           type="button"
+          onClick={toggleExpanded}
         >
           <span className="logo-icon">
             <img src="/images/SAWB.png"
             alt="Sir Alwyn Willam Building"
-            style={{ width: '50px', borderRadius: '50%', objectFit: 'cover', marginTop: '3px' }}
+            style={{ width: '50px', borderRadius: '50%', objectFit: 'cover' }}
             />
           </span>
           <span className="info-label">SAW Building</span>
