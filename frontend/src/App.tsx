@@ -7,7 +7,7 @@ import LeftNavBar from "./LeftNavBar";
 import HomeTab from "./tabs/HomeTab";
 import DashboardTab from "./tabs/DashboardTab";
 import ForecastTab from "./tabs/ForecastTab";
-import TuningTab from "./tabs/TuningTab";
+import ControllerTab from "./tabs/ControllerTab";
 import type { ScreenViewport } from "@itwin/core-frontend";
 import { FitViewTool, IModelApp, StandardViewId } from "@itwin/core-frontend";
 import { Flex, ProgressLinear } from "@itwin/itwinui-react";
@@ -195,7 +195,7 @@ const App: React.FC = () => {
                 className={`tab-content ${activeTab === "tuning" ? "active" : "inactive"}`}
                 data-tab="tuning"
               >
-                <TuningTab />
+                <ControllerTab />
               </div>
             )}
           </div>

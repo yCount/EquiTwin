@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+$bg-dark: #0b0d12;
+$panel-bg: rgba(255, 255, 255, 0.03);
+$panel-border: rgba(255, 255, 255, 0.08);
+$primary: #8b5cf6; 
+$secondary: #3b82f6; 
+$success: #10b981;
+$warning: #f59e0b;
+$text-main: #ffffff;
+$text-dim: rgba(255, 255, 255, 0.5);
+
+@mixin glass-panel {
+  background: $panel-bg;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid $panel-border;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+@mixin scrollbar {
+  &::-webkit-scrollbar { width: 6px; height: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; &:hover { background: rgba(255, 255, 255, 0.2); } }
+}
+
+.forecast-container {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  background-color: $bg-dark;
+  background-image: 
+    radial-gradient(circle at 85% 15%, rgba($primary, 0.08), transparent 25%),
+    radial-gradient(circle at 15% 85%, rgba($secondary, 0.05), transparent 25%);
+  color: $text-main;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  // Main Layout
+  .forecast-dashboard {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 380px; 
+    overflow: hidden;
+
+    // Right Panel - Configuration
+    .config-sidebar {
+      border-left: 1px solid $panel-border;
+      border-right: none;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      @include scrollbar;
+      background: rgba(0, 0, 0, 0.2);
+
+      .sidebar-section {
+        padding: 24px;
+        border-bottom: 1px solid $panel-border;
+        .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: $text-dim; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+        .pill-grid {
+          display: flex; flex-wrap: wrap; gap: 8px;
+          .pill-btn { flex: 1; min-width: 80px; padding: 8px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: $text-dim; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; &:hover { background: rgba(255,255,255,0.08); color: $text-main; } &.active { background: rgba($primary, 0.15); border-color: $primary; color: lighten($primary, 10%); box-shadow: 0 0 12px rgba($primary, 0.15); } }
+        }
+      }
+
+      .model-list {
+        display: flex; flex-direction: column; gap: 12px;
+        .model-item {
+          @include glass-panel; padding: 16px; cursor: pointer; border-color: transparent; background: rgba(255,255,255,0.02); transition: all 0.2s; position: relative; overflow: hidden;
+          &:hover { background: rgba(255,255,255,0.05); transform: translateX(4px); }
+          &.active { border-color: $primary; background: linear-gradient(90deg, rgba($primary, 0.1), transparent); &::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: $primary; } }
+          .model-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; .model-name { font-size: 14px; font-weight: 600; color: $text-main; } .accuracy { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; } }
+          .model-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: $text-dim; .badge { padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.1); text-transform: uppercase; font-weight: 600; font-size: 9px; &.trained { color: $success; background: rgba($success, 0.1); } &.training { color: $warning; background: rgba($warning, 0.1); } } }
+          .training-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.05); .fill { height: 100%; background: $warning; transition: width 0.3s ease; box-shadow: 0 0 8px $warning; } }
+          .actions-overlay { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; button { background: none; border: none; color: $primary; font-size: 11px; font-weight: 600; cursor: pointer; &:hover { text-decoration: underline; } } }
+        }
+      }
+    }
+
+    // Chart Area
+    .visualization-stage {
+      padding: 32px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      @include scrollbar;
+
+      .chart-card {
+        @include glass-panel; padding: 24px; flex: 1; min-height: 500px; display: flex; flex-direction: column;
+        .chart-header {
+          display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;
+          .title-group { h2 { font-size: 18px; margin: 0 0 4px 0; } p { font-size: 12px; color: $text-dim; margin: 0; } }
+          .legend-group { display: flex; gap: 16px; .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: $text-dim; .dot { width: 8px; height: 8px; border-radius: 50%; } .line { width: 16px; height: 3px; border-radius: 2px; } .area { width: 16px; height: 16px; border-radius: 4px; opacity: 0.3; } } }
+        }
+        .recharts-wrapper { font-family: 'JetBrains Mono', monospace; }
+      }
+      
+      .kpi-strip {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+        .kpi-box {
+          @include glass-panel; padding: 16px; display: flex; align-items: center; gap: 16px;
+          .icon-box { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; background: rgba(255,255,255,0.05); }
+          .kpi-content { display: flex; flex-direction: column; .label { font-size: 11px; text-transform: uppercase; color: $text-dim; font-weight: 600; } .value { font-size: 20px; font-weight: 700; font-family: 'JetBrains Mono', monospace; } }
+        }
+      }
+    }
+  }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 100; .modal-content { @include glass-panel; width: 500px; max-width: 90%; background: #13161c; border: 1px solid rgba(255,255,255,0.1); .modal-header { padding: 20px; border-bottom: 1px solid $panel-border; display: flex; justify-content: space-between; align-items: center; h2 { font-size: 18px; margin: 0; } .close-btn { background: none; border: none; color: $text-dim; cursor: pointer; font-size: 20px; } } .modal-body { padding: 24px; .config-group { margin-bottom: 20px; label { display: block; font-size: 12px; color: $text-dim; margin-bottom: 8px; text-transform: uppercase; font-weight: 600; display: flex; justify-content: space-between; .val { color: $primary; font-family: 'JetBrains Mono', monospace; } } input[type="range"] { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; -webkit-appearance: none; outline: none; &::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: $primary; border-radius: 50%; cursor: pointer; transition: transform 0.1s; &:hover { transform: scale(1.2); } } } select { width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 6px; outline: none; } .checkbox-row { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; transition: 0.2s; &:hover { background: rgba(255,255,255,0.05); } } } } .modal-footer { padding: 20px; border-top: 1px solid $panel-border; display: flex; gap: 12px; justify-content: flex-end; button { padding: 10px 20px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; &.cancel { background: rgba(255,255,255,0.05); color: $text-dim; &:hover { color: white; } } &.confirm { background: $primary; color: white; &:hover { background: lighten($primary, 5%); } } } } } }
+  .custom-tooltip { background: rgba(19, 21, 28, 0.95); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); .tooltip-label { font-size: 12px; color: $text-dim; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; } .tooltip-row { display: flex; justify-content: space-between; width: 180px; font-size: 13px; margin-bottom: 4px; .val { font-family: 'JetBrains Mono', monospace; font-weight: 700; } } .badge { display: inline-block; margin-top: 8px; padding: 2px 6px; font-size: 10px; border-radius: 4px; text-transform: uppercase; font-weight: 700; &.historical { background: rgba($secondary, 0.2); color: $secondary; } &.forecast { background: rgba($primary, 0.2); color: $primary; } } }
+
+  @media (max-width: 1024px) {
+    .forecast-dashboard {
+      grid-template-columns: 1fr;
+      overflow-y: auto;
+      .config-sidebar { height: auto; border-left: none; border-top: 1px solid $panel-border; flex-direction: column-reverse; order: 2; }
+      .visualization-stage { overflow: visible; order: 1; }
+    }
+  }
+}

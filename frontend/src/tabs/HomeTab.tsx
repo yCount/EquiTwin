@@ -18,10 +18,9 @@ import {
   ShowHideNullValuesSettingsMenuItem,
 } from "@itwin/property-grid-react";
 import { MeasureToolsUiItemsProvider } from "@itwin/measure-tools-react";
-
 import { unifiedSelectionStorage } from "../selectionStorage";
-
 import "./HomeTab.scss";
+import Topbar from "./components/Topbar";
 
 interface HomeTabProps {
   iTwinId: string | undefined;
@@ -40,238 +39,232 @@ const HomeTab: React.FC<HomeTabProps> = ({
   viewCreatorOptions,
   onIModelAppInit,
 }) => {
-
-  // Mock sensor data - To be deleted when integrated with real data source
   const sensorData = {
     weatherForecast: { value: "Sunny", unit: "25°C" },
-    occupancy: { value: "22", unit: "people" },
+    occupancy: { value: "22", unit: "ppl" },
     airQuality: { value: "45", unit: "AQI" },
     temperature: { value: "22.5", unit: "°C" },
-    deviation: { value: "2.3", unit: "% deviation" },
+    deviation: { value: "2.3", unit: "%" },
     energyUsage: { value: "1,247", unit: "kWh" },
   };
+
+  const handleCaptureScreenshot = () => {
+    // TODO: Implement screenshot capture logic
+    console.log("Capturing screenshot...");
+  };
+
+  const handleExportState = () => {
+    // TODO: Implement export current state logic (sensor data + view state)
+    console.log("Exporting current state...");
+  };
+
   return (
-    <div className="home-tab-wrapper">
-      <div className="viewer-container">
-        <Viewer
-          iTwinId={iTwinId ?? ""}
-          iModelId={iModelId ?? ""}
-          changeSetId={changesetId}
-          authClient={authClient}
-          viewCreatorOptions={viewCreatorOptions}
-          enablePerformanceMonitors={true}
-          onIModelAppInit={onIModelAppInit}
-          mapLayerOptions={{
-            BingMaps: { key: "key", value: process.env.IMJS_BING_MAPS_KEY ?? "" },
-          }}
-          backendConfiguration={{
-            defaultBackend: { rpcInterfaces: [ECSchemaRpcInterface] },
-          }}
-          uiProviders={[
-            new ViewerNavigationToolsProvider(),
-            new ViewerContentToolsProvider({
-              vertical: { measureGroup: false },
-            }),
-            new ViewerStatusbarItemsProvider(),
-            {
-              id: "TreeWidgetUIProvider",
-              getWidgets: () => [
-                createTreeWidget({
-                  trees: [
-                    {
-                      id: ModelsTreeComponent.id,
-                      getLabel: () => ModelsTreeComponent.getLabel(),
-                      render: (props) => (
-                        <ModelsTreeComponent
-                          getSchemaContext={(iModel) => iModel.schemaContext}
-                          density={props.density}
-                          selectionStorage={unifiedSelectionStorage}
-                          selectionMode="extended"
-                          onPerformanceMeasured={props.onPerformanceMeasured}
-                          onFeatureUsed={props.onFeatureUsed}
-                        />
-                      ),
-                    },
-                    {
-                      id: CategoriesTreeComponent.id,
-                      getLabel: () => CategoriesTreeComponent.getLabel(),
-                      render: (props) => (
-                        <CategoriesTreeComponent
-                          getSchemaContext={(iModel) => iModel.schemaContext}
-                          density={props.density}
-                          selectionStorage={unifiedSelectionStorage}
-                          onPerformanceMeasured={props.onPerformanceMeasured}
-                          onFeatureUsed={props.onFeatureUsed}
-                        />
-                      ),
-                    },
-                  ],
-                }),
-              ],
-            },
-            {
-              id: "PropertyGridUIProvider",
-              getWidgets: () => [
-                createPropertyGrid({
-                  autoExpandChildCategories: true,
-                  ancestorsNavigationControls: (props) => (
-                    <AncestorsNavigationControls {...props} />
-                  ),
-                  contextMenuItems: [
-                    (props) => <CopyPropertyTextContextMenuItem {...props} />,
-                  ],
-                  settingsMenuItems: [
-                    (props) => (
-                      <ShowHideNullValuesSettingsMenuItem
-                        {...props}
-                        persist={true}
-                      />
+    <div className="home-tab-container">
+      <Topbar 
+        title="Digital Twin Explorer"
+        subtitle="Real-time Building Visualization & Telemetry"
+        rightContent={
+          <>
+            <div className="status-pill" style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              fontSize: '12px', color: 'rgba(255,255,255,0.5)',
+              padding: '6px 12px', background: 'rgba(255,255,255,0.05)',
+              borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)'
+            }}>
+               <div className="dot" style={{
+                 width: '8px', height: '8px', borderRadius: '50%',
+                 background: '#10b981', boxShadow: '0 0 8px rgba(16,185,129, 0.5)'
+               }}></div>
+               <span>System Online</span>
+            </div>
+            <button className="topbar-btn" onClick={handleCaptureScreenshot}>
+             Capture Screenshot
+            </button>
+            <button className="topbar-btn primary" onClick={handleExportState}>
+             Export Current State
+            </button>
+          </>
+        }
+      />
+
+      {/* Main Layout */}
+      <div className="home-content">
+        
+        {/* Left: iTwin Viewer (Hero) */}
+        <div className="viewer-wrapper">
+          <Viewer
+            iTwinId={iTwinId ?? ""}
+            iModelId={iModelId ?? ""}
+            changeSetId={changesetId}
+            authClient={authClient}
+            viewCreatorOptions={viewCreatorOptions}
+            enablePerformanceMonitors={true}
+            onIModelAppInit={onIModelAppInit}
+            // Removed 'theme="dark"' to fix TS error
+            mapLayerOptions={{
+              BingMaps: { key: "key", value: process.env.IMJS_BING_MAPS_KEY ?? "" },
+            }}
+            backendConfiguration={{
+              defaultBackend: { rpcInterfaces: [ECSchemaRpcInterface] },
+            }}
+            uiProviders={[
+              new ViewerNavigationToolsProvider(),
+              new ViewerContentToolsProvider({
+                vertical: { measureGroup: false },
+              }),
+              new ViewerStatusbarItemsProvider(),
+              {
+                id: "TreeWidgetUIProvider",
+                getWidgets: () => [
+                  createTreeWidget({
+                    trees: [
+                      {
+                        id: ModelsTreeComponent.id,
+                        getLabel: () => ModelsTreeComponent.getLabel(),
+                        render: (props) => (
+                          <ModelsTreeComponent
+                            getSchemaContext={(iModel) => iModel.schemaContext}
+                            density={props.density}
+                            selectionStorage={unifiedSelectionStorage}
+                            selectionMode="extended"
+                            onPerformanceMeasured={props.onPerformanceMeasured}
+                            onFeatureUsed={props.onFeatureUsed}
+                          />
+                        ),
+                      },
+                      {
+                        id: CategoriesTreeComponent.id,
+                        getLabel: () => CategoriesTreeComponent.getLabel(),
+                        render: (props) => (
+                          <CategoriesTreeComponent
+                            getSchemaContext={(iModel) => iModel.schemaContext}
+                            density={props.density}
+                            selectionStorage={unifiedSelectionStorage}
+                            onPerformanceMeasured={props.onPerformanceMeasured}
+                            onFeatureUsed={props.onFeatureUsed}
+                          />
+                        ),
+                      },
+                    ],
+                  }),
+                ],
+              },
+              {
+                id: "PropertyGridUIProvider",
+                getWidgets: () => [
+                  createPropertyGrid({
+                    autoExpandChildCategories: true,
+                    ancestorsNavigationControls: (props) => (
+                      <AncestorsNavigationControls {...props} />
                     ),
-                  ],
-                }),
-              ],
-            },
-            new MeasureToolsUiItemsProvider(),
-          ]}
-          selectionStorage={unifiedSelectionStorage}
-        />
-      </div>
-
-      <div className="sensor-sidebar-panel">
-        <div className="sensor-sidebar-content">
-          <h2 className="sidebar-heading">Current Sensor Readings</h2>
-
-          {/* Sensor Cards Grid */}
-          <div className="sensors-grid">
-            {/* Weather Card */}
-            <div className="sensor-card card-weather">
-              <div className="card-icon">
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <circle cx="12" cy="12" r="4"></circle>
-                  <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
-                </svg>
-              </div>
-              <div className="card-label">Weather</div>
-              <div className="card-value">{sensorData.weatherForecast.value}</div>
-              <div className="card-unit">{sensorData.weatherForecast.unit}</div>
-            </div>
-
-            {/* Occupancy Card */}
-            <div className="sensor-card card-occupancy">
-              <div className="card-icon">
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="9" cy="7" r="4"></circle>
-                  <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path>
-                </svg>
-              </div>
-              <div className="card-label">Occupancy</div>
-              <div className="card-value">{sensorData.occupancy.value}</div>
-              <div className="card-unit">{sensorData.occupancy.unit}</div>
-            </div>
-
-            {/* AQ Card */}
-            <div className="sensor-card card-air">
-              <div className="card-icon">
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"></path>
-                </svg>
-              </div>
-              <div className="card-label">Air Quality</div>
-              <div className="card-value">{sensorData.airQuality.value}</div>
-              <div className="card-unit">{sensorData.airQuality.unit}</div>
-            </div>
-
-            {/* Temperature Card */}
-            <div className="sensor-card card-temperature">
-              <div className="card-icon">
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
-                </svg>
-              </div>
-              <div className="card-label">Temperature</div>
-              <div className="card-value">{sensorData.temperature.value}</div>
-              <div className="card-unit">{sensorData.temperature.unit}</div>
-            </div>
-          </div>
-
-          {/* Summary Cards */}
-          <div className="summary-cards-container">
-            {/* Deviation Card */}
-            <div className="summary-card status-warning">
-              <div className="summary-icon-box">
-                <svg
-                  width="26"
-                  height="26"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-                </svg>
-              </div>
-              <div className="summary-text">
-                <div className="summary-title">Deviation from Ideal</div>
-                <div className="summary-reading">
-                  {sensorData.deviation.value}
-                  <span className="reading-unit">{sensorData.deviation.unit}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Energy Usage Card */}
-            <div className="summary-card status-normal">
-              <div className="summary-icon-box">
-                <svg
-                  width="26"
-                  height="26"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-                </svg>
-              </div>
-              <div className="summary-text">
-                <div className="summary-title">Current Energy Usage</div>
-                <div className="summary-reading">
-                  {sensorData.energyUsage.value}
-                  <span className="reading-unit">{sensorData.energyUsage.unit}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+                    contextMenuItems: [
+                      (props) => <CopyPropertyTextContextMenuItem {...props} />,
+                    ],
+                    settingsMenuItems: [
+                      (props) => (
+                        <ShowHideNullValuesSettingsMenuItem
+                          {...props}
+                          persist={true}
+                        />
+                      ),
+                    ],
+                  }),
+                ],
+              },
+              new MeasureToolsUiItemsProvider(),
+            ]}
+            selectionStorage={unifiedSelectionStorage}
+          />
         </div>
+
+        {/* Right: HUD Sidebar */}
+        <aside className="hud-sidebar">
+           <div className="sidebar-scroll-area">
+              
+              {/* Environmental Group */}
+              <div className="section-group">
+                <div className="group-title">Environment</div>
+                <div className="sensor-grid">
+                  
+                  <div className="sensor-card weather">
+                    <div className="icon-box">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                    </div>
+                    <div className="label">Weather</div>
+                    <div className="value-group">
+                      <span className="val">{sensorData.weatherForecast.value}</span>
+                    </div>
+                  </div>
+
+                  <div className="sensor-card temp">
+                    <div className="icon-box">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+                    </div>
+                    <div className="label">Interior</div>
+                    <div className="value-group">
+                      <span className="val">{sensorData.temperature.value}</span>
+                      <span className="unit">{sensorData.temperature.unit}</span>
+                    </div>
+                  </div>
+
+                  <div className="sensor-card air">
+                     <div className="icon-box">
+                       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 8h14.5a2.5 2.5 0 0 1 0 5H14" /><path d="M6 16h13.5a2.5 2.5 0 0 0 0-5H19" /><path d="M2 12h5" /><path d="M16 8V7" /></svg>
+                     </div>
+                     <div className="label">Air Quality</div>
+                     <div className="value-group">
+                      <span className="val">{sensorData.airQuality.value}</span>
+                      <span className="unit">{sensorData.airQuality.unit}</span>
+                    </div>
+                  </div>
+
+                  <div className="sensor-card occupancy">
+                     <div className="icon-box">
+                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                     </div>
+                     <div className="label">Occupancy</div>
+                     <div className="value-group">
+                      <span className="val">{sensorData.occupancy.value}</span>
+                      <span className="unit">{sensorData.occupancy.unit}</span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* System Stats Group */}
+              <div className="section-group">
+                <div className="group-title">System Vitals</div>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
+                  
+                  <div className="summary-card normal">
+                    <div className="icon-box">
+                      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+                    </div>
+                    <div className="content">
+                      <div className="label">Energy Load</div>
+                      <span className="val">{sensorData.energyUsage.value}</span>
+                      <span className="unit">{sensorData.energyUsage.unit}</span>
+                    </div>
+                  </div>
+
+                  <div className="summary-card alert">
+                    <div className="icon-box">
+                      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18" strokeDasharray="4 2" opacity="0.5" /><path d="M3 12l4 0 4-4 4 8 5-6" /><circle cx="20" cy="10" r="2" fill="currentColor" stroke="none" /></svg>
+                    </div>
+                    <div className="content">
+                      <div className="label">Deviation</div>
+                      <span className="val">{sensorData.deviation.value}</span>
+                      <span className="unit">{sensorData.deviation.unit}</span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+           </div>
+        </aside>
+
       </div>
     </div>
   );

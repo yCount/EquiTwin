@@ -33,6 +33,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
         <div className="nav-divider" style={{ marginBottom: '12px' }}></div>
         <button
           type="button"
+          id="home-button"
           className={`tab-button ${activeTab === "home" ? "active" : ""}`}
           onClick={() => setActiveTab("home")}
         >
@@ -54,6 +55,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
         </button>
         <button
           type="button"
+          id="dashboard-button"
           className={`tab-button ${activeTab === "dashboard" ? "active" : ""}`}
           onClick={() => setActiveTab("dashboard")}
         >
@@ -78,6 +80,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
         </button>
         <button
           type="button"
+          id="prediction-button"
           className={`tab-button ${activeTab === "forecast" ? "active" : ""}`}
           onClick={() => setActiveTab("forecast")}
         >
@@ -100,6 +103,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
         </button>
         <button
           type="button"
+          id="controller-button"
           className={`tab-button ${activeTab === "tuning" ? "active" : ""}`}
           onClick={() => setActiveTab("tuning")}
         >

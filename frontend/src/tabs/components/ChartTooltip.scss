@@ -1,0 +1,64 @@
+
+.chart-tooltip-glass {
+  background: rgba(11, 13, 18, 0.85); // Dark semi-transparent
+  backdrop-filter: blur(12px);       // The "Frosted Glass" effect
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1); // Subtle border
+  padding: 12px 16px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); // Deep shadow for lift
+  min-width: 180px;
+  z-index: 100;
+
+  .tooltip-header {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5); // Dim text
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05); // Divider line
+    font-weight: 600;
+  }
+
+  .tooltip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      gap: 16px;
+
+      .row-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: rgba(255, 255, 255, 0.8);
+        
+        .indicator {
+          width: 8px;
+          height: 8px;
+          border-radius: 2px; // Square-ish dot for tech feel
+          box-shadow: 0 0 8px currentColor; // Neon glow on the dot
+        }
+      }
+
+      .row-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 700;
+        color: #ffffff;
+        
+        .unit {
+          font-size: 10px;
+          color: rgba(255, 255, 255, 0.5);
+          margin-left: 4px;
+          font-weight: 400;
+        }
+      }
+    }
+  }
+}

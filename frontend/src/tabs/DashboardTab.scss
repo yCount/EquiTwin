@@ -1,0 +1,205 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+$bg-dark: #0b0d12;
+$panel-bg: rgba(255, 255, 255, 0.03);
+$panel-border: rgba(255, 255, 255, 0.08);
+$primary: #3b82f6; 
+$success: #10b981;
+$warning: #f59e0b;
+$danger: #ef4444;
+$text-main: #ffffff;
+$text-dim: rgba(255, 255, 255, 0.5);
+@mixin glass-panel {
+  background: $panel-bg;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid $panel-border;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+@mixin scrollbar {
+  &::-webkit-scrollbar { width: 6px; height: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; &:hover { background: rgba(255, 255, 255, 0.2); } }
+}
+.dashboard-container {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  background-color: $bg-dark;
+  background-image: radial-gradient(circle at 50% 0%, rgba($primary, 0.08), transparent 40%);
+  color: $text-main;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+ 
+  // Main Layout - Grid
+  .dashboard-layout {
+    flex: 1;
+    display: grid;
+    // GRID: Main Content (Fluid) | Sidebar (Fixed 360px)
+    grid-template-columns: 1fr 360px;
+    overflow: hidden;
+    // LEFT: Main Stage
+    .main-stage {
+      padding: 16px 20px;
+      overflow-y: auto; 
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100%; 
+      min-height: 0;
+      .dashboard-scroll-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 600px;
+        overflow: visible;
+      }
+      // Master Timeline
+      .master-timeline-section {
+        @include glass-panel;
+        padding: 12px 16px;
+        flex-shrink: 0;
+        .section-header {
+          display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+          h3 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: $text-dim; }
+          .range-display { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: $primary; background: rgba($primary, 0.1); padding: 2px 6px; border-radius: 4px; }
+        }
+        .timeline-wrapper { height: 48px; .recharts-brush-slide { fill: rgba($primary, 0.1); stroke: $primary; } .recharts-brush-traveller { fill: $text-main; } }
+      }
+      // Analytics Grid
+      .analytics-grid {
+        flex: 1;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-rows: 1fr 1fr 1.1fr;
+        gap: 16px;
+        min-height: 0;
+        overflow: hidden;
+        .chart-card {
+          @include glass-panel;
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          transition: border-color 0.3s;
+          &:hover { border-color: rgba(255,255,255,0.2); }
+          
+          // First 4 charts - 2 per row
+          &:nth-child(1), &:nth-child(2) {
+            grid-row: 1;
+          }
+          &:nth-child(1) { grid-column: 1 / 3; }
+          &:nth-child(2) { grid-column: 3 / 5; }
+          &:nth-child(3) { grid-column: 1 / 3; }
+          &:nth-child(4) { grid-column: 3 / 5; }
+          
+          &.wide { 
+            grid-column: 1 / 5; 
+            grid-row: 3;
+          }
+          .card-header {
+            display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;
+            .title-group { h3 { margin: 0; font-size: 14px; font-weight: 600; color: $text-main; } .subtitle { font-size: 11px; color: $text-dim; margin-top: 2px; } }
+            .stats-group { display: flex; gap: 12px; .stat { text-align: right; .label { display: block; font-size: 9px; text-transform: uppercase; color: $text-dim; } .val { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: $text-main; font-weight: 600; } } }
+          }
+          .chart-area { flex: 1; min-height: 0; .recharts-wrapper { font-family: 'JetBrains Mono', monospace; font-size: 11px; } .recharts-cartesian-grid line { stroke: rgba(255,255,255,0.05); } }
+        }
+      }
+    }
+    // RIGHT - Context Sidebar
+    .context-sidebar {
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.2);
+      @include scrollbar;
+      .sidebar-section {
+        padding: 20px;
+        border-bottom: 1px solid $panel-border;
+        .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: $text-dim; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+        
+        // Control Groups
+        .control-group-vertical {
+          margin-bottom: 16px;
+          &:last-child { margin-bottom: 0; }
+          label { display: block; font-size: 11px; color: $text-dim; margin-bottom: 8px; font-weight: 600; }
+          .pill-grid {
+             display: flex; gap: 8px; flex-wrap: wrap;
+             .pill-btn { flex: 1; min-width: 60px; padding: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: $text-dim; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; &:hover { background: rgba(255,255,255,0.08); color: $text-main; } &.active { background: rgba($primary, 0.15); border-color: $primary; color: lighten($primary, 10%); box-shadow: 0 0 12px rgba($primary, 0.15); } }
+          }
+        }
+        // Insights List
+        .insights-list {
+          display: flex; flex-direction: column; gap: 14px;
+          .insight-item {
+             display: flex; gap: 12px; font-size: 12px; color: $text-dim; line-height: 1.4;
+             .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; &.warning { background: $warning; box-shadow: 0 0 8px rgba($warning, 0.5); } &.success { background: $success; box-shadow: 0 0 8px rgba($success, 0.5); } &.neutral { background: $primary; } }
+             strong { color: $text-main; }
+          }
+        }
+        // Action Buttons
+        .action-stack {
+           display: flex; flex-direction: column; gap: 10px;
+           .sidebar-action-btn {
+              width: 100%; padding: 11px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: $text-main; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;
+              &:hover { background: rgba(255,255,255,0.08); }
+              &.primary { background: linear-gradient(135deg, $primary, darken($primary, 10%)); border-color: transparent; &:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba($primary, 0.3); } }
+           }
+        }
+        
+        // Anomaly List in Sidebar
+        .anomaly-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          .anomaly-item {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 12px;
+            transition: all 0.2s;
+            &:hover {
+              background: rgba(255,255,255,0.06);
+              border-color: rgba(255,255,255,0.12);
+            }
+            .anomaly-top {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 6px;
+              .metric-name {
+                font-size: 12px;
+                font-weight: 600;
+                color: $text-main;
+              }
+              .status {
+                font-size: 8px;
+                text-transform: uppercase;
+                padding: 3px 6px;
+                border-radius: 3px;
+                background: rgba(255,255,255,0.08);
+                font-weight: 700;
+                letter-spacing: 0.5px;
+              }
+            }
+            .deviation-value {
+              font-family: 'JetBrains Mono', monospace;
+              font-size: 11px;
+              color: $text-dim;
+              line-height: 1.4;
+            }
+          }
+        }
+      }
+    }
+  }
+  @media (max-width: 1024px) {
+    .dashboard-layout {
+      grid-template-columns: 1fr;
+      .context-sidebar { order: 2; border-left: none; border-top: 1px solid $panel-border; height: auto; }
+      .main-stage { order: 1; }
+    }
+  }
+}

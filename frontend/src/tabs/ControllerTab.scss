@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+$bg-dark: #0b0d12;
+$panel-bg: rgba(255, 255, 255, 0.03);
+$panel-border: rgba(255, 255, 255, 0.08);
+$primary: #3b82f6; 
+$accent: #8b5cf6;  
+$success: #10b981; 
+$warning: #f59e0b; 
+$danger: #ef4444; 
+$text-main: #ffffff;
+$text-dim: rgba(255, 255, 255, 0.6);
+
+@mixin glass-panel {
+  background: $panel-bg;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid $panel-border;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+@mixin scrollbar {
+  &::-webkit-scrollbar { width: 6px; height: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; &:hover { background: rgba(255, 255, 255, 0.2); } }
+}
+
+.controller-container {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  background-color: $bg-dark;
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.08), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.08), transparent 25%);
+  color: $text-main;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  // Main Layout Grid
+  .dashboard-grid {
+    flex: 1;
+    display: grid;
+    // Flip columns. Content is fluid on left, Sidebar fixed on right.
+    grid-template-columns: 1fr 400px;
+    overflow: hidden;
+
+    // Right Panel - Controls
+    .controls-panel {
+      padding: 24px;
+      overflow-y: auto;
+      border-left: 1px solid $panel-border;
+      border-right: none;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      @include scrollbar;
+
+      .panel-section {
+        .section-header {
+          display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+          h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: $text-dim; font-weight: 700; margin: 0; }
+        }
+      }
+      .control-card {
+        @include glass-panel;
+        padding: 20px; margin-bottom: 16px; transition: border-color 0.2s;
+        &:hover { border-color: rgba(255,255,255,0.2); }
+        &.active-card { border: 1px solid $primary; background: rgba($primary, 0.05); }
+        .card-top { display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 15px; font-weight: 600; .icon { margin-right: 8px; } .val { font-family: 'JetBrains Mono', monospace; color: $primary; } }
+        input[type=range] { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; outline: none; -webkit-appearance: none; margin: 10px 0; &::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: white; border-radius: 50%; cursor: pointer; box-shadow: 0 0 10px rgba(0,0,0,0.5); transition: transform 0.1s; &:hover { transform: scale(1.2); } } }
+        .range-labels { display: flex; justify-content: space-between; font-size: 11px; color: $text-dim; font-weight: 500; }
+      }
+      .presets-mini-grid {
+        display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+        .preset-chip { padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; &:hover { background: rgba(255,255,255,0.08); } &.active { background: rgba($primary, 0.15); border-color: $primary; color: lighten($primary, 10%); } }
+      }
+      .accordion {
+        border-top: 1px solid $panel-border; padding-top: 16px;
+        .accordion-header { display: flex; justify-content: space-between; cursor: pointer; padding: 8px 0; color: $text-main; font-weight: 600; &:hover { color: $primary; } }
+        .accordion-body { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
+      }
+    }
+
+    // Visualisations
+    .visualization-panel {
+      padding: 32px;
+      overflow-y: auto;
+      background: rgba(0,0,0,0.2);
+      @include scrollbar;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+
+      .kpi-row {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;
+        .kpi-card {
+          @include glass-panel; padding: 20px; display: flex; align-items: center; gap: 16px;
+          .kpi-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; background: rgba(255,255,255,0.05); &.temp { color: $danger; background: rgba($danger, 0.1); } &.energy { color: $warning; background: rgba($warning, 0.1); } &.comfort { color: $success; background: rgba($success, 0.1); } }
+          .kpi-data { display: flex; flex-direction: column; .label { font-size: 12px; text-transform: uppercase; color: $text-dim; font-weight: 600; } .value { font-size: 24px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin-top: 2px; } .sub { font-size: 11px; color: $text-dim; margin-top: 2px; } }
+        }
+      }
+
+      .chart-section {
+        @include glass-panel; padding: 24px; flex: 1; min-height: 450px; display: flex; flex-direction: column;
+        .chart-header-row {
+          display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;
+          h3 { margin: 0; font-size: 18px; }
+          .chart-toggles {
+            display: flex; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 4px; gap: 4px;
+            button { background: transparent; border: none; color: $text-dim; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; &:hover { color: $text-main; } &.active { background: rgba(255,255,255,0.1); color: $text-main; box-shadow: 0 1px 2px rgba(0,0,0,0.2); } }
+          }
+        }
+        .recharts-wrapper { font-family: 'JetBrains Mono', monospace; }
+      }
+
+      .horizon-bar {
+        @include glass-panel; padding: 20px; display: flex; flex-direction: column; gap: 12px;
+        .horizon-title { font-size: 13px; font-weight: 700; color: $text-dim; text-transform: uppercase; }
+        .timeline-graphic {
+          position: relative; height: 40px; background: rgba(255,255,255,0.05); border-radius: 6px; overflow: hidden; display: flex;
+          .segment { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: rgba(0,0,0,0.6); position: relative; &.history { background: $text-dim; width: 20%; } &.control { background: linear-gradient(90deg, $primary, lighten($primary, 10%)); color: white; box-shadow: 0 0 15px rgba($primary, 0.4); z-index: 2; } &.prediction { background: linear-gradient(90deg, $accent, lighten($accent, 10%)); color: white; } }
+          .now-marker { position: absolute; left: 20%; top: 0; bottom: 0; width: 2px; background: $danger; z-index: 5; box-shadow: 0 0 8px $danger; &::after { content: 'NOW'; position: absolute; top: -20px; left: -12px; font-size: 10px; color: $danger; font-weight: bold; } }
+        }
+      }
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+      overflow-y: auto;
+      .visualization-panel { order: 1; overflow: visible; }
+      .controls-panel { order: 2; height: auto; border-left: none; border-top: 1px solid $panel-border; }
+    }
+  }
+}
