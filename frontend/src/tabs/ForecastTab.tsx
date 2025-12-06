@@ -14,7 +14,6 @@ import {
 import "./ForecastTab.scss";
 import Topbar from "./components/Topbar";
 
-// ... [Interfaces preserved] ...
 interface PredictionData {
   timestamp: string;
   fullTimestamp: Date;
