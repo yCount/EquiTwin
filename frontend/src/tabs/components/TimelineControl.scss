@@ -1,0 +1,277 @@
+$primary: #3b82f6; 
+$primary-glow: rgba(59, 130, 246, 0.6);
+$bg-dark: #0b0d12;
+$ruler-base: rgba(255, 255, 255, 0.1);
+$tooltip-bg: #1e1e24;
+
+.timeline-control-container {
+  width: 100%;
+  height: 36px; 
+  position: relative;
+  margin-top: 4px;
+  user-select: none;
+  padding-top: 12px; 
+
+  // 1. The Sparkline Layer (with selection indicators)
+  .timeline-sparkline-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: all; // Allow mouse events for tooltip
+    
+    svg {
+      width: 100%;
+      height: 100%;
+      pointer-events: none; // But SVG elements don't intercept clicks
+      
+      // Base sparkline styles
+      .sparkline-fill {
+        fill: rgba(59, 130, 246, 0.08);
+        transition: fill 0.3s ease;
+      }
+      
+      .sparkline-stroke {
+        stroke: rgba(59, 130, 246, 0.4);
+        stroke-width: 0.5;
+        transition: stroke 0.3s ease;
+      }
+      
+      // NEW: Selection overlay styles
+      .selection-dim {
+        fill: rgba(0, 0, 0, 0.5);
+      }
+      
+      .selection-line {
+        stroke: $primary;
+        stroke-width: 1;
+        opacity: 0.9;
+        filter: drop-shadow(0 0 4px $primary-glow);
+        
+        &.selection-line-start {
+          stroke: $primary;
+        }
+        
+        &.selection-line-end {
+          stroke: $primary;
+        }
+      }
+
+      // Hover indicator line
+      .hover-line {
+        stroke: rgba(255, 255, 255, 0.6);
+        stroke-width: 1;
+        pointer-events: none;
+      }
+    }
+  }
+
+  // Hover Tooltip
+  .timeline-tooltip {
+    position: absolute;
+    top: -50px;
+    transform: translateX(-50%);
+    background: $tooltip-bg;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 6px 10px;
+    border-radius: 6px;
+    pointer-events: none;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    
+    .tooltip-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 2px;
+    }
+    
+    .tooltip-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: $primary;
+      font-weight: 600;
+    }
+
+    // Tooltip arrow
+    &::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 4px solid $tooltip-bg;
+    }
+  }
+
+  // 2. The Base Line (The "Axis")
+  .timeline-ruler-track {
+    position: absolute;
+    top: 24px; 
+    left: 0;
+    width: 100%;
+    height: 0; 
+    border-bottom: 1px solid $ruler-base;
+    pointer-events: none;
+
+    .ruler-tick {
+      position: absolute;
+      top: 1px; 
+      background: $ruler-base;
+      transform: translateX(-50%);
+
+      &.major {
+        height: 5px;
+        width: 1px;
+
+        .tick-label {
+          position: absolute;
+          top: 6px; 
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 9px;
+          font-family: 'JetBrains Mono', monospace;
+          color: rgba(255, 255, 255, 0.3);
+          white-space: nowrap;
+        }
+      }
+
+      &.minor {
+        height: 3px;
+        width: 1px;
+      }
+    }
+  }
+
+  // 3. The Interactive Slider
+  .slider-wrapper {
+    position: absolute;
+    top: 24px;
+    left: 0;
+    width: 100%;
+    height: 0;
+
+    .rc-slider {
+      padding: 0;
+      width: 100%;
+
+      .rc-slider-rail {
+        background: transparent;
+        height: 0;
+      }
+
+      .rc-slider-track {
+        height: 2px;
+        top: -1px;
+        background: $primary;
+        box-shadow: 0 0 8px $primary-glow;
+        border-radius: 0;
+      }
+
+      .rc-slider-handle {
+        width: 0;
+        height: 0;
+        margin-top: 0;
+        border: none;
+        background: transparent;
+        opacity: 1;
+        box-shadow: none !important;
+
+        // Reset default active styles
+        &-dragging {
+           box-shadow: none !important;
+           // When dragging, force tooltip to show on the child
+           .custom-timeline-handle .handle-tooltip {
+              opacity: 1;
+              transform: translateX(-50%) translateY(-5px);
+           }
+        }
+
+        .custom-timeline-handle {
+            position: absolute;
+            top: -8px; 
+            height: 16px; 
+            width: 16px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: ew-resize; 
+            z-index: 100;
+            transform: translateX(-50%);
+
+            .handle-line {
+                width: 1px;
+                height: 100%;
+                background: #fff;
+                box-shadow: 0 0 4px rgba(0,0,0,0.5);
+                transition: height 0.2s, background 0.2s;
+            }
+
+            .handle-dot {
+                position: absolute;
+                bottom: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 3px;
+                height: 3px;
+                background: #fff;
+                border-radius: 50%;
+                transition: background 0.2s;
+            }
+
+            // --- The New Tooltip Styles ---
+            .handle-tooltip {
+              position: absolute;
+              bottom: 100%; // Above the handle
+              left: 50%;
+              transform: translateX(-50%) translateY(0);
+              background: $tooltip-bg;
+              border: 1px solid rgba(255,255,255,0.1);
+              padding: 4px 8px;
+              border-radius: 6px;
+              font-family: 'JetBrains Mono', monospace;
+              font-size: 10px;
+              color: #fff;
+              white-space: nowrap;
+              opacity: 0; // Hidden by default
+              pointer-events: none;
+              transition: all 0.2s ease;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+              z-index: 200;
+
+              // Little triangle arrow
+              &::after {
+                content: '';
+                position: absolute;
+                bottom: -4px;
+                left: 50%;
+                transform: translateX(-50%);
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 4px solid $tooltip-bg;
+              }
+            }
+
+            // Show tooltip on hover
+            &:hover {
+                .handle-line { 
+                    height: 20px; 
+                    top: -2px;
+                    background: $primary;
+                    box-shadow: 0 0 8px $primary;
+                }
+                .handle-dot { background: $primary; }
+                
+                .handle-tooltip {
+                  opacity: 1;
+                  transform: translateX(-50%) translateY(-5px);
+                }
+            }
+        }
+      }
+    }
+  }
+}

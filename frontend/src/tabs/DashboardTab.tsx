@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  LineChart,
-  Line,
   BarChart,
   Bar,
   XAxis,
@@ -12,22 +10,31 @@ import {
   Legend,
   Area,
   AreaChart,
-  Brush,
+  Line,
+  LineChart,
 } from "recharts";
 import "./DashboardTab.scss";
 import "./components/ChartTooltip.scss";
 import Topbar from "./components/Topbar";
+import TimelineControl from "./components/TimelineControl";
 
+// --- Interfaces ---
 interface ChartDataPoint {
   timestamp: string;
   fullTimestamp: Date;
   value: number;
-  predicted?: boolean;
 }
+
+interface WeatherDataPoint extends ChartDataPoint {
+  condition: 'sunny' | 'partly-cloudy' | 'cloudy' | 'rainy' | 'snowy';
+  temperature: number;
+}
+
 interface EnergyFloorData extends ChartDataPoint {
   floor3: number;
   floor4: number;
 }
+
 interface DeviationDataPoint {
   metric: string;
   actual: number;
@@ -36,304 +43,788 @@ interface DeviationDataPoint {
   status: 'critical' | 'warning' | 'good';
   impact: string;
 }
+
 interface SensorData {
   temperature: ChartDataPoint[];
   occupancy: ChartDataPoint[];
   airQuality: ChartDataPoint[];
-  energy: ChartDataPoint[];
+  weather: WeatherDataPoint[];
   energyByFloor: EnergyFloorData[];
   deviations: DeviationDataPoint[];
 }
+
 interface TimeRange {
-  start: number;
-  end: number;
+  start: number | null;
+  end: number | null;
 }
+
+// Weather condition colors
+const WEATHER_COLORS = {
+  'sunny': '#f59e0b',
+  'partly-cloudy': '#94a3b8',
+  'cloudy': '#64748b',
+  'rainy': '#3b82f6',
+  'snowy': '#e0f2fe',
+};
+
+const getRangeConfig = (range: string) => {
+  switch (range) {
+    case "24hr":   return { hours: 120,   interval: 900000, selectedHours: 24 };      
+    case "7days":  return { hours: 840,  interval: 3600000, selectedHours: 168 };     
+    case "30days": return { hours: 3600,  interval: 14400000, selectedHours: 720 };   
+    case "1M":     return { hours: 3600,  interval: 14400000, selectedHours: 720 };   
+    case "3M":     return { hours: 10800, interval: 43200000, selectedHours: 2160 };  
+    case "1Y":     return { hours: 43800, interval: 86400000, selectedHours: 8760 };  
+    case "ALL":    return { hours: 109500, interval: 259200000, selectedHours: 21900 };  
+    default:       return { hours: 120,   interval: 900000, selectedHours: 24 };
+  }
+};
+
 const DashboardTab = () => {
-  // --- State ---
   const [activeTimeRange, setActiveTimeRange] = useState<string>("24hr");
   const [selectedFloors, setSelectedFloors] = useState<string[]>(["floor1", "floor2", "floor3"]);
-  const [timeRange, setTimeRange] = useState<TimeRange>({ start: 0, end: 100 });
+  const [timeRange, setTimeRange] = useState<TimeRange>({ start: null, end: null });
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [sensorData, setSensorData] = useState<SensorData | null>(null);
-  // --- Data Generation ---
-  const generateTimeBasedData = (hours: number, max: number, min: number = 0, volatility: number = 0.15): ChartDataPoint[] => {
-    const data: ChartDataPoint[] = [];
-    const now = new Date();
-    const msPerInterval = 900000;
-    const totalIntervals = hours * 4;
-    let lastValue = (max + min) / 2;
-    for (let i = 0; i < totalIntervals; i++) {
-      const timestamp = new Date(now.getTime() - (totalIntervals - i) * msPerInterval);
-      const hour = timestamp.getHours();
-      let baseValue = lastValue;
-      if (hour >= 9 && hour <= 17) baseValue += (max - min) * 0.2;
-      else if (hour >= 0 && hour <= 6) baseValue -= (max - min) * 0.15;
-      
-      const change = (Math.random() - 0.5) * (max - min) * volatility;
-      lastValue = Math.max(min, Math.min(max, baseValue + change));
-      
-      let timeString;
-      if (hours <= 24) timeString = timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      else timeString = timestamp.toLocaleDateString([], { month: "short", day: "numeric" });
-      data.push({
-        timestamp: timeString,
-        fullTimestamp: timestamp,
-        value: lastValue,
-        predicted: i > totalIntervals * 0.75,
-      });
-    }
-    return data;
-  };
-  const generateEnergyByFloor = (hours: number): EnergyFloorData[] => {
-    const data: EnergyFloorData[] = [];
-    const now = new Date();
-    const totalIntervals = hours * 4;
-    for (let i = 0; i < totalIntervals; i++) {
-      const timestamp = new Date(now.getTime() - (totalIntervals - i) * 900000);
-      let timeString;
-      if (hours <= 24) timeString = timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      else timeString = timestamp.toLocaleDateString([], { month: "short", day: "numeric" });
-      
-      data.push({
-        timestamp: timeString,
-        fullTimestamp: timestamp,
-        value: 2000 + Math.random() * 500,
-        floor3: 800 + Math.random() * 200,
-        floor4: 1200 + Math.random() * 300,
-        predicted: i > totalIntervals * 0.75,
-      });
-    }
-    return data;
-  };
-  const generateDeviationData = (): DeviationDataPoint[] => {
-    return [
-      { metric: "Temperature", actual: 23.5, ideal: 22, deviation: 6.8, status: 'warning', impact: "Slight Efficiency Loss" },
-      { metric: "Occupancy", actual: 180, ideal: 150, deviation: 20, status: 'critical', impact: "Zone Overcrowded" },
-      { metric: "Air Quality", actual: 42, ideal: 50, deviation: -16, status: 'good', impact: "Optimal Conditions" },
-      { metric: "Energy", actual: 1450, ideal: 1200, deviation: 20.8, status: 'critical', impact: "Baseline Exceeded" },
-    ];
-  };
-  useEffect(() => {
-    let hours = 24;
-    if (activeTimeRange === "7days") hours = 168;
-    if (activeTimeRange === "30days") hours = 720;
-    const newData = {
-      temperature: generateTimeBasedData(hours, 28, 18, 0.1),
-      occupancy: generateTimeBasedData(hours, 200, 20, 0.25),
-      airQuality: generateTimeBasedData(hours, 100, 30, 0.15),
-      energy: generateTimeBasedData(hours, 2000, 500, 0.2),
-      energyByFloor: generateEnergyByFloor(hours),
-      deviations: [] as DeviationDataPoint[]
+  const [timelineViewRange, setTimelineViewRange] = useState<{ start: number; end: number } | null>(null);
+
+  const generateData = useMemo(() => {
+    const config = getRangeConfig(activeTimeRange);
+    const totalPoints = Math.floor((config.hours * 3600000) / config.interval);
+    const nowTime = new Date().getTime();
+
+    const makeSeries = (min: number, max: number): ChartDataPoint[] => {
+        const arr = new Array(totalPoints);
+        let lastVal = (min + max) / 2;
+        
+        for(let i = 0; i < totalPoints; i++) {
+            const t = nowTime - (totalPoints - i) * config.interval;
+            const change = (Math.random() - 0.5) * (max - min) * 0.1;
+            lastVal = Math.max(min, Math.min(max, lastVal + change));
+            
+            const date = new Date(t);
+            const hour = date.getHours();
+            let finalVal = lastVal;
+            if (hour >= 9 && hour <= 17) finalVal += (max - min) * 0.05;
+            
+            arr[i] = {
+                timestamp: "", 
+                fullTimestamp: date,
+                value: finalVal
+            };
+        }
+        return arr;
     };
-    newData.deviations = generateDeviationData();
-    setSensorData(newData);
+
+    const makeWeatherSeries = (): WeatherDataPoint[] => {
+        const arr = new Array(totalPoints);
+        let lastTemp = 20;
+        const conditions: ('sunny' | 'partly-cloudy' | 'cloudy' | 'rainy' | 'snowy')[] = 
+          ['sunny', 'partly-cloudy', 'cloudy', 'rainy', 'snowy'];
+        let currentCondition = 'partly-cloudy' as typeof conditions[number];
+        let conditionDuration = 0;
+        
+        for(let i = 0; i < totalPoints; i++) {
+            const t = nowTime - (totalPoints - i) * config.interval;
+            const date = new Date(t);
+            const hour = date.getHours();
+            const month = date.getMonth();
+            
+            if (conditionDuration === 0) {
+                const isWinter = month === 11 || month === 0 || month === 1;
+                const isSummer = month >= 5 && month <= 7;
+                
+                if (isWinter) {
+                    const winterWeights = [0.1, 0.2, 0.3, 0.2, 0.2];
+                    const rand = Math.random();
+                    let cumulative = 0;
+                    for (let j = 0; j < winterWeights.length; j++) {
+                        cumulative += winterWeights[j];
+                        if (rand < cumulative) {
+                            currentCondition = conditions[j];
+                            break;
+                        }
+                    }
+                } else if (isSummer) {
+                    const summerWeights = [0.4, 0.3, 0.2, 0.1, 0.0];
+                    const rand = Math.random();
+                    let cumulative = 0;
+                    for (let j = 0; j < summerWeights.length; j++) {
+                        cumulative += summerWeights[j];
+                        if (rand < cumulative) {
+                            currentCondition = conditions[j];
+                            break;
+                        }
+                    }
+                } else {
+                    currentCondition = conditions[Math.floor(Math.random() * 4)];
+                }
+                
+                conditionDuration = Math.floor(Math.random() * 8) + 3;
+            }
+            conditionDuration--;
+            
+            const seasonalBase = (month === 11 || month === 0 || month === 1) ? 5 : 
+                                (month >= 5 && month <= 7) ? 25 : 15;
+            const hourlyVariation = hour >= 12 && hour <= 16 ? 5 : hour >= 0 && hour <= 6 ? -5 : 0;
+            
+            const tempChange = (Math.random() - 0.5) * 2;
+            lastTemp = Math.max(-5, Math.min(35, lastTemp + tempChange));
+            
+            const targetTemp = seasonalBase + hourlyVariation;
+            lastTemp = lastTemp * 0.9 + targetTemp * 0.1;
+            
+            let conditionTempAdjust = 0;
+            if (currentCondition === 'sunny') conditionTempAdjust = 2;
+            if (currentCondition === 'rainy') conditionTempAdjust = -2;
+            if (currentCondition === 'snowy') conditionTempAdjust = -5;
+            
+            arr[i] = {
+                timestamp: "", 
+                fullTimestamp: date,
+                value: lastTemp + conditionTempAdjust,
+                condition: currentCondition,
+                temperature: lastTemp + conditionTempAdjust
+            };
+        }
+        return arr;
+    };
+
+    return {
+      temperature: makeSeries(18, 28),
+      occupancy: makeSeries(20, 200),
+      airQuality: makeSeries(30, 100),
+      weather: makeWeatherSeries(),
+      energyByFloor: makeSeries(1000, 3000).map(d => ({
+         fullTimestamp: d.fullTimestamp,
+         timestamp: "",
+         value: d.value,
+         floor3: d.value * 0.4,
+         floor4: d.value * 0.6
+      })),
+      deviations: [
+        { metric: "Temperature", actual: 23.5, ideal: 22, deviation: 6.8, status: 'warning', impact: "Efficiency" },
+        { metric: "Occupancy", actual: 180, ideal: 150, deviation: 20, status: 'critical', impact: "Crowding" },
+        { metric: "Air Quality", actual: 42, ideal: 50, deviation: -16, status: 'good', impact: "Optimal" },
+        { metric: "Weather", actual: 22, ideal: 20, deviation: 10, status: 'good', impact: "Forecast" },
+      ] as DeviationDataPoint[]
+    };
   }, [activeTimeRange, refreshKey]);
-  // --- Helpers ---
-  const getFilteredData = (data: any[]) => {
-    if (!data) return [];
-    const startIdx = Math.floor((timeRange.start / 100) * data.length);
-    const endIdx = Math.ceil((timeRange.end / 100) * data.length);
-    return data.slice(startIdx, endIdx);
-  };
-  const calculateMetrics = (data: ChartDataPoint[]) => {
-    if (!data || !data.length) return { avg: 0, max: 0, trend: 0 };
-    const actual = data.filter(d => !d.predicted);
-    if (!actual.length) return { avg: 0, max: 0, trend: 0 };
+
+  useEffect(() => {
+      setSensorData(generateData);
+      
+      if (generateData.temperature.length > 0) {
+        const dataLength = generateData.temperature.length;
+        const endTime = generateData.temperature[dataLength - 1].fullTimestamp.getTime();
+        const config = getRangeConfig(activeTimeRange);
+        const selectedDuration = config.selectedHours * 3600000;
+        const zoomStart = endTime - selectedDuration;
+        setTimeRange({ start: zoomStart, end: endTime });
+        setTimelineViewRange(null);
+      } else {
+        setTimeRange({ start: null, end: null });
+        setTimelineViewRange(null);
+      }
+  }, [generateData, activeTimeRange]);
+
+  const filteredData = useMemo(() => {
+    if (!sensorData) return null;
+    if (!timeRange.start || !timeRange.end) return sensorData;
+
+    const selectedDuration = timeRange.end - timeRange.start;
+    const shouldRegenerateData = selectedDuration <= 604800000;
     
-    const max = Math.max(...actual.map(d => d.value));
-    const avg = actual.reduce((a, b) => a + b.value, 0) / actual.length;
-    const current = actual[actual.length - 1].value;
-    const trend = actual.length > 1 ? ((current - actual[0].value) / actual[0].value) * 100 : 0;
-    return { avg, max, trend };
-  };
-  const resetTimeline = () => setTimeRange({ start: 0, end: 100 });
-  if (!sensorData) return <div className="loading-state">Loading Analytics...</div>;
-  const filteredTemp = getFilteredData(sensorData.temperature);
-  const filteredOcc = getFilteredData(sensorData.occupancy);
-  const filteredAir = getFilteredData(sensorData.airQuality);
-  const filteredEnergy = getFilteredData(sensorData.energy);
-  // --- NEW: THE NEAT BACKGROUND TOOLTIP ---
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
+    if (shouldRegenerateData) {
+      const getIntervalForDuration = (duration: number) => {
+        if (duration <= 86400000) return 900000;
+        if (duration <= 259200000) return 1800000;
+        if (duration <= 604800000) return 3600000;
+        return 3600000;
+      };
+      
+      const interval = getIntervalForDuration(selectedDuration);
+      const numPoints = Math.floor(selectedDuration / interval);
+      
+      const regenerateForRange = (min: number, max: number) => {
+        const arr = new Array(numPoints);
+        let lastVal = (min + max) / 2;
+        
+        for(let i = 0; i < numPoints; i++) {
+          const t = timeRange.start! + (i * interval);
+          const change = (Math.random() - 0.5) * (max - min) * 0.1;
+          lastVal = Math.max(min, Math.min(max, lastVal + change));
+          
+          const date = new Date(t);
+          const hour = date.getHours();
+          let finalVal = lastVal;
+          if (hour >= 9 && hour <= 17) finalVal += (max - min) * 0.05;
+          
+          arr[i] = {
+            timestamp: "",
+            fullTimestamp: date,
+            value: finalVal
+          };
+        }
+        return arr;
+      };
+      
+      const regenerateWeatherForRange = (): WeatherDataPoint[] => {
+        const arr = new Array(numPoints);
+        let lastTemp = 20;
+        const conditions: ('sunny' | 'partly-cloudy' | 'cloudy' | 'rainy' | 'snowy')[] = 
+          ['sunny', 'partly-cloudy', 'cloudy', 'rainy', 'snowy'];
+        let currentCondition = 'partly-cloudy' as typeof conditions[number];
+        let conditionDuration = 0;
+        
+        for(let i = 0; i < numPoints; i++) {
+          const t = timeRange.start! + (i * interval);
+          const date = new Date(t);
+          const hour = date.getHours();
+          const month = date.getMonth();
+          
+          if (conditionDuration === 0) {
+            const isWinter = month === 11 || month === 0 || month === 1;
+            const isSummer = month >= 5 && month <= 7;
+            
+            if (isWinter) {
+              const winterWeights = [0.1, 0.2, 0.3, 0.2, 0.2];
+              const rand = Math.random();
+              let cumulative = 0;
+              for (let j = 0; j < winterWeights.length; j++) {
+                cumulative += winterWeights[j];
+                if (rand < cumulative) {
+                  currentCondition = conditions[j];
+                  break;
+                }
+              }
+            } else if (isSummer) {
+              const summerWeights = [0.4, 0.3, 0.2, 0.1, 0.0];
+              const rand = Math.random();
+              let cumulative = 0;
+              for (let j = 0; j < summerWeights.length; j++) {
+                cumulative += summerWeights[j];
+                if (rand < cumulative) {
+                  currentCondition = conditions[j];
+                  break;
+                }
+              }
+            } else {
+              currentCondition = conditions[Math.floor(Math.random() * 4)];
+            }
+            
+            conditionDuration = Math.floor(Math.random() * 8) + 3;
+          }
+          conditionDuration--;
+          
+          const seasonalBase = (month === 11 || month === 0 || month === 1) ? 5 : 
+                               (month >= 5 && month <= 7) ? 25 : 15;
+          const hourlyVariation = hour >= 12 && hour <= 16 ? 5 : hour >= 0 && hour <= 6 ? -5 : 0;
+          
+          const tempChange = (Math.random() - 0.5) * 2;
+          lastTemp = Math.max(-5, Math.min(35, lastTemp + tempChange));
+          
+          const targetTemp = seasonalBase + hourlyVariation;
+          lastTemp = lastTemp * 0.9 + targetTemp * 0.1;
+          
+          let conditionTempAdjust = 0;
+          if (currentCondition === 'sunny') conditionTempAdjust = 2;
+          if (currentCondition === 'rainy') conditionTempAdjust = -2;
+          if (currentCondition === 'snowy') conditionTempAdjust = -5;
+          
+          arr[i] = {
+            timestamp: "",
+            fullTimestamp: date,
+            value: lastTemp + conditionTempAdjust,
+            condition: currentCondition,
+            temperature: lastTemp + conditionTempAdjust
+          };
+        }
+        return arr;
+      };
+      
+      return {
+        temperature: regenerateForRange(18, 28),
+        occupancy: regenerateForRange(20, 200),
+        airQuality: regenerateForRange(30, 100),
+        weather: regenerateWeatherForRange(),
+        energyByFloor: regenerateForRange(1000, 3000).map(d => ({
+          fullTimestamp: d.fullTimestamp,
+          timestamp: "",
+          value: d.value,
+          floor3: d.value * 0.4,
+          floor4: d.value * 0.6
+        })),
+        deviations: sensorData.deviations
+      };
+    }
+
+    const filter = (arr: ChartDataPoint[]) => 
+      arr.filter(d => {
+        const t = d.fullTimestamp.getTime();
+        return t >= timeRange.start! && t <= timeRange.end!;
+      });
+
+    return {
+      temperature: filter(sensorData.temperature),
+      occupancy: filter(sensorData.occupancy),
+      airQuality: filter(sensorData.airQuality),
+      weather: filter(sensorData.weather) as WeatherDataPoint[],
+      energyByFloor: filter(sensorData.energyByFloor) as EnergyFloorData[],
+      deviations: sensorData.deviations
+    };
+  }, [sensorData, timeRange]);
+
+  const fullTimeRange = useMemo(() => {
+    if (!sensorData || sensorData.temperature.length === 0) {
+      return { start: Date.now() - 86400000, end: Date.now() };
+    }
+    return {
+      start: sensorData.temperature[0].fullTimestamp.getTime(),
+      end: sensorData.temperature[sensorData.temperature.length - 1].fullTimestamp.getTime()
+    };
+  }, [sensorData]);
+
+  const handleTimelineChange = useCallback((start: number, end: number) => {
+    setTimeRange({ start, end });
+  }, []);
+
+  const resetTimeline = useCallback(() => {
+    setTimeRange({ start: null, end: null });
+    setTimelineViewRange(null);
+  }, []);
+
+  const ChartCard = React.memo(({ 
+    title, 
+    subtitle, 
+    data, 
+    color, 
+    unit, 
+    type = 'area',
+    stackConfig,
+    isWide = false 
+  }: { 
+    title: string; 
+    subtitle: string; 
+    data: any; 
+    color: string; 
+    unit: string; 
+    type?: 'area' | 'bar' | 'stacked' | 'weather';
+    stackConfig?: Array<{dataKey: string; name: string; color: string}>;
+    isWide?: boolean;
+  }) => {
+    const avg = useMemo(() => {
+      if (!data || data.length === 0) return '0';
+      if (type === 'weather') {
+        return (data.reduce((a: number, b: WeatherDataPoint) => a + b.temperature, 0) / data.length).toFixed(1);
+      }
+      return (data.reduce((a: number, b: any) => a + (b.value || 0), 0) / data.length).toFixed(0);
+    }, [data, type]);
+
+    const max = useMemo(() => {
+      if (!data || data.length === 0) return '0';
+      if (type === 'weather') {
+        return Math.max(...data.map((d: WeatherDataPoint) => d.temperature)).toFixed(1);
+      }
+      return Math.max(...data.map((d: any) => d.value || 0)).toFixed(0);
+    }, [data, type]);
+
+    if (!data || data.length === 0) return null;
+
+    const formatXAxis = (timestamp: Date) => {
+      if (!timestamp) return '';
+      const date = new Date(timestamp);
+      const duration = timeRange.end && timeRange.start ? timeRange.end - timeRange.start : Infinity;
+      
+      if (duration <= 86400000) {
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      } else if (duration <= 604800000) {
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      } else if (duration <= 2592000000) {
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      } else {
+        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      }
+    };
+
+    const formatTooltipTime = (timestamp: Date) => {
+      if (!timestamp) return '';
+      const date = new Date(timestamp);
+      return date.toLocaleString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    };
+
+    const CustomTooltip = ({ active, payload }: any) => {
+      if (!active || !payload || !payload.length) return null;
+      const pointData = payload[0].payload;
+
       return (
         <div className="chart-tooltip-glass">
-          <div className="tooltip-header">{label}</div>
+          <div className="tooltip-header">
+            {formatTooltipTime(pointData.fullTimestamp)}
+          </div>
           <div className="tooltip-body">
             {payload.map((entry: any, index: number) => (
-              <div key={index} className="tooltip-row">
+              <div className="tooltip-row" key={index}>
                 <div className="row-left">
-                  <div className="indicator" style={{ backgroundColor: entry.color, color: entry.color }} />
-                  <span>{entry.name}</span>
+                  <div 
+                    className="indicator" 
+                    style={{ backgroundColor: entry.color }}
+                  />
+                  <span>{entry.name || entry.dataKey}</span>
                 </div>
                 <div className="row-value">
-                  {Number(entry.value).toFixed(1)}
-                  <span className="unit">{entry.unit || ''}</span>
+                  {typeof entry.value === 'number' ? entry.value.toFixed(1) : entry.value}
+                  <span className="unit">{unit}</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
       );
-    }
-    return null;
-  };
-  // --- Chart Card ---
-  const ChartCard = ({ title, subtitle, data, color, type = "area", unit }: any) => {
-    const metrics = calculateMetrics(data);
+    };
+
+    const WeatherTooltip = ({ active, payload }: any) => {
+      if (!active || !payload || !payload.length) return null;
+      const weatherData = payload[0].payload as WeatherDataPoint;
+      const conditionColor = WEATHER_COLORS[weatherData.condition];
+      
+      return (
+        <div className="chart-tooltip-glass">
+          <div className="tooltip-header">
+            {formatTooltipTime(weatherData.fullTimestamp)}
+          </div>
+          <div className="tooltip-body">
+            <div className="tooltip-row">
+              <div className="row-left">
+                <div 
+                  className="indicator" 
+                  style={{ backgroundColor: conditionColor }}
+                />
+                <span style={{ textTransform: 'capitalize' }}>
+                  {weatherData.condition.replace('-', ' ')}
+                </span>
+              </div>
+              <div className="row-value">
+                {weatherData.temperature.toFixed(1)}
+                <span className="unit">°C</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const renderWeatherChart = () => {
+      const CustomLine = (props: any) => {
+        const { points } = props;
+        if (!points || points.length < 2) return null;
+
+        return (
+          <g>
+            {points.map((point: any, index: number) => {
+              if (index === points.length - 1) return null;
+              
+              const nextPoint = points[index + 1];
+              const currentData = data[index] as WeatherDataPoint;
+              const color = WEATHER_COLORS[currentData.condition as keyof typeof WEATHER_COLORS];
+
+              return (
+                <line
+                  key={`line-${index}`}
+                  x1={point.x}
+                  y1={point.y}
+                  x2={nextPoint.x}
+                  y2={nextPoint.y}
+                  stroke={color}
+                  strokeWidth={2}
+                  fill="none"
+                />
+              );
+            })}
+          </g>
+        );
+      };
+
+      return (
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <XAxis 
+              dataKey="fullTimestamp" 
+              tickFormatter={formatXAxis}
+              stroke="rgba(255,255,255,0.3)"
+              style={{ fontSize: '10px' }}
+            />
+            <YAxis 
+              stroke="rgba(255,255,255,0.3)"
+              style={{ fontSize: '10px' }}
+              domain={['dataMin - 2', 'dataMax + 2']}
+            />
+            <Tooltip content={<WeatherTooltip />} />
+            <Line
+              type="monotone"
+              dataKey="temperature"
+              stroke="transparent"
+              strokeWidth={2}
+              dot={false}
+              shape={<CustomLine />}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      );
+    };
+
     return (
-      <div className="chart-card">
+      <div className={`chart-card ${isWide ? 'wide' : ''}`}>
         <div className="card-header">
           <div className="title-group">
             <h3>{title}</h3>
             <div className="subtitle">{subtitle}</div>
           </div>
           <div className="stats-group">
-            <div className="stat"><span className="label">AVG</span><span className="val">{metrics.avg.toFixed(1)}</span></div>
-            <div className="stat"><span className="label">PEAK</span><span className="val">{metrics.max.toFixed(1)}</span></div>
+            <div className="stat">
+              <span className="label">AVG</span>
+              <span className="val">{avg} {unit}</span>
+            </div>
+            <div className="stat">
+              <span className="label">MAX</span>
+              <span className="val">{max} {unit}</span>
+            </div>
           </div>
         </div>
         <div className="chart-area">
-          <ResponsiveContainer width="100%" height="100%">
-            {type === 'bar' ? (
-              <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis 
-                  dataKey="timestamp" 
-                  stroke="rgba(255,255,255,0.3)" 
-                  tickLine={false} 
-                  tick={{fontSize:10}} 
-                  minTickGap={30} 
-                />
-                <YAxis stroke="rgba(255,255,255,0.3)" tickLine={false} tick={{fontSize:10}} domain={['auto','auto']} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" fill={color} name={title} unit={unit} radius={[4, 4, 0, 0]} opacity={0.8} />
-              </BarChart>
-            ) : (
+          {type === 'weather' ? renderWeatherChart() : 
+           type === 'area' ? (
+            <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data}>
                 <defs>
-                   <linearGradient id={`grad-${title}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={color} stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor={color} stopOpacity={0}/>
-                   </linearGradient>
+                  <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={color} stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor={color} stopOpacity={0}/>
+                  </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis 
-                  dataKey="timestamp" 
-                  stroke="rgba(255,255,255,0.3)" 
-                  tickLine={false} 
-                  tick={{fontSize:10}} 
-                  minTickGap={30} 
+                  dataKey="fullTimestamp" 
+                  tickFormatter={formatXAxis}
+                  stroke="rgba(255,255,255,0.3)"
+                  style={{ fontSize: '10px' }}
                 />
-                <YAxis stroke="rgba(255,255,255,0.3)" tickLine={false} tick={{fontSize:10}} domain={['auto','auto']} />
+                <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: '10px' }} />
                 <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="value" stroke={color} fill={`url(#grad-${title})`} name={title} unit={unit} strokeWidth={2} />
+                <Area 
+                  type="monotone" 
+                  dataKey="value" 
+                  stroke={color} 
+                  strokeWidth={2}
+                  fillOpacity={1} 
+                  fill={`url(#gradient-${title})`}
+                  name={title}
+                />
               </AreaChart>
-            )}
-          </ResponsiveContainer>
+            </ResponsiveContainer>
+          ) : type === 'bar' ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis 
+                  dataKey="fullTimestamp" 
+                  tickFormatter={formatXAxis}
+                  stroke="rgba(255,255,255,0.3)"
+                  style={{ fontSize: '10px' }}
+                />
+                <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: '10px' }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} name={title} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : type === 'stacked' && stackConfig ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data}>
+                <defs>
+                  {stackConfig.map(config => (
+                    <linearGradient key={config.dataKey} id={`gradient-${config.dataKey}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={config.color} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={config.color} stopOpacity={0}/>
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis 
+                  dataKey="fullTimestamp" 
+                  tickFormatter={formatXAxis}
+                  stroke="rgba(255,255,255,0.3)"
+                  style={{ fontSize: '10px' }}
+                />
+                <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: '10px' }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend wrapperStyle={{ fontSize: '11px' }} />
+                {stackConfig.map(config => (
+                  <Area
+                    key={config.dataKey}
+                    type="monotone"
+                    dataKey={config.dataKey}
+                    stackId="1"
+                    stroke={config.color}
+                    strokeWidth={2}
+                    fill={`url(#gradient-${config.dataKey})`}
+                    name={config.name}
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : null}
         </div>
       </div>
     );
-  };
+  });
+
+  if (!filteredData) return <div>Loading...</div>;
+
   return (
     <div className="dashboard-container">
-      {/* Header */}
       <Topbar 
         title="Historical Analytics"
-        subtitle="Deep dive into sensor logs and anomaly history"
+        subtitle="Deep dive into sensor logs and weather forecast"
         rightContent={
           <>
-             <div className="topbar-meta">Last Sync: 10:42 AM</div>
+             <div className="topbar-meta">
+                {timeRange.start ? 'Custom Filter' : activeTimeRange.toUpperCase()}
+             </div>
              <button className="topbar-btn" onClick={() => setRefreshKey(p => p + 1)}>
-               Refresh Dataset
-             </button>
-             <button className="topbar-btn primary">
-               Export PDF Report
-             </button>
-             <button className="topbar-btn">
-               Download CSV
+               Refresh
              </button>
           </>
         }
       />
+
       <div className="dashboard-layout">
         <main className="main-stage">
           <div className="dashboard-scroll-area">
             <section className="analytics-grid">
-               <ChartCard title="Temperature Log" subtitle="Zone Avg" data={filteredTemp} color="#ef4444" unit="°C" />
-               <ChartCard title="Weather" subtitle="Avg" data={filteredEnergy} color="#f59e0b" unit="kWh" />
-               <ChartCard title="Occupancy" subtitle="Density" data={filteredOcc} color="#8b5cf6" type="bar" unit="Ppl" />
-               <ChartCard title="Air Quality" subtitle="CO2 / PM2.5" data={filteredAir} color="#10b981" unit="AQI" />
-               <div className="chart-card wide">
-                  <div className="card-header">
-                     <div className="title-group">
-                       <h3>Energy Distribution by Floor</h3>
-                       <div className="subtitle">Stacked view of power draw per level</div>
-                     </div>
-                  </div>
-                  <div className="chart-area">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={getFilteredData(sensorData.energyByFloor)}>
-                         <defs>
-                            <linearGradient id="g-f3" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient>
-                            <linearGradient id="g-f4" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4}/><stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/></linearGradient>
-                         </defs>
-                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                         <XAxis 
-                           dataKey="timestamp" 
-                           stroke="rgba(255,255,255,0.3)" 
-                           tickLine={false} 
-                           style={{fontSize:'10px'}} 
-                           minTickGap={30}
-                         />
-                         <YAxis stroke="rgba(255,255,255,0.3)" tickLine={false} style={{fontSize:'10px'}}/>
-                         <Tooltip content={<CustomTooltip />} />
-                         <Legend />
-                         <Area type="monotone" dataKey="floor3" name="Floor 3" stroke="#3b82f6" fill="url(#g-f3)" stackId="1" unit="kWh" />
-                         <Area type="monotone" dataKey="floor4" name="Floor 4" stroke="#8b5cf6" fill="url(#g-f4)" stackId="1" unit="kWh" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-               </div>
+               <ChartCard title="Temperature" subtitle="Avg" data={filteredData.temperature} color="#ef4444" unit="°C" />
+               <ChartCard 
+                 title="Weather Forecast" 
+                 subtitle="Temp" 
+                 data={filteredData.weather} 
+                 color="#f59e0b" 
+                 unit="°C" 
+                 type="weather"
+               />
+               <ChartCard title="Occupancy" subtitle="Ppl" data={filteredData.occupancy} color="#8b5cf6" type="bar" unit="Ppl" />
+               <ChartCard title="Air Quality" subtitle="AQI" data={filteredData.airQuality} color="#10b981" unit="AQI" />
+               
+               <ChartCard 
+                 title="Floor Distribution" 
+                 subtitle="Energy" 
+                 data={filteredData.energyByFloor} 
+                 color="#3b82f6" 
+                 unit="kWh"
+                 type="stacked"
+                 stackConfig={[
+                   { dataKey: 'floor3', name: 'Floor 3', color: '#3b82f6' },
+                   { dataKey: 'floor4', name: 'Floor 4', color: '#8b5cf6' }
+                 ]}
+                 isWide={true}
+               />
             </section>
           </div>
+
           <section className="master-timeline-section">
             <div className="section-header">
               <h3>Global Time Scrubber</h3>
-              <span className="range-display">
-                Zoomed: {timeRange.start.toFixed(0)}% - {timeRange.end.toFixed(0)}%
-              </span>
+              <div className="header-controls">
+                <span className="range-display">
+                  {timeRange.start ? 'CUSTOM FILTER' : 'FULL RANGE'}
+                </span>
+                {timeRange.start && (
+                  <button className="reset-zoom-btn" onClick={resetTimeline}>
+                    Reset Zoom
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="timeline-wrapper">
-               <ResponsiveContainer width="100%" height="100%">
-                 <LineChart data={sensorData.temperature}>
-                   <Line type="monotone" dataKey="value" stroke="#4b5563" dot={false} strokeWidth={1} />
-                   <Brush 
-                     dataKey="timestamp" 
-                     height={18} 
-                     stroke="#3b82f6" 
-                     fill="rgba(59, 130, 246, 0.05)"
-                     onChange={(range: any) => {
-                       if(range.startIndex !== undefined) {
-                         const total = sensorData.temperature.length;
-                         setTimeRange({ start: (range.startIndex/total)*100, end: (range.endIndex/total)*100 });
-                       }
-                     }}
-                   />
-                 </LineChart>
-               </ResponsiveContainer>
+            <div 
+              className="timeline-wrapper"
+              onWheel={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const ZOOM_SENSITIVITY = 0.05;
+                
+                const fullDatabaseStart = fullTimeRange.start;
+                const fullDatabaseEnd = fullTimeRange.end;
+                const fullDatabaseDuration = fullDatabaseEnd - fullDatabaseStart;
+                
+                const currentViewStart = timelineViewRange?.start || fullDatabaseStart;
+                const currentViewEnd = timelineViewRange?.end || fullDatabaseEnd;
+                const currentViewDuration = currentViewEnd - currentViewStart;
+                
+                const zoomFactor = 1 + (e.deltaY * ZOOM_SENSITIVITY);
+                let newViewDuration = currentViewDuration * zoomFactor;
+                
+                const minViewDuration = timeRange.start && timeRange.end 
+                  ? (timeRange.end - timeRange.start) * 1.2
+                  : fullDatabaseDuration * 0.1;
+                
+                newViewDuration = Math.max(minViewDuration, Math.min(fullDatabaseDuration, newViewDuration));
+                
+                if (newViewDuration >= fullDatabaseDuration * 0.99) {
+                  setTimelineViewRange(null);
+                  return;
+                }
+                
+                let center;
+                if (timeRange.start && timeRange.end) {
+                  center = (timeRange.start + timeRange.end) / 2;
+                } else {
+                  center = (currentViewStart + currentViewEnd) / 2;
+                }
+                
+                let newViewStart = center - (newViewDuration / 2);
+                let newViewEnd = center + (newViewDuration / 2);
+                
+                if (newViewStart < fullDatabaseStart) {
+                  newViewStart = fullDatabaseStart;
+                  newViewEnd = newViewStart + newViewDuration;
+                }
+                if (newViewEnd > fullDatabaseEnd) {
+                  newViewEnd = fullDatabaseEnd;
+                  newViewStart = newViewEnd - newViewDuration;
+                }
+                
+                setTimelineViewRange({ start: newViewStart, end: newViewEnd });
+              }}
+            >
+               <TimelineControl 
+                 fullTimeRange={fullTimeRange}
+                 selectedRange={timeRange}
+                 onChange={handleTimelineChange}
+                 data={timelineViewRange 
+                   ? sensorData?.weather.filter(d => {
+                       const t = d.fullTimestamp.getTime();
+                       return t >= timelineViewRange.start && t <= timelineViewRange.end;
+                     })
+                   : sensorData?.weather
+                 }
+                 dataKey="temperature"
+               />
             </div>
           </section>
         </main>
+
         <aside className="context-sidebar">
           <div className="sidebar-section">
-            <div className="section-title">
-              <span>View Settings</span>
-            </div>
-            
+            <div className="section-title"><span>View Settings</span></div>
             <div className="control-group-vertical">
               <label>Time Range</label>
               <div className="pill-grid">
-                {['24hr', '7days', '30days', '1M', '3M', '1Y'].map(r => (
+                {['24hr', '7days', '30days', '1M', '3M', '1Y', 'ALL'].map(r => (
                   <button 
                     key={r} 
                     className={`pill-btn ${activeTimeRange === r ? 'active' : ''}`}
@@ -344,7 +835,7 @@ const DashboardTab = () => {
                 ))}
               </div>
             </div>
-            <div className="control-group-vertical">
+             <div className="control-group-vertical">
               <label>Floor Filter</label>
               <div className="pill-grid">
                 {['1', '2', '3'].map(f => (
@@ -362,32 +853,13 @@ const DashboardTab = () => {
               </div>
             </div>
           </div>
-          <div className="sidebar-section">
-            <div className="section-title">
-              <span>Key Insights</span>
-            </div>
-            <div className="insights-list">
-              <div className="insight-item">
-                <div className="dot warning"></div>
-                <p><strong>Energy Spike:</strong> Floor 3 exceeded baseline by 12% at 14:00.</p>
-              </div>
-              <div className="insight-item">
-                <div className="dot success"></div>
-                <p><strong>Optimization:</strong> HVAC efficiency improved by 4% vs last week.</p>
-              </div>
-              <div className="insight-item">
-                <div className="dot neutral"></div>
-                <p><strong>Occupancy:</strong> Peak density observed in Conference Zone A.</p>
-              </div>
-            </div>
-          </div>
           
-          <div className="sidebar-section" style={{borderBottom: 'none'}}>
+           <div className="sidebar-section" style={{borderBottom: 'none'}}>
             <div className="section-title">
               <span>Anomaly Detection Log</span>
             </div>
             <div className="anomaly-list">
-              {sensorData.deviations.map(dev => (
+              {sensorData?.deviations.map(dev => (
                 <div key={dev.metric} className={`anomaly-item ${dev.status}`}>
                    <div className="anomaly-top">
                      <span className="metric-name">{dev.metric}</span>
@@ -405,4 +877,5 @@ const DashboardTab = () => {
     </div>
   );
 };
+
 export default DashboardTab;
