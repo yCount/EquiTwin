@@ -394,17 +394,17 @@ $text-dim: rgba(255, 255, 255, 0.5);
           .action-btn {
             padding: 10px 20px;
             background: rgba($primary, 0.15);
-            border: 1px solid $primary;
+            border: 1px solid #c52937;
             border-radius: 8px;
-            color: $primary;
+            color: #e5e7eb;
             font-weight: 600;
             font-size: 13px;
             cursor: pointer;
             transition: all 0.2s;
 
             &:hover {
-              background: $primary;
-              color: white;
+              background: #c52937;
+              color: #e5e7eb;
             }
 
             &.secondary {
@@ -971,6 +971,146 @@ $text-dim: rgba(255, 255, 255, 0.5);
 
     .forecasters-section .forecasters-grid {
       grid-template-columns: 1fr;
+    }
+  }
+}
+
+.prediction-preview {
+  // 1. Controls Area
+  .preview-controls {
+    margin-bottom: 20px;
+
+    .control-label {
+      display: block;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim, $text-dim);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .feature-selector {
+      display: flex;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+
+      .selector-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 4px;
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: var(--text-dim, $text-dim);
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.05);
+          color: var(--text-main, $text-main);
+        }
+
+        &.active {
+          background: rgba($primary, 0.15);
+          color: lighten($primary, 10%);
+          box-shadow: 0 2px 8px rgba($primary, 0.1);
+
+          .icon svg { stroke-width: 2.5px; }
+        }
+
+        .icon {
+          height: 20px;
+          display: flex; align-items: center;
+          svg { width: 18px; height: 18px; }
+        }
+
+        .label {
+          font-size: 10px;
+          font-weight: 500;
+          text-transform: capitalize;
+        }
+      }
+    }
+  }
+
+  // 2. Chart Area
+  .preview-chart-container {
+    margin-bottom: 16px;
+    padding: 10px 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.01) 0%, transparent 100%);
+    border-radius: 8px;
+  }
+
+  // 3. Legend
+  .preview-legend {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-dim, $text-dim);
+      font-weight: 500;
+
+      .dot { width: 8px; height: 8px; border-radius: 50%; }
+      .box { width: 12px; height: 12px; border-radius: 3px; }
+
+      .actual { background: $secondary; box-shadow: 0 0 6px rgba($secondary, 0.4); }
+      .predicted { background: $primary; border: 2px solid $primary; background: transparent; }
+      .confidence { background: rgba($primary, 0.3); }
+    }
+  }
+}
+
+// --- Tooltip Styles (Ensuring they exist locally) ---
+.chart-tooltip-glass {
+  background: rgba(11, 13, 18, 0.85); // Dark glass
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  min-width: 140px;
+
+  .tooltip-header {
+    font-size: 11px;
+    color: var(--text-dim, $text-dim);
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .tooltip-body {
+    display: flex; flex-direction: column; gap: 6px;
+
+    .tooltip-row {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 12px;
+      font-size: 12px;
+
+      .row-left {
+        display: flex; align-items: center; gap: 6px;
+        .indicator { width: 6px; height: 6px; border-radius: 50%; }
+        span { color: var(--text-dim, $text-dim); }
+      }
+
+      .row-value {
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 600;
+        .unit { font-size: 10px; color: var(--text-dim, $text-dim); margin-left: 2px; }
+      }
     }
   }
 }

@@ -15,10 +15,7 @@ import {
 } from "recharts";
 import "./ForecastTab.scss";
 import Topbar from "./components/Topbar";
-
-// ============================================================================
-// INTERFACES
-// ============================================================================
+import RightSidebar, { SidebarSection } from "./components/RightSidebar";
 
 interface ProcessModel {
   id: string;
@@ -90,12 +87,7 @@ interface PredictionData {
   type: 'historical' | 'forecast';
 }
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
-
 const ForecastTab: React.FC = () => {
-  // --- State ---
   const [processModels, setProcessModels] = useState<ProcessModel[]>([]);
   const [forecasters, setForecasters] = useState<Forecaster[]>([]);
   const [dataStatus, setDataStatus] = useState<DataCollectionStatus | null>(null);
@@ -113,15 +105,12 @@ const ForecastTab: React.FC = () => {
   });
   const [trainingHistory, setTrainingHistory] = useState<TrainingHistoryItem[]>([]);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
-  const [showTrainingModal, setShowTrainingModal] = useState<boolean>(false);
   const [selectedFeature, setSelectedFeature] = useState<string>('temperature');
   const [predictionData, setPredictionData] = useState<PredictionData[]>([]);
   const [expandedModel, setExpandedModel] = useState<string | null>(null);
   const [isRetrainingAll, setIsRetrainingAll] = useState<boolean>(false);
 
-  // --- Initialize Data ---
   useEffect(() => {
-    // Process Models (one per controlled feature)
     const initialModels: ProcessModel[] = [
       {
         id: 'temp-model',
@@ -180,7 +169,6 @@ const ForecastTab: React.FC = () => {
     ];
     setProcessModels(initialModels);
 
-    // Forecasters (disturbance predictors)
     const initialForecasters: Forecaster[] = [
       {
         id: 'occ-forecaster',
@@ -203,7 +191,6 @@ const ForecastTab: React.FC = () => {
     ];
     setForecasters(initialForecasters);
 
-    // Data Collection Status
     setDataStatus({
       totalSamples: 12847,
       targetSamples: 20000,
@@ -217,7 +204,6 @@ const ForecastTab: React.FC = () => {
       samplingInterval: 15,
     });
 
-    // Training History
     setTrainingHistory([
       { date: new Date(Date.now() - 2 * 3600000), trigger: 'Scheduled', duration: 4, result: 'success', modelsUpdated: ['Temperature', 'Air Quality', 'Energy'] },
       { date: new Date(Date.now() - 7 * 24 * 3600000), trigger: 'Scheduled', duration: 5, result: 'success', modelsUpdated: ['Temperature', 'Air Quality', 'Energy'] },
@@ -226,7 +212,6 @@ const ForecastTab: React.FC = () => {
     ]);
   }, []);
 
-  // --- Generate Prediction Data ---
   useEffect(() => {
     const selectedModel = processModels.find(m => m.feature === selectedFeature);
     if (!selectedModel) return;
@@ -237,7 +222,6 @@ const ForecastTab: React.FC = () => {
     const historicalPoints = 48;
     const forecastPoints = 48;
 
-    // Historical data
     for (let i = historicalPoints; i > 0; i--) {
       const timestamp = new Date(now.getTime() - i * msPerInterval);
       const baseValue = selectedFeature === 'temperature' ? 22 : selectedFeature === 'energy' ? 50 : 600;
@@ -255,7 +239,6 @@ const ForecastTab: React.FC = () => {
       });
     }
 
-    // Forecast data
     for (let i = 1; i <= forecastPoints; i++) {
       const timestamp = new Date(now.getTime() + i * msPerInterval);
       const baseValue = selectedFeature === 'temperature' ? 22 : selectedFeature === 'energy' ? 50 : 600;
@@ -276,7 +259,6 @@ const ForecastTab: React.FC = () => {
     setPredictionData(data);
   }, [selectedFeature, processModels]);
 
-  // --- Handlers ---
   const handleRetrainModel = (modelId: string) => {
     setProcessModels(prev => prev.map(m => 
       m.id === modelId ? { ...m, status: 'training', trainingProgress: 0 } : m
@@ -324,16 +306,6 @@ const ForecastTab: React.FC = () => {
     return '#ef4444';
   };
 
-  const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'trained': case 'ready': return '#10b981';
-      case 'training': return '#f59e0b';
-      case 'pending': return '#3b82f6';
-      case 'error': case 'disconnected': return '#ef4444';
-      default: return '#6b7280';
-    }
-  };
-
   const getUnit = (feature: string): string => {
     switch (feature) {
       case 'temperature': return '°C';
@@ -343,7 +315,6 @@ const ForecastTab: React.FC = () => {
     }
   };
 
-  // --- Custom Tooltip ---
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const isHistorical = payload[0]?.payload?.type === 'historical';
@@ -391,7 +362,6 @@ const ForecastTab: React.FC = () => {
     return null;
   };
 
-  // --- Render ---
   return (
     <div className="forecast-container">
       <Topbar
@@ -403,13 +373,13 @@ const ForecastTab: React.FC = () => {
               <span className="status-dot online" />
               <span>All Models Ready</span>
             </div>
-            <button 
+            {/* <button 
               className="topbar-btn primary" 
               onClick={handleRetrainAll}
               disabled={isRetrainingAll}
             >
               {isRetrainingAll ? '⏳ Training...' : '🔄 Retrain All'}
-            </button>
+            </button> */}
           </>
         }
       />
@@ -418,10 +388,9 @@ const ForecastTab: React.FC = () => {
         {/* === LEFT: Main Content === */}
         <div className="main-content">
           
-          {/* Data Collection Status */}
           <section className="data-status-section">
             <div className="section-header">
-              <h2>📊 Data Collection Status</h2>
+              <h2>Data Collection Status</h2>
               <span className="status-pill active">● Active</span>
             </div>
             
@@ -439,7 +408,7 @@ const ForecastTab: React.FC = () => {
                     />
                   </div>
                   <p className="progress-hint">
-                    ℹ️ Recommended: {dataStatus.targetSamples.toLocaleString()} samples for optimal model performance
+                    Recommended: {dataStatus.targetSamples.toLocaleString()} samples for optimal model performance
                   </p>
                 </div>
 
@@ -460,7 +429,6 @@ const ForecastTab: React.FC = () => {
             )}
           </section>
 
-          {/* Process Models */}
           <section className="models-section">
             <div className="section-header">
               <h2>Process Models</h2>
@@ -538,13 +506,13 @@ const ForecastTab: React.FC = () => {
                           onClick={() => handleRetrainModel(model.id)}
                           disabled={model.status === 'training'}
                         >
-                          🔄 Retrain
+                          Retrain
                         </button>
                         <button 
                           className="action-btn secondary"
                           onClick={() => setSelectedFeature(model.feature)}
                         >
-                          📈 View Predictions
+                          View Predictions
                         </button>
                       </div>
 
@@ -559,10 +527,9 @@ const ForecastTab: React.FC = () => {
             </div>
           </section>
 
-          {/* Forecasters */}
           <section className="forecasters-section">
             <div className="section-header">
-              <h2>📈 Forecasters</h2>
+              <h2>Forecasters</h2>
               <span className="section-subtitle">Predict future disturbances (external factors)</span>
             </div>
 
@@ -632,160 +599,140 @@ const ForecastTab: React.FC = () => {
           </section>
         </div>
 
-        {/* === RIGHT: Sidebar === */}
-        <div className="sidebar">
-          {/* Preview Chart */}
-          <div className="preview-section">
-            <div className="preview-header">
-              <h3>Prediction Preview</h3>
-              <div className="feature-pills">
+        <RightSidebar width="360px">
+          <SidebarSection title="Prediction Preview" className="prediction-preview">
+            <div className="preview-controls">
+              <span className="control-label">Target Feature</span>
+              <div className="feature-selector">
                 {processModels.map(m => (
                   <button
                     key={m.feature}
-                    className={`feature-pill ${selectedFeature === m.feature ? 'active' : ''}`}
+                    className={`selector-btn ${selectedFeature === m.feature ? 'active' : ''}`}
                     onClick={() => setSelectedFeature(m.feature)}
+                    title={m.name}
                   >
-                    {m.feature === 'temperature' ? '🌡️' : m.feature === 'energy' ? '⚡' : '💨'}
+                    <span className="icon">
+                      {m.feature === 'temperature' ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg> 
+                       : m.feature === 'energy' ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> 
+                       : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 8h14.5a2.5 2.5 0 0 1 0 5H14" /><path d="M6 16h13.5a2.5 2.5 0 0 0 0-5H19" /></svg>}
+                    </span>
+                    <span className="label">{m.feature}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="preview-chart">
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={predictionData}>
+            <div className="preview-chart-container">
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={predictionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="confidenceGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.05} />
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="timestamp" stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
-                  <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 9 }} />
-                  <Tooltip content={<CustomTooltip />} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis 
+                    dataKey="timestamp" 
+                    stroke="rgba(255,255,255,0.2)" 
+                    tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.4)' }} 
+                    interval="preserveStartEnd" 
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis 
+                    stroke="rgba(255,255,255,0.2)" 
+                    tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.4)' }} 
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }} />
                   <Area type="monotone" dataKey="confidence_upper" stroke="none" fill="url(#confidenceGrad)" />
-                  <Area type="monotone" dataKey="confidence_lower" stroke="none" fill="#0b0d12" />
-                  <Line type="monotone" dataKey="actual" stroke="#3b82f6" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="predicted" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-                  <ReferenceLine x={predictionData[48]?.timestamp} stroke="#ef4444" strokeDasharray="3 3" />
+                  <Area type="monotone" dataKey="confidence_lower" stroke="none" fill="#0b0d12" /> {/* Masking area */}
+                  <Line type="monotone" dataKey="actual" stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#3b82f6' }} />
+                  <Line type="monotone" dataKey="predicted" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="4 4" dot={false} activeDot={{ r: 4, fill: '#8b5cf6' }} />
+                  <ReferenceLine x={predictionData[48]?.timestamp} stroke="#ef4444" strokeDasharray="2 2" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
 
             <div className="preview-legend">
-              <span><span className="dot" style={{ background: '#3b82f6' }} /> Actual</span>
-              <span><span className="dot" style={{ background: '#8b5cf6' }} /> Predicted</span>
-              <span><span className="area" style={{ background: '#8b5cf6' }} /> Confidence</span>
+              <div className="legend-item">
+                <span className="dot actual" /> Actual
+              </div>
+              <div className="legend-item">
+                <span className="dot predicted" /> Predicted
+              </div>
+              <div className="legend-item">
+                <span className="box confidence" /> Confidence
+              </div>
             </div>
-          </div>
+          </SidebarSection>
 
-          {/* Training Settings */}
-          <div className="training-settings-section">
-            <div className="settings-header" onClick={() => setShowAdvanced(!showAdvanced)}>
-              <h3>Training Settings</h3>
-              <span className="toggle-icon">{showAdvanced ? '▼' : '▶'}</span>
-            </div>
-
-            {showAdvanced && (
-              <div className="settings-content">
-                <div className="setting-row">
-                  <label>Auto-Retrain</label>
-                  <div className="toggle-switch">
-                    <input 
-                      type="checkbox" 
-                      checked={trainingConfig.autoRetrain}
-                      onChange={e => setTrainingConfig({ ...trainingConfig, autoRetrain: e.target.checked })}
-                    />
-                    <span className="slider" />
-                  </div>
-                </div>
-
-                <div className="setting-row">
-                  <label>Frequency</label>
-                  <select 
-                    value={trainingConfig.frequency}
-                    onChange={e => setTrainingConfig({ ...trainingConfig, frequency: e.target.value as any })}
-                  >
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                  </select>
-                </div>
-
-                <div className="setting-row">
-                  <label>Time</label>
+          {/* Training Settings (Collapsible) */}
+          <SidebarSection title="Training Settings" collapsible={true} defaultExpanded={false}>
+              <div className="control-group" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <label style={{marginBottom: 0}}>Auto-Retrain</label>
+                <div className="toggle-switch">
                   <input 
-                    type="time" 
-                    value={trainingConfig.time}
-                    onChange={e => setTrainingConfig({ ...trainingConfig, time: e.target.value })}
+                    type="checkbox" 
+                    checked={trainingConfig.autoRetrain}
+                    onChange={e => setTrainingConfig({ ...trainingConfig, autoRetrain: e.target.checked })}
                   />
-                </div>
-
-                <div className="triggers-section">
-                  <span className="triggers-label">Retrain Triggers</span>
-                  
-                  <label className="trigger-item">
-                    <input 
-                      type="checkbox" 
-                      checked={trainingConfig.triggers.accuracyDrop}
-                      onChange={e => setTrainingConfig({
-                        ...trainingConfig,
-                        triggers: { ...trainingConfig.triggers, accuracyDrop: e.target.checked }
-                      })}
-                    />
-                    <span>Accuracy drops below {trainingConfig.triggers.accuracyThreshold}%</span>
-                  </label>
-
-                  <label className="trigger-item">
-                    <input 
-                      type="checkbox" 
-                      checked={trainingConfig.triggers.newData}
-                      onChange={e => setTrainingConfig({
-                        ...trainingConfig,
-                        triggers: { ...trainingConfig.triggers, newData: e.target.checked }
-                      })}
-                    />
-                    <span>New data exceeds {trainingConfig.triggers.newDataThreshold} samples</span>
-                  </label>
-
-                  <label className="trigger-item">
-                    <input 
-                      type="checkbox" 
-                      checked={trainingConfig.triggers.driftDetection}
-                      onChange={e => setTrainingConfig({
-                        ...trainingConfig,
-                        triggers: { ...trainingConfig.triggers, driftDetection: e.target.checked }
-                      })}
-                    />
-                    <span>Distribution drift detected</span>
-                  </label>
+                  <span className="slider" />
                 </div>
               </div>
-            )}
-          </div>
 
-          {/* Training History */}
-          <div className="history-section">
-            <h3>Training History</h3>
-            <div className="history-list">
-              {trainingHistory.slice(0, 4).map((item, i) => (
-                <div key={i} className={`history-item ${item.result}`}>
-                  <div className="history-main">
-                    <span className="history-date">{item.date.toLocaleDateString()}</span>
-                    <span className="history-trigger">{item.trigger}</span>
-                  </div>
-                  <div className="history-meta">
-                    <span>{item.duration} min</span>
-                    <span className={`result-badge ${item.result}`}>
-                      {item.result === 'success' ? '✓' : '✗'}
-                    </span>
+              <div className="control-group">
+                <label>Frequency</label>
+                <select 
+                  value={trainingConfig.frequency}
+                  onChange={e => setTrainingConfig({ ...trainingConfig, frequency: e.target.value as any })}
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+
+              <div className="control-group">
+                <label>Time</label>
+                <input 
+                  type="time" 
+                  value={trainingConfig.time}
+                  onChange={e => setTrainingConfig({ ...trainingConfig, time: e.target.value })}
+                />
+              </div>
+              Sunday
+          </SidebarSection>
+
+          <SidebarSection title="Training History">
+            <div className="history-timeline">
+              {trainingHistory.slice(0, 5).map((item, i) => (
+                <div key={i} className="timeline-item">
+                  <div className={`timeline-dot ${item.result}`} />
+                  <div className="timeline-content">
+                    <div className="header">
+                      <span className="trigger">{item.trigger} Trigger</span>
+                      <span className="date">
+                        {item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    </div>
+                    <div className="details">
+                      <span className="models-chip">
+                        {item.modelsUpdated.length} models updated
+                      </span>
+                      <span className="duration">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        {item.duration}m
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+          </SidebarSection>
+        </RightSidebar>
       </div>
     </div>
   );

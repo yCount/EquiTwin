@@ -1,43 +1,81 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
-// Variables & Theme
-$bg-dark: #0b0d12;
-$panel-bg: rgba(11, 13, 18, 0.85); // Slightly more opaque for the HUD
-$panel-border: rgba(255, 255, 255, 0.08);
-$primary: #3b82f6; 
-$accent: #8b5cf6;
-$success: #10b981;
-$warning: #fbbf24;
-$danger: #ef4444;
-$text-main: #ffffff;
-$text-dim: rgba(255, 255, 255, 0.5);
+// 1. Define Base Variables using CSS Custom Properties for dynamic switching
+.home-tab-container {
+  // -- Default (Dark Theme) --
+  --bg-main: #0b0d12;
+  --bg-viewer-fallback: #1a1d24;
+  
+  --panel-bg: rgba(11, 13, 18, 0.85);
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --panel-shadow: -4px 0 32px rgba(0, 0, 0, 0.4);
+  
+  --text-main: #ffffff;
+  --text-dim: rgba(255, 255, 255, 0.5);
+  
+  --card-bg: rgba(255, 255, 255, 0.02);
+  --card-border: rgba(255, 255, 255, 0.05);
+  --card-hover-bg: rgba(255, 255, 255, 0.05);
+  
+  --scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --scrollbar-track: transparent;
 
+  // Accents (shared mostly, but can be tweaked)
+  --color-primary: #3b82f6;
+  --color-accent: #8b5cf6;
+  --color-success: #10b981;
+  --color-warning: #fbbf24;
+  --color-danger: #ef4444;
+
+  // -- Light Theme Overrides --
+  &[data-theme='light'] {
+    --bg-main: #f3f4f6; // Light gray background
+    --bg-viewer-fallback: #e5e7eb;
+
+    --panel-bg: rgba(255, 255, 255, 0.85); // White frosted glass
+    --panel-border: rgba(0, 0, 0, 0.08);
+    --panel-shadow: -4px 0 32px rgba(0, 0, 0, 0.1);
+
+    --text-main: #111827; // Very dark gray/black
+    --text-dim: rgba(0, 0, 0, 0.5);
+
+    --card-bg: rgba(0, 0, 0, 0.03);
+    --card-border: rgba(0, 0, 0, 0.06);
+    --card-hover-bg: rgba(0, 0, 0, 0.06);
+
+    --scrollbar-thumb: rgba(0, 0, 0, 0.1);
+  }
+}
+
+// SCSS Variables for structural reuse (mixins)
 @mixin glass-panel {
-  background: $panel-bg;
+  background: var(--panel-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid $panel-border;
-  box-shadow: -4px 0 32px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--panel-shadow);
+  color: var(--text-main);
 }
 
 @mixin scrollbar {
   &::-webkit-scrollbar { width: 6px; }
-  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-track { background: var(--scrollbar-track); }
   &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--scrollbar-thumb);
     border-radius: 3px;
-    &:hover { background: rgba(255, 255, 255, 0.2); }
+    &:hover { background: var(--text-dim); }
   }
 }
 
 .home-tab-container {
   width: 100%;
   height: 100%;
-  background-color: $bg-dark;
+  background-color: var(--bg-main);
   display: flex;
   flex-direction: column;
   font-family: 'Inter', sans-serif;
   overflow: hidden;
+  transition: background-color 0.3s ease; // Smooth theme transition
 
   // Main Content Area
   .home-content {
@@ -50,9 +88,8 @@ $text-dim: rgba(255, 255, 255, 0.5);
     .viewer-wrapper {
       flex: 1;
       position: relative;
-      background: radial-gradient(circle at 50% 50%, #1a1d24 0%, #000 100%); // Fallback if viewer fails
+      background: radial-gradient(circle at 50% 50%, var(--bg-viewer-fallback) 0%, var(--bg-main) 100%);
       
-      // Override iTwin default white backgrounds if necessary
       .itwin-viewer-container { background: transparent !important; }
     }
 
@@ -67,6 +104,7 @@ $text-dim: rgba(255, 255, 255, 0.5);
       border-right: none;
       border-top: none;
       border-bottom: none;
+      transition: background 0.3s ease, border-color 0.3s ease;
 
       .sidebar-scroll-area {
         flex: 1;
@@ -82,7 +120,7 @@ $text-dim: rgba(255, 255, 255, 0.5);
         .group-title {
           font-size: 11px;
           text-transform: uppercase;
-          color: $text-dim;
+          color: var(--text-dim);
           font-weight: 700;
           letter-spacing: 1px;
           margin-bottom: 16px;
@@ -90,7 +128,8 @@ $text-dim: rgba(255, 255, 255, 0.5);
           
           &::after {
             content: ''; flex: 1; height: 1px; 
-            background: linear-gradient(90deg, rgba(255,255,255,0.1), transparent);
+            background: linear-gradient(90deg, var(--text-dim), transparent);
+            opacity: 0.2;
           }
         }
       }
@@ -104,26 +143,27 @@ $text-dim: rgba(255, 255, 255, 0.5);
 
       // Individual Sensor Card
       .sensor-card {
-        background: rgba(255,255,255,0.02);
-        border: 1px solid rgba(255,255,255,0.05);
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
         border-radius: 12px;
         padding: 16px;
         display: flex; flex-direction: column; align-items: center; text-align: center;
         transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
+        color: var(--text-main);
 
         &:hover {
-          background: rgba(255,255,255,0.05);
+          background: var(--card-hover-bg);
           transform: translateY(-2px);
-          border-color: rgba(255,255,255,0.1);
+          border-color: var(--text-dim);
         }
 
-        // Color Variants
-        &.weather { .icon-box { color: $warning; background: rgba(#1b4f96, 0.1); box-shadow: 0 0 15px rgba(#1b4f96, 0.1); } }
-        &.occupancy { .icon-box { color: #f88c33; background: rgba(#f88c33, 0.1); box-shadow: 0 0 15px rgba(#f88c33, 0.1); } }
-        &.air { .icon-box { color: #3aa9d6; background: rgba(#3aa9d6, 0.1); box-shadow: 0 0 15px rgba(#3aa9d6, 0.1); } }
-        &.temp { .icon-box { color: $danger; background: rgba($danger, 0.1); box-shadow: 0 0 15px rgba($danger, 0.1); } }
+        // Color Variants (Using CSS Vars)
+        &.weather { .icon-box { color: var(--color-warning); background: rgba(251, 191, 36, 0.1); } }
+        &.occupancy { .icon-box { color: #f88c33; background: rgba(248, 140, 51, 0.1); } }
+        &.air { .icon-box { color: #3aa9d6; background: rgba(58, 169, 214, 0.1); } }
+        &.temp { .icon-box { color: var(--color-danger); background: rgba(239, 68, 68, 0.1); } }
 
         .icon-box {
           width: 40px; height: 40px;
@@ -134,62 +174,78 @@ $text-dim: rgba(255, 255, 255, 0.5);
           svg { width: 20px; height: 20px; stroke-width: 2px; }
         }
 
-        .label { font-size: 11px; color: $text-dim; font-weight: 600; margin-bottom: 4px; }
+        .label { font-size: 11px; color: var(--text-dim); font-weight: 600; margin-bottom: 4px; }
 
         .value-group {
           display: flex; align-items: baseline; gap: 2px;
-          .val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: $text-main; }
-          .unit { font-size: 11px; color: $text-dim; }
+          .val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: var(--text-main); }
+          .unit { font-size: 11px; color: var(--text-dim); }
         }
       }
 
       // Wide Summary Card
       .summary-card {
-        background: rgba(255,255,255,0.02);
-        border: 1px solid rgba(255,255,255,0.05);
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
         border-radius: 12px;
         padding: 16px;
         display: flex; align-items: center; gap: 16px;
+        color: var(--text-main);
         
         .icon-box {
           width: 48px; height: 48px;
           border-radius: 10px;
           display: flex; align-items: center; justify-content: center;
-          background: rgba(255,255,255,0.05);
-          color: $text-dim;
+          background: var(--card-hover-bg);
+          color: var(--text-dim);
           
           svg { width: 24px; height: 24px; }
         }
 
         &.alert {
-          background: linear-gradient(90deg, rgba($warning, 0.05), transparent);
-          .icon-box { color: $warning; background: rgba($warning, 0.1); }
+          background: linear-gradient(90deg, rgba(251, 191, 36, 0.05), transparent);
+          .icon-box { color: var(--color-warning); background: rgba(251, 191, 36, 0.1); }
         }
 
         &.normal {
-          background: linear-gradient(90deg, rgba($primary, 0.05), transparent);
-          .icon-box { color: $primary; background: rgba($primary, 0.1); }
+          background: linear-gradient(90deg, rgba(59, 130, 246, 0.05), transparent);
+          .icon-box { color: var(--color-primary); background: rgba(59, 130, 246, 0.1); }
         }
 
         .content {
-          .label { font-size: 11px; text-transform: uppercase; color: $text-dim; font-weight: 600; margin-bottom: 4px; }
-          .val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: $text-main; }
-          .unit { font-size: 12px; color: $text-dim; margin-left: 4px; }
+          .label { font-size: 11px; text-transform: uppercase; color: var(--text-dim); font-weight: 600; margin-bottom: 4px; }
+          .val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: var(--text-main); }
+          .unit { font-size: 12px; color: var(--text-dim); margin-left: 4px; }
         }
       }
     }
   }
 
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba($success, 0.4); }
-    70% { box-shadow: 0 0 0 4px rgba($success, 0); }
-    100% { box-shadow: 0 0 0 0 rgba($success, 0); }
+  // Toggle Switch Styling
+  .theme-toggle-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text-main);
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-right: 8px;
+
+    &:hover {
+      background: var(--card-hover-bg);
+      transform: scale(1.05);
+    }
+    
+    svg { width: 16px; height: 16px; stroke-width: 2px; }
   }
 
+  // Responsive
   @media (max-width: 1024px) {
     .home-content {
       flex-direction: column;
-      .hud-sidebar { width: 100%; height: auto; max-height: 40%; border-left: none; border-top: 1px solid $panel-border; }
+      .hud-sidebar { width: 100%; height: auto; max-height: 40%; border-left: none; border-top: 1px solid var(--panel-border); }
     }
   }
 }

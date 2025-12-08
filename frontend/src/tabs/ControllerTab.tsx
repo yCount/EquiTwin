@@ -13,10 +13,12 @@ import {
 } from "recharts";
 import "./ControllerTab.scss";
 import Topbar from "./components/Topbar";
+import RightSidebar, { SidebarSection } from "./components/RightSidebar";
 
 interface SelectedModel {
   feature: 'temperature' | 'airquality' | 'energy';
   featureLabel: string;
+  icon: JSX.Element;
   modelType: 'ANN' | 'GPR' | 'LinReg';
   accuracy: number;
   status: 'ready' | 'outdated' | 'missing';
@@ -76,10 +78,6 @@ interface DeploymentStatus {
   nextOptimization: number;
 }
 
-// ============================================================================
-// COMPONENT
-// ============================================================================
-
 const ControllerTab: React.FC = () => {
   const [selectedModels, setSelectedModels] = useState<SelectedModel[]>([]);
   const [forecasters, setForecasters] = useState<ForecasterStatus[]>([]);
@@ -122,14 +120,48 @@ const ControllerTab: React.FC = () => {
     { name: 'Comfort', params: { comfortWeight: 0.85, energyWeight: 0.15, temperatureTolerance: 1 } },
     { name: 'Balanced', params: { comfortWeight: 0.5, energyWeight: 0.5, temperatureTolerance: 2 } },
     { name: 'Eco', params: { comfortWeight: 0.25, energyWeight: 0.75, temperatureTolerance: 3 } },
-    { name: 'Night', params: { comfortWeight: 0.2, energyWeight: 0.8, temperatureSetpoint: 18, temperatureTolerance: 4 } },
   ];
 
   useEffect(() => {
     setSelectedModels([
-      { feature: 'temperature', featureLabel: '🌡️ Temperature', modelType: 'ANN', accuracy: 94.2, status: 'ready', lastTrained: new Date(Date.now() - 2 * 3600000) },
-      { feature: 'airquality', featureLabel: '💨 Air Quality', modelType: 'LinReg', accuracy: 89.1, status: 'ready', lastTrained: new Date(Date.now() - 2 * 3600000) },
-      { feature: 'energy', featureLabel: '⚡ Energy', modelType: 'LinReg', accuracy: 91.3, status: 'ready', lastTrained: new Date(Date.now() - 2 * 3600000) },
+      {
+        feature: 'temperature',
+        featureLabel: 'Temperature',
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}>
+            <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+          </svg>
+        ),
+        modelType: 'ANN',
+        accuracy: 94.2,
+        status: 'ready',
+        lastTrained: new Date(Date.now() - 2 * 3600000),
+      },
+      {
+        feature: 'airquality',
+        featureLabel: 'Air Quality',
+        icon: (
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 8h14.5a2.5 2.5 0 0 1 0 5H14" /><path d="M6 16h13.5a2.5 2.5 0 0 0 0-5H19" /><path d="M2 12h5" /><path d="M16 8V7" /></svg>
+        ),
+        modelType: 'LinReg',
+        accuracy: 89.1,
+        status: 'ready',
+        lastTrained: new Date(Date.now() - 2 * 3600000),
+      },
+      {
+        feature: 'energy',
+        featureLabel: 'Energy',
+        icon: (
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+          </svg>
+        ),
+        modelType: 'LinReg',
+        accuracy: 91.3,
+        status: 'ready',
+        lastTrained: new Date(Date.now() - 2 * 3600000),
+      },
     ]);
     setForecasters([
       { type: 'occupancy', name: 'Occupancy', mode: 'ML Pattern', accuracy: 87.3, status: 'ready' },
@@ -178,7 +210,12 @@ const ControllerTab: React.FC = () => {
 
   const getOverallStatus = () => {
     const allReady = selectedModels.every(m => m.status === 'ready') && forecasters.every(f => f.status === 'ready');
-    const avgAccuracy = [...selectedModels, ...forecasters].reduce((sum, m) => sum + m.accuracy, 0) / (selectedModels.length + forecasters.length);
+
+    const modelsAcc = selectedModels.reduce((s, m) => s + m.accuracy, 0);
+    const forecastersAcc = forecasters.reduce((s, f) => s + f.accuracy, 0);
+    const totalCount = selectedModels.length + forecasters.length;
+    const avgAccuracy = totalCount > 0 ? (modelsAcc + forecastersAcc) / totalCount : 0;
+
     if (!allReady) return { status: 'Models Missing', color: '#ef4444' };
     if (avgAccuracy >= 90) return { status: 'All Models Ready', color: '#10b981' };
     if (avgAccuracy >= 80) return { status: 'Models Ready (Fair)', color: '#f59e0b' };
@@ -219,10 +256,10 @@ const ControllerTab: React.FC = () => {
               <span className="status-dot" />
               <span>{deploymentStatus.isActive ? 'Controller Active' : 'Paused'}</span>
             </div>
-            <button className="topbar-btn" onClick={handleRunSimulation} disabled={isSimulating}>
+            {/* <button className="topbar-btn" onClick={handleRunSimulation} disabled={isSimulating}>
               {isSimulating ? 'Simulating...' : 'Simulate'}
-            </button>
-            <button className="topbar-btn success" onClick={() => setShowDeployModal(true)}>Deploy</button>
+            </button> */}
+            <button className="topbar-btn success" onClick={() => setShowDeployModal(true)} style={{ background: '#f0612e', color: '#e4e4e6'}}>Deploy</button>
           </>
         }
       />
@@ -241,9 +278,9 @@ const ControllerTab: React.FC = () => {
             <div className="models-row">
               {selectedModels.map(m => (
                 <div key={m.feature} className={`model-pill ${m.status}`}>
-                  <span className="model-icon">{m.featureLabel.split(' ')[0]}</span>
+                  <span className="model-icon">{m.icon}</span>
                   <div className="model-info">
-                    <span className="model-name">{m.featureLabel.split(' ').slice(1).join(' ')}</span>
+                    <span className="model-name">{m.featureLabel}</span>
                     <span className="model-detail">{m.modelType} • {m.accuracy.toFixed(0)}%</span>
                   </div>
                   <span className={`status-badge ${m.status}`}>{m.status === 'ready' ? '✓' : '!'}</span>
@@ -266,8 +303,8 @@ const ControllerTab: React.FC = () => {
           <div className="kpi-row">
             <div className="kpi-card"><div className="kpi-icon temp"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div><div className="kpi-data"><span className="label">Avg Temp</span> <span className="value">{simulationMetrics.avgTemp.toFixed(1)}°C</span></div></div>
             <div className="kpi-card"><div className="kpi-icon energy"> <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg> </div><div className="kpi-data"><span className="label">Energy</span><span className="value">{simulationMetrics.energy.toFixed(1)} kWh</span></div></div>
-            <div className="kpi-card"><div className="kpi-icon comfort"> <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"><rect x="6" y="12" width="12" height="6" rx="2" stroke="currentColor" stroke-width="2"/><path d="M10 6c0 1 1 1 1 2s-1 1-1 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M14 6c0 1 1 1 1 2s-1 1-1 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> </div><div className="kpi-data"><span className="label">Comfort</span><span className="value">{simulationMetrics.comfort.toFixed(0)}%</span></div></div>
-            <div className="kpi-card"><div className="kpi-icon cost"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M13 7L9 12h4l-2 5"/></svg> </div><div className="kpi-data"><span className="label">Est. Cost</span><span className="value">£{simulationMetrics.cost.toFixed(2)}</span></div></div>
+            <div className="kpi-card"><div className="kpi-icon comfort"> <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"><rect x="6" y="12" width="12" height="6" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M10 6c0 1 1 1 1 2s-1 1-1 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M14 6c0 1 1 1 1 2s-1 1-1 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> </div><div className="kpi-data"><span className="label">Comfort</span><span className="value">{simulationMetrics.comfort.toFixed(0)}%</span></div></div>
+            <div className="kpi-card"><div className="kpi-icon cost"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M13 7L9 12h4l-2 5"/></svg> </div><div className="kpi-data"><span className="label">Est. Cost</span><span className="value">£{simulationMetrics.cost.toFixed(2)}</span></div></div>
           </div>
 
           <div className="chart-section">
@@ -307,87 +344,123 @@ const ControllerTab: React.FC = () => {
           </div>
         </div>
 
-        {/* RIGHT: Controls */}
-        <div className="controls-panel">
-          <section className="panel-section">
-            <h3>Optimization Objectives</h3>
+        <RightSidebar width="420px">
+          {/* Optimization Objectives */}
+          <SidebarSection title="Optimization Objectives" className="glass-card">
             <div className="weight-slider-card">
-              <div className="weight-labels"><span className="comfort">Comfort</span><span className="energy">Energy</span></div>
-              <div className="weight-display">
-                <span className="comfort">{(mpcParams.comfortWeight * 100).toFixed(0)}%</span>
-                <span className="energy">{(mpcParams.energyWeight * 100).toFixed(0)}%</span>
+              <div className="weight-labels" style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px'}}>
+                <span className="comfort" style={{color: '#10b981'}}>Comfort</span>
+                <span className="energy" style={{color: '#f59e0b'}}>Energy</span>
               </div>
-              <input type="range" min="0" max="1" step="0.05" value={mpcParams.comfortWeight} onChange={e => setMPCParams({ ...mpcParams, comfortWeight: parseFloat(e.target.value), energyWeight: 1 - parseFloat(e.target.value) })} className="weight-slider" />
-              <div className="mode-indicator">{mpcParams.comfortWeight >= 0.6 ? 'Comfort Priority' : mpcParams.comfortWeight <= 0.4 ? 'Energy Priority' : 'Balanced'}</div>
+              <div className="weight-display" style={{display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '18px', fontWeight: 700}}>
+                <span className="comfort" style={{color: '#10b981'}}>{(mpcParams.comfortWeight * 100).toFixed(0)}%</span>
+                <span className="energy" style={{color: '#f59e0b'}}>{(mpcParams.energyWeight * 100).toFixed(0)}%</span>
+              </div>
+              <input type="range" min="0" max="1" step="0.05" value={mpcParams.comfortWeight} onChange={e => setMPCParams({ ...mpcParams, comfortWeight: parseFloat(e.target.value), energyWeight: 1 - parseFloat(e.target.value) })} className="weight-slider" style={{width:'100%'}} />
+              <div className="mode-indicator" style={{textAlign: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '8px'}}>{mpcParams.comfortWeight >= 0.6 ? 'Comfort Priority' : mpcParams.comfortWeight <= 0.4 ? 'Energy Priority' : 'Balanced'}</div>
             </div>
-            <div className="presets-row">{scenarioPresets.map(p => <button key={p.name} className="preset-btn" onClick={() => handlePresetClick(p)}>{p.name}</button>)}</div>
-          </section>
+            <div className="pill-grid" style={{marginTop: '16px'}}>
+                {scenarioPresets.map(p => <button key={p.name} className="pill-btn" onClick={() => handlePresetClick(p)}>{p.name}</button>)}
+            </div>
+          </SidebarSection>
 
-          <section className="panel-section">
-            <h3>Setpoints</h3>
-            <div className="setpoint-card">
-              <div className="setpoint-header"><span> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg> Temperature</span></div>
-              <div className="setpoint-row"><label>Target</label><span className="value">{mpcParams.temperatureSetpoint}°C</span></div>
-              <input type="range" min="18" max="26" step="0.5" value={mpcParams.temperatureSetpoint} onChange={e => setMPCParams({ ...mpcParams, temperatureSetpoint: parseFloat(e.target.value) })} />
-              <div className="setpoint-row"><label>Tolerance</label><span className="value">±{mpcParams.temperatureTolerance}°C</span></div>
-              <input type="range" min="0.5" max="5" step="0.5" value={mpcParams.temperatureTolerance} onChange={e => setMPCParams({ ...mpcParams, temperatureTolerance: parseFloat(e.target.value) })} />
+          {/* Setpoints */}
+          <SidebarSection title="Setpoints">
+            <div className="setpoint-card" style={{padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', marginBottom: '12px'}}>
+              <div className="setpoint-header" style={{marginBottom: '12px', fontWeight: 600}}><span><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg> Temperature</span></div>
+              <div className="setpoint-row" style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px'}}>
+                <label>Target</label><span className="value" style={{color: '#3b82f6'}}>{mpcParams.temperatureSetpoint}°C</span>
+              </div>
+              <input type="range" min="18" max="26" step="0.5" value={mpcParams.temperatureSetpoint} onChange={e => setMPCParams({ ...mpcParams, temperatureSetpoint: parseFloat(e.target.value) })} style={{width: '100%', marginBottom: '16px'}} />
+              
+              <div className="setpoint-row" style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px'}}>
+                <label>Tolerance</label><span className="value" style={{color: '#3b82f6'}}>±{mpcParams.temperatureTolerance}°C</span>
+              </div>
+              <input type="range" min="0.5" max="5" step="0.5" value={mpcParams.temperatureTolerance} onChange={e => setMPCParams({ ...mpcParams, temperatureTolerance: parseFloat(e.target.value) })} style={{width: '100%'}} />
             </div>
-            <div className={`setpoint-card ${!mpcParams.co2Enabled ? 'disabled' : ''}`}>
-              <div className="setpoint-header">
-                <span>💨 CO₂</span>
-                <label className="toggle"><input type="checkbox" checked={mpcParams.co2Enabled} onChange={e => setMPCParams({ ...mpcParams, co2Enabled: e.target.checked })} /><span className="slider" /></label>
+            
+            <div className={`setpoint-card ${!mpcParams.co2Enabled ? 'disabled' : ''}`} style={{padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', opacity: !mpcParams.co2Enabled ? 0.5 : 1}}>
+              <div className="setpoint-header" style={{display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontWeight: 600}}>
+                <span><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 8h14.5a2.5 2.5 0 0 1 0 5H14" /><path d="M6 16h13.5a2.5 2.5 0 0 0 0-5H19" /><path d="M2 12h5" /><path d="M16 8V7" /></svg> CO₂</span>
+                <div className="toggle-switch">
+                   <input type="checkbox" checked={mpcParams.co2Enabled} onChange={e => setMPCParams({ ...mpcParams, co2Enabled: e.target.checked })} />
+                   <span className="slider" />
+                </div>
               </div>
               {mpcParams.co2Enabled && (
                 <>
-                  <div className="setpoint-row"><label>Target</label><span className="value">{mpcParams.co2Setpoint} ppm</span></div>
-                  <input type="range" min="400" max="1000" step="50" value={mpcParams.co2Setpoint} onChange={e => setMPCParams({ ...mpcParams, co2Setpoint: parseInt(e.target.value) })} />
+                  <div className="setpoint-row" style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px'}}>
+                    <label>Target</label><span className="value" style={{color: '#3b82f6'}}>{mpcParams.co2Setpoint} ppm</span>
+                  </div>
+                  <input type="range" min="400" max="1000" step="50" value={mpcParams.co2Setpoint} onChange={e => setMPCParams({ ...mpcParams, co2Setpoint: parseInt(e.target.value) })} style={{width: '100%'}} />
                 </>
               )}
             </div>
-          </section>
+          </SidebarSection>
 
-          <section className="panel-section">
-            <h3>Schedule</h3>
-            <div className="schedule-toggle">
-              <button className={scheduleConfig.mode === '24/7' ? 'active' : ''} onClick={() => setScheduleConfig({ ...scheduleConfig, mode: '24/7' })}>24/7</button>
-              <button className={scheduleConfig.mode === 'scheduled' ? 'active' : ''} onClick={() => setScheduleConfig({ ...scheduleConfig, mode: 'scheduled' })}>Office Hours</button>
+          {/* Schedule */}
+          <SidebarSection title="Schedule">
+            <div className="pill-grid" style={{marginBottom: '16px'}}>
+              <button className={`pill-btn ${scheduleConfig.mode === '24/7' ? 'active' : ''}`} onClick={() => setScheduleConfig({ ...scheduleConfig, mode: '24/7' })}>24/7</button>
+              <button className={`pill-btn ${scheduleConfig.mode === 'scheduled' ? 'active' : ''}`} onClick={() => setScheduleConfig({ ...scheduleConfig, mode: 'scheduled' })}>Office Hours</button>
             </div>
             {scheduleConfig.mode === 'scheduled' && (
               <div className="schedule-config">
-                <div className="time-inputs">
-                  <div><label>Start</label><input type="time" value={scheduleConfig.officeHours.start} onChange={e => setScheduleConfig({ ...scheduleConfig, officeHours: { ...scheduleConfig.officeHours, start: e.target.value } })} /></div>
-                  <div><label>End</label><input type="time" value={scheduleConfig.officeHours.end} onChange={e => setScheduleConfig({ ...scheduleConfig, officeHours: { ...scheduleConfig.officeHours, end: e.target.value } })} /></div>
+                <div className="time-inputs" style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px', marginBottom:'12px'}}>
+                  <div className="control-group">
+                    <label>Start</label>
+                    <input type="time" value={scheduleConfig.officeHours.start} onChange={e => setScheduleConfig({ ...scheduleConfig, officeHours: { ...scheduleConfig.officeHours, start: e.target.value } })} />
+                  </div>
+                  <div className="control-group">
+                    <label>End</label>
+                    <input type="time" value={scheduleConfig.officeHours.end} onChange={e => setScheduleConfig({ ...scheduleConfig, officeHours: { ...scheduleConfig.officeHours, end: e.target.value } })} />
+                  </div>
                 </div>
-                <label className="weekdays-toggle"><input type="checkbox" checked={scheduleConfig.officeHours.weekdaysOnly} onChange={e => setScheduleConfig({ ...scheduleConfig, officeHours: { ...scheduleConfig.officeHours, weekdaysOnly: e.target.checked } })} /><span>Weekdays only</span></label>
-                <div className="current-mode-display">
-                  <span className={`mode-badge ${currentMode}`}>{currentMode === 'in-office' ? '🏢 In-Office' : '🌙 Out-of-Office'}</span>
-                  <span className="time-display">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-              </div>
-            )}
-          </section>
+                
+                <label className="weekdays-toggle" style={{display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '12px'}}>
+                    <input type="checkbox" checked={scheduleConfig.officeHours.weekdaysOnly} onChange={e => setScheduleConfig({ ...scheduleConfig, officeHours: { ...scheduleConfig.officeHours, weekdaysOnly: e.target.checked } })} />
+                    <span>Weekdays only</span>
+                </label>
 
-          <section className="panel-section collapsible">
-            <div className="section-header-toggle" onClick={() => setShowAdvanced(!showAdvanced)}>
-              <h3>Advanced MPC</h3>
-              <span>{showAdvanced ? '▼' : '▶'}</span>
-            </div>
-            {showAdvanced && (
-              <div className="advanced-content">
-                <div className="param-row"><label>Prediction Horizon</label><span>{mpcParams.predictionHorizon} steps ({mpcParams.predictionHorizon * 15}m)</span></div>
-                <input type="range" min="4" max="24" value={mpcParams.predictionHorizon} onChange={e => setMPCParams({ ...mpcParams, predictionHorizon: parseInt(e.target.value) })} />
-                <div className="param-row"><label>Control Horizon</label><span>{mpcParams.controlHorizon} steps ({mpcParams.controlHorizon * 15}m)</span></div>
-                <input type="range" min="1" max="12" value={mpcParams.controlHorizon} onChange={e => setMPCParams({ ...mpcParams, controlHorizon: parseInt(e.target.value) })} />
-                <div className="param-row"><label>Optimization Interval</label><span>{mpcParams.optimizationInterval} min</span></div>
-                <input type="range" min="5" max="60" step="5" value={mpcParams.optimizationInterval} onChange={e => setMPCParams({ ...mpcParams, optimizationInterval: parseInt(e.target.value) })} />
-                <label className="constraint-toggle"><input type="checkbox" checked={mpcParams.rateConstraints} onChange={e => setMPCParams({ ...mpcParams, rateConstraints: e.target.checked })} /><span>Rate Constraints (max {mpcParams.maxHvacChange}%/step)</span></label>
+                <div className="current-mode-display" style={{display: 'flex', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px'}}>
+                  <span className={`mode-badge ${currentMode}`} style={{fontSize: '13px', fontWeight: 600, padding: '4px 10px', borderRadius: '6px', background: currentMode === 'in-office' ? 'rgba(16,185,129, 0.15)' : 'rgba(139,92,246, 0.15)', color: currentMode === 'in-office' ? '#10b981' : '#8b5cf6'}}>
+                      {currentMode === 'in-office' ? 'In-Office' : 'Out-of-Office'}
+                  </span>
+                  <span className="time-display" style={{fontFamily: 'monospace', fontSize: '14px', color: 'rgba(255,255,255,0.5)'}}>
+                      {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
               </div>
             )}
-          </section>
-        </div>
+          </SidebarSection>
+
+          {/* Advanced MPC */}
+          <SidebarSection title="Advanced MPC" collapsible={true} defaultExpanded={false}>
+                <div className="control-group">
+                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'8px', fontSize: '12px'}}>
+                        <label>Prediction Horizon</label><span style={{color: '#3b82f6', fontFamily: 'monospace'}}>{mpcParams.predictionHorizon} steps</span>
+                    </div>
+                    <input type="range" min="4" max="24" value={mpcParams.predictionHorizon} onChange={e => setMPCParams({ ...mpcParams, predictionHorizon: parseInt(e.target.value) })} style={{width: '100%'}} />
+                </div>
+                <div className="control-group">
+                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'8px', fontSize: '12px'}}>
+                        <label>Control Horizon</label><span style={{color: '#3b82f6', fontFamily: 'monospace'}}>{mpcParams.controlHorizon} steps</span>
+                    </div>
+                    <input type="range" min="1" max="12" value={mpcParams.controlHorizon} onChange={e => setMPCParams({ ...mpcParams, controlHorizon: parseInt(e.target.value) })} style={{width: '100%'}} />
+                </div>
+                <div className="control-group">
+                    <div style={{display:'flex', justifyContent:'space-between', marginBottom:'8px', fontSize: '12px'}}>
+                        <label>Optimization Interval</label><span style={{color: '#3b82f6', fontFamily: 'monospace'}}>{mpcParams.optimizationInterval} min</span>
+                    </div>
+                    <input type="range" min="5" max="60" step="5" value={mpcParams.optimizationInterval} onChange={e => setMPCParams({ ...mpcParams, optimizationInterval: parseInt(e.target.value) })} style={{width: '100%'}} />
+                </div>
+                <label className="constraint-toggle" style={{display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: 'rgba(255,255,255,0.5)'}}>
+                    <input type="checkbox" checked={mpcParams.rateConstraints} onChange={e => setMPCParams({ ...mpcParams, rateConstraints: e.target.checked })} />
+                    <span>Rate Constraints (max {mpcParams.maxHvacChange}%/step)</span>
+                </label>
+          </SidebarSection>
+        </RightSidebar>
       </div>
-
-      {/* Deploy Modal */}
       {showDeployModal && (
         <div className="modal-overlay" onClick={() => setShowDeployModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -403,7 +476,7 @@ const ControllerTab: React.FC = () => {
                 <div className="summary-row"><span>Schedule Mode</span><span>{scheduleConfig.mode === 'scheduled' ? 'Office Hours' : '24/7'}</span></div>
               </div>
             </div>
-            <div className="modal-footer"><button className="cancel" onClick={() => setShowDeployModal(false)}>Cancel</button><button className="confirm" onClick={handleDeploy}>🚀 Deploy to HVAC</button></div>
+            <div className="modal-footer"><button className="cancel" onClick={() => setShowDeployModal(false)}>Cancel</button><button className="confirm" onClick={handleDeploy}>Deploy to HVAC</button></div>
           </div>
         </div>
       )}
