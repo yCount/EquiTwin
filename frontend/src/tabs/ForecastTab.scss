@@ -37,10 +37,7 @@ $text-dim: rgba(255, 255, 255, 0.5);
   width: 100%;
   height: 100%;
   min-height: 100vh;
-  background-color: $bg-dark;
-  background-image: 
-    radial-gradient(circle at 85% 15%, rgba($primary, 0.08), transparent 25%),
-    radial-gradient(circle at 15% 85%, rgba($secondary, 0.05), transparent 25%);
+  background-color: #1A1D21;
   color: $text-main;
   font-family: 'Inter', sans-serif;
   display: flex;

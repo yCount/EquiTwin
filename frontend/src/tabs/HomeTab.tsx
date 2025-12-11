@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   Viewer,
   ViewerNavigationToolsProvider,
@@ -13,8 +13,8 @@ import {
   ShowHideNullValuesSettingsMenuItem,
 } from "@itwin/property-grid-react";
 import { MeasureToolsUiItemsProvider } from "@itwin/measure-tools-react";
-import { IModelApp, IModelConnection, EmphasizeElements } from "@itwin/core-frontend";
-import { QueryRowFormat } from "@itwin/core-common";
+import { IModelApp, IModelConnection, EmphasizeElements, ScreenViewport } from "@itwin/core-frontend";
+import { QueryRowFormat, ColorDef } from "@itwin/core-common";
 import { unifiedSelectionStorage } from "../selectionStorage";
 import "./HomeTab.scss";
 import Topbar from "./components/Topbar";
@@ -59,6 +59,37 @@ const HomeTab: React.FC<HomeTabProps> = ({
   const handleCaptureScreenshot = () => { console.log("Capturing screenshot..."); };
   const handleExportState = () => { console.log("Exporting current state..."); };
   const toggleTheme = () => { setIsDarkMode((prev) => !prev); };
+
+  useEffect(() => {
+    if (!iModelConnection) return;
+
+    const changeBackground = (vp: ScreenViewport) => {
+      // Create the ColorDef from your hex string
+      const bgColor = ColorDef.fromString("#1A1D21");
+      
+      // Apply to the display style
+      vp.displayStyle.backgroundColor = bgColor;
+      
+      // Ideally, ensure the background is turned on (it usually is by default in 3D)
+      // vp.viewFlags = vp.viewFlags.with("backgroundMap", false); // Optional: Hide map if needed
+
+      vp.invalidateScene();
+    };
+
+    // 1. Try to apply immediately if a view is already selected
+    if (IModelApp.viewManager.selectedView) {
+      changeBackground(IModelApp.viewManager.selectedView);
+    }
+
+    // 2. Listen for new views opening (e.g. initial load)
+    const removeListener = IModelApp.viewManager.onViewOpen.addListener((vp: ScreenViewport) => {
+      changeBackground(vp);
+    });
+
+    return () => {
+      removeListener();
+    };
+  }, [iModelConnection]);
 
   // Query elements by category ID using the correct iTwin.js API
   const getElementIdsByCategory = useCallback(async (categoryId: string): Promise<string[]> => {

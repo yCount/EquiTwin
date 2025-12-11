@@ -1,7 +1,7 @@
 /* Left navigation sidebar */
 .app-sidebar {
   width: 85px;
-  background: lightgray;
+  background: #5C626E;
   border-right: 1px solid #1f2937;
   padding: 0.75rem 0.5rem;
   display: flex;
@@ -115,10 +115,6 @@
   transition-delay: 0.1s;
 }
 
-// .tab-button:hover {
-//   background: rgba(37, 99, 235, 0.15);
-//   border-color: rgba(59, 130, 246, 0.6);
-// }
 #home-button:hover:not(:active) {
   background: rgba(30, 64, 175, 0.15);
   border-color: rgba(59, 130, 246, 0.8);}
