@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import "./ControllerTab.scss";
 import Topbar from "./components/Topbar";
+import "./components/ControllerSidebar.scss";
 import RightSidebar, { SidebarSection } from "./components/RightSidebar";
 
 interface SelectedModel {

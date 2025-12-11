@@ -1,0 +1,229 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+// --- EXACT VARIABLES FROM HOME TAB (PREMIUM DARK) ---
+$bg-sidebar: #111316;    // Main Sidebar Background
+$card-bg: #1c2128;       // Widget Background
+$card-hover: #262c36;    // Widget Hover
+$border-color: #30363d;  // Borders
+$input-bg: #0d1117;      // Input/Well Background
+
+$text-main: #e6edf3;
+$text-dim: #8b949e;
+
+// Accents
+$primary: #58a6ff;
+$success: #3fb950;
+$warning: #d29922;
+$danger: #f85149;
+
+// --- MIXINS ---
+@mixin panel-base {
+  background: $card-bg;
+  border: 1px solid $border-color;
+  border-radius: 8px; 
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+// ==========================================================================
+// 1. FILTER CONTROLS 
+// ==========================================================================
+
+.control-group {
+  margin-bottom: 24px; 
+
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: $text-dim;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+
+  // --- A. Floor Filter (Folder Toggles) ---
+  .folder-toggle-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .folder-toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 12px;
+      
+      // Unified Card Style
+      background: $card-bg;
+      border: 1px solid $border-color;
+      border-radius: 6px;
+      
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+      color: $text-main;
+
+      &:hover {
+        background: $card-hover;
+        border-color: $text-dim;
+        transform: translateY(-1px);
+      }
+
+      &.active {
+        background: rgba($primary, 0.15);
+        border-color: $primary;
+        color: $primary;
+        box-shadow: 0 4px 12px rgba($primary, 0.1);
+
+        .folder-icon {
+          color: $primary;
+          background: rgba($primary, 0.15);
+          border-color: rgba($primary, 0.3);
+        }
+      }
+
+      .folder-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: $input-bg;
+        border: 1px solid $border-color;
+        color: $text-dim;
+        transition: all 0.2s ease;
+
+        svg { width: 18px; height: 18px; }
+      }
+
+      .folder-info {
+        display: flex;
+        flex-direction: column;
+        
+        .folder-name {
+          font-size: 13px;
+          font-weight: 600;
+          font-family: 'Inter', sans-serif;
+        }
+      }
+    }
+  }
+
+  // --- B. Time Range Filter (Pills) ---
+  .pill-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .pill-btn {
+      flex: 1;
+      min-width: 70px;
+      padding: 12px; // Match padding of floor toggles
+      
+      // UPDATED: Now matches the Floor Filter style exactly
+      background: $card-bg; 
+      border: 1px solid $border-color;
+      border-radius: 6px;
+      
+      color: $text-dim;
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: $card-hover;
+        border-color: $text-dim;
+        color: $text-main;
+        transform: translateY(-1px);
+      }
+
+      &.active {
+        background: rgba($primary, 0.15);
+        border-color: $primary;
+        color: $primary;
+        box-shadow: 0 4px 12px rgba($primary, 0.1);
+      }
+    }
+  }
+}
+
+// ==========================================================================
+// 2. ANOMALY FEED (Matches HomeTab Summary Cards)
+// ==========================================================================
+
+.anomaly-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 12px;
+
+  .anomaly-card {
+    @include panel-base;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    gap: 16px;
+    align-items: center;
+    cursor: default;
+    
+    &:hover {
+      background: $card-hover;
+      border-color: $text-dim;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    &.critical {
+      border-left: 3px solid $danger;
+      .icon-wrapper { color: $danger; background: rgba($danger, 0.15); }
+      .deviation-val { color: $danger; }
+    }
+
+    &.warning {
+      border-left: 3px solid $warning;
+      .icon-wrapper { color: $warning; background: rgba($warning, 0.15); }
+      .deviation-val { color: $warning; }
+    }
+
+    &.good {
+      border-left: 3px solid $success;
+      .icon-wrapper { color: $success; background: rgba($success, 0.15); }
+      .deviation-val { color: $success; }
+    }
+
+    .icon-wrapper {
+      width: 40px; 
+      height: 40px;
+      border-radius: 6px;
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      
+      svg { width: 20px; height: 20px; stroke-width: 2px; }
+    }
+
+    .content {
+      display: flex; 
+      flex-direction: column; 
+      gap: 4px;
+      
+      .metric-name { font-size: 13px; font-weight: 600; color: $text-main; }
+      .impact-label { font-size: 10px; color: $text-dim; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+    }
+
+    .value-box {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      
+      .deviation-val { display: block; font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; }
+      .status-text { font-size: 9px; text-transform: uppercase; color: $text-dim; font-weight: 600; letter-spacing: 0.5px; }
+    }
+  }
+}

@@ -17,6 +17,7 @@ import "./DashboardTab.scss";
 import "./components/ChartTooltip.scss";
 import Topbar from "./components/Topbar";
 import TimelineControl from "./components/TimelineControl";
+import "./components/DashboardSidebar.scss";
 import RightSidebar, { SidebarSection } from "./components/RightSidebar";
 
 interface ChartDataPoint {
@@ -327,6 +328,10 @@ const DashboardTab = () => {
     setTimeRange({ start: null, end: null });
     setTimelineViewRange(null);
   }, []);
+
+  // local state for visual toggle only
+const [level4Active, setLevel4Active] = useState(true);
+const [level3Active, setLevel3Active] = useState(true);
 
   const ChartCard = React.memo(({ 
     title, 
@@ -755,9 +760,61 @@ const DashboardTab = () => {
         </main>
 
         <RightSidebar width="360px">
-          <SidebarSection title="View Settings">
+          <SidebarSection title="Floor Filter" defaultExpanded={true}>
+    <div className="folder-toggle-grid">
+      
+      {/* Level 4 Button */}
+      <button 
+        className={`folder-toggle-btn ${level4Active ? 'active' : ''}`}
+        onClick={() => setLevel4Active(!level4Active)}
+      >
+        <div className="folder-icon">
+          {level4Active ? (
+            // Eye Open Icon
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          ) : (
+            // Eye Closed Icon
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          )}
+        </div>
+        <div className="folder-info">
+          <span className="folder-name" style={{ textAlign: 'center' }}>Level 4</span>
+        </div>
+      </button>
+
+      {/* Level 3 Button */}
+      <button 
+        className={`folder-toggle-btn ${level3Active ? 'active' : ''}`}
+        onClick={() => setLevel3Active(!level3Active)}
+      >
+        <div className="folder-icon">
+          {level3Active ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          )}
+        </div>
+        <div className="folder-info">
+          <span className="folder-name" style={{ textAlign: 'center' }}>Level 3</span>
+        </div>
+      </button>
+
+    </div>
+        </SidebarSection>
+          <SidebarSection title="Time Range Filter">
             <div className="control-group">
-              <label>Time Range</label>
               <div className="pill-grid">
                 {['24hr', '7days', '30days', '3M', '1Y', 'ALL'].map(r => (
                   <button 
@@ -766,23 +823,6 @@ const DashboardTab = () => {
                     onClick={() => { setActiveTimeRange(r); resetTimeline(); }}
                   >
                     {r.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-             <div className="control-group">
-              <label>Floor Filter</label>
-              <div className="pill-grid">
-                {['3', '4'].map(f => (
-                  <button 
-                     key={f}
-                     className={`pill-btn ${selectedFloors.includes('floor'+f) ? 'active' : ''}`}
-                     onClick={() => {
-                       const val = 'floor'+f;
-                       setSelectedFloors(p => p.includes(val) ? p.filter(x => x !== val) : [...p, val]);
-                     }}
-                  >
-                     Level {f}
                   </button>
                 ))}
               </div>

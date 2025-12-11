@@ -18,6 +18,7 @@ import { QueryRowFormat, ColorDef } from "@itwin/core-common";
 import { unifiedSelectionStorage } from "../selectionStorage";
 import "./HomeTab.scss";
 import Topbar from "./components/Topbar";
+import "./components/HomeSidebar.scss";
 import RightSidebar, { SidebarSection } from "./components/RightSidebar";
 
 interface HomeTabProps {
@@ -283,7 +284,7 @@ const HomeTab: React.FC<HomeTabProps> = ({
 
         <RightSidebar width="360px">
           {/* Folder Visibility Controls */}
-          <SidebarSection title="Model Visibility" defaultExpanded={true}>
+          <SidebarSection title="Floor Filter" defaultExpanded={true}>
             <div className="folder-toggle-grid">
               <button 
                 className={`folder-toggle-btn ${category2Visible ? 'active' : ''}`}
@@ -304,8 +305,7 @@ const HomeTab: React.FC<HomeTabProps> = ({
                   )}
                 </div>
                 <div className="folder-info">
-                  <span className="folder-name">Level 4</span>
-                  <span className="folder-status">{category2Visible ? 'Visible' : 'Hidden'}</span>
+                  <span className="folder-name" style={{ textAlign: 'center' }}>Level 4</span>
                 </div>
               </button>
               <button 
@@ -327,8 +327,7 @@ const HomeTab: React.FC<HomeTabProps> = ({
                   )}
                 </div>
                 <div className="folder-info">
-                  <span className="folder-name">Level 3</span>
-                  <span className="folder-status">{category1Visible ? 'Visible' : 'Hidden'}</span>
+                  <span className="folder-name" style={{ textAlign: 'center' }}>Level 3</span>
                 </div>
               </button>
             </div>

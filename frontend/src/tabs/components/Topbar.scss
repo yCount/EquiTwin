@@ -1,44 +1,47 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
 // Shared Variables
-$bg-dark: #0b0d12;
-$panel-border: rgba(255, 255, 255, 0.08);
-$primary: #3b82f6; 
-$success: #10b981;
-$text-main: #ffffff;
-$text-dim: rgba(255, 255, 255, 0.5);
+$bg-dark: #111316; // MATCHED: Matches new Sidebar BG
+$panel-border: #30363d; // MATCHED: Matches HomeTab border
+$primary: #58a6ff; 
+$success: #3fb950;
+$text-main: #e6edf3;
+$text-dim: #8b949e;
+$btn-bg: #21262d; // MATCHED: New button bg
+$btn-border: #30363d;
 
 .topbar-container {
   flex-shrink: 0;
-  padding: 16px 24px;
+  padding: 0 24px;
+  height: 56px; // Fixed height for tighter feel
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid $panel-border;
-  background: #31353C;
-  backdrop-filter: blur(10px);
+  background: $bg-dark; // Solid dark background
   z-index: 20;
   font-family: 'Inter', sans-serif;
 
   .topbar-branding {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
     .topbar-title {
-      font-size: 20px;
-      font-weight: 700;
+      font-size: 16px; // Slightly smaller, cleaner
+      font-weight: 600;
       margin: 0;
-      // Unified Gradient for all titles
-      background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: $text-main;
       display: flex;
       align-items: center;
       gap: 10px;
     }
     
     .topbar-subtitle {
-      font-size: 12px;
+      font-size: 11px;
       color: $text-dim;
-      margin-top: 4px;
-      letter-spacing: 0.5px;
+      margin-top: 2px;
+      letter-spacing: 0.2px;
     }
   }
 
@@ -47,61 +50,62 @@ $text-dim: rgba(255, 255, 255, 0.5);
     align-items: center;
     gap: 12px;
 
-    // Standardized Button Class for use in children
+    .topbar-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: $text-dim;
+      font-weight: 500;
+      margin-right: 12px;
+      padding-right: 12px;
+      border-right: 1px solid $panel-border;
+
+      .status-dot {
+        width: 6px; height: 6px;
+        background: $success;
+        border-radius: 50%;
+        box-shadow: 0 0 8px rgba($success, 0.4);
+        
+        &.online { background: $success; }
+      }
+    }
+
+    // Standardized Button Class
     .topbar-btn {
-      height: 36px;
-      padding: 0 16px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 6px; // Unified radius
+      height: 32px; // Compact button
+      padding: 0 12px;
+      background: $btn-bg;
+      border: 1px solid $btn-border;
+      border-radius: 6px;
       color: $text-main;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       display: flex;
       align-items: center;
       gap: 8px;
 
       &:hover {
-        background: rgba(255,255,255,0.08);
-        border-color: rgba(255,255,255,0.15);
+        background: lighten($btn-bg, 5%);
+        border-color: $text-dim;
       }
 
       &.primary {
-        background: linear-gradient(135deg, $primary, darken($primary, 10%));
-        border-color: transparent;
+        background: #1f6feb; // GitHub Primary Button Blue
+        border-color: rgba(255,255,255,0.1);
         color: #fff;
+        
         &:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba($primary, 0.3);
-        }
-      }
-
-      &.success {
-        background: linear-gradient(135deg, $success, darken($success, 10%));
-        color: #000;
-        border-color: transparent;
-        font-weight: 700;
-        &:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba($success, 0.3);
+          background: #388bfd;
         }
       }
 
       &:disabled {
-        opacity: 0.7;
-        cursor: wait;
+        opacity: 0.6;
+        cursor: not-allowed;
       }
-    }
-
-    // Common Meta text (like "Last Updated")
-    .topbar-meta {
-      font-size: 11px;
-      color: $text-dim;
-      font-family: 'JetBrains Mono', monospace;
-      margin-left: 8px;
     }
   }
 }

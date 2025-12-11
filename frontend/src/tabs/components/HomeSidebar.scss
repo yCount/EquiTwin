@@ -1,0 +1,433 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+// --- Variables (aligned with your existing SCSS) ---
+$bg-dark: #0b0d12;
+$panel-bg: rgba(255, 255, 255, 0.03);
+$panel-bg-hover: rgba(255, 255, 255, 0.05);
+$panel-border: rgba(255, 255, 255, 0.08);
+
+$primary: #3b82f6;
+$accent: #8b5cf6;
+$success: #10b981;
+$warning: #f59e0b;
+$danger: #ef4444;
+
+$text-main: #ffffff;
+$text-dim: rgba(255, 255, 255, 0.5);
+
+// --- Mixins ---
+@mixin glass-panel {
+  background: var(--panel-bg, $panel-bg); // Use CSS var if avail (HomeTab), else SCSS var
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--panel-border, $panel-border);
+}
+
+@mixin scrollbar {
+  &::-webkit-scrollbar { width: 6px; height: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { 
+    background: rgba(255, 255, 255, 0.1); 
+    border-radius: 3px; 
+    &:hover { background: rgba(255, 255, 255, 0.2); } 
+  }
+}
+
+// --- Main Container ---
+.right-sidebar-container {
+  width: 100%; // Default, parent usually controls flex-basis or width
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #272B31;
+  border-left: 1px solid var(--panel-border, $panel-border);
+  font-family: 'Inter', sans-serif;
+  color: var(--text-main, $text-main);
+
+  .sidebar-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    @include scrollbar;
+  }
+}
+
+// --- Sidebar Sections ---
+.sidebar-section {
+  width: 100%;
+  border-bottom: 1px solid var(--panel-border, $panel-border);
+  padding-bottom: 20px;
+  margin-bottom: 4px;
+
+  &.no-border, &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
+
+  // --- Glass Panel Variant (for Controller/Forecast style cards) ---
+  &.glass-card {
+    @include glass-panel;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--panel-border, $panel-border); // reset border
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }
+
+  .section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    
+    .title-content {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim, $text-dim);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    &.clickable {
+      cursor: pointer;
+      user-select: none;
+      transition: opacity 0.2s;
+      &:hover { opacity: 0.8; }
+    }
+
+    .toggle-icon {
+      font-size: 10px;
+      color: var(--text-dim, $text-dim);
+    }
+  }
+
+  .section-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+// --- Reusable Widget Styles (Helpers) ---
+
+// 1. Grid of Pills (DashboardTab)
+.pill-grid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  .pill-btn {
+    flex: 1;
+    min-width: 60px;
+    padding: 8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: var(--text-dim, $text-dim);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover { background: rgba(255,255,255,0.08); color: var(--text-main, $text-main); }
+    
+    &.active {
+      background: rgba($primary, 0.15);
+      border-color: $primary;
+      color: lighten($primary, 10%);
+    }
+  }
+}
+
+// 2. Sensor Cards (HomeTab)
+.sensor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+
+  .sensor-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: all 0.2s;
+    color: var(--text-main, $text-main);
+
+    &:hover { background: rgba(255,255,255,0.05); transform: translateY(-2px); }
+
+    // Variants
+    &.weather .icon-box { color: $warning; background: rgba($warning, 0.1); }
+    &.occupancy .icon-box { color: #f88c33; background: rgba(248, 140, 51, 0.1); }
+    &.air .icon-box { color: #3aa9d6; background: rgba(58, 169, 214, 0.1); }
+    &.temp .icon-box { color: $danger; background: rgba($danger, 0.1); }
+
+    .icon-box {
+      width: 40px; height: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 12px;
+      svg { width: 20px; height: 20px; }
+    }
+
+    .label { font-size: 11px; color: var(--text-dim, $text-dim); font-weight: 600; margin-bottom: 4px; }
+    
+    .value-group {
+      .val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; }
+      .unit { font-size: 11px; color: var(--text-dim, $text-dim); margin-left: 2px; }
+    }
+  }
+}
+
+// 3. Wide Summary Card (HomeTab)
+.summary-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex; align-items: center; gap: 16px;
+  color: var(--text-main, $text-main);
+
+  .icon-box {
+    width: 48px; height: 48px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.05);
+  }
+
+  &.alert {
+    background: linear-gradient(90deg, rgba($warning, 0.05), transparent);
+    .icon-box { color: $warning; background: rgba($warning, 0.1); }
+  }
+
+  &.normal {
+    background: linear-gradient(90deg, rgba($primary, 0.05), transparent);
+    .icon-box { color: $primary; background: rgba($primary, 0.1); }
+  }
+
+  .content {
+    .label { font-size: 11px; text-transform: uppercase; color: var(--text-dim, $text-dim); font-weight: 600; }
+    .val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; }
+    .unit { font-size: 12px; color: var(--text-dim, $text-dim); margin-left: 4px; }
+  }
+}
+
+// 4. Control Inputs (ControllerTab/ForecastTab)
+.control-group {
+  margin-bottom: 12px;
+  
+  label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-dim, $text-dim);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  select, input[type="time"], input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    color: var(--text-main, $text-main);
+    font-size: 12px;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+    
+    &:focus { border-color: $primary; }
+  }
+
+  input[type="range"] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    outline: none;
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      background: white; border-radius: 50%; cursor: pointer;
+    }
+  }
+}
+
+// 5. Toggle Switch
+.toggle-switch {
+  position: relative;
+  width: 44px; height: 24px;
+  
+  input {
+    opacity: 0; width: 0; height: 0;
+    &:checked + .slider {
+      background: $primary;
+      &::before { transform: translateX(20px); }
+    }
+  }
+
+  .slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background: rgba(255,255,255,0.1);
+    border-radius: 24px;
+    transition: 0.3s;
+
+    &::before {
+      content: ''; position: absolute;
+      height: 18px; width: 18px;
+      left: 3px; bottom: 3px;
+      background: white; border-radius: 50%;
+      transition: 0.3s;
+    }
+  }
+}
+
+.anomaly-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .anomaly-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 36px 1fr auto; // Icon - Text - Value
+    gap: 12px;
+    align-items: center;
+    transition: all 0.2s ease;
+    cursor: default;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.04);
+      transform: translateX(2px);
+    }
+
+    // Status Colors & Glows
+    &.critical {
+      border-left: 2px solid $danger;
+      .icon-wrapper { color: $danger; background: rgba($danger, 0.1); box-shadow: 0 0 10px rgba($danger, 0.1); }
+      .deviation-val { color: $danger; }
+    }
+    &.warning {
+      border-left: 2px solid $warning;
+      .icon-wrapper { color: $warning; background: rgba($warning, 0.1); box-shadow: 0 0 10px rgba($warning, 0.1); }
+      .deviation-val { color: $warning; }
+    }
+    &.good {
+      border-left: 2px solid $success;
+      .icon-wrapper { color: $success; background: rgba($success, 0.1); }
+      .deviation-val { color: $success; }
+    }
+
+    .icon-wrapper {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      
+      svg { width: 18px; height: 18px; }
+    }
+
+    .content {
+      display: flex; flex-direction: column; gap: 2px;
+      .metric-name { font-size: 12px; font-weight: 600; color: var(--text-main, $text-main); }
+      .impact-label { font-size: 10px; color: var(--text-dim, $text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+    }
+
+    .value-box {
+      text-align: right;
+      .deviation-val {
+        display: block;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .status-text {
+        font-size: 9px;
+        color: var(--text-dim, $text-dim);
+        opacity: 0.7;
+      }
+    }
+  }
+}
+
+// --- 7. History Timeline (ForecastTab) ---
+.history-timeline {
+  position: relative;
+  padding-left: 12px; // Space for the vertical line
+  display: flex;
+  flex-direction: column;
+  gap: 0; // Gap handled by padding to create connected line look
+
+  // The Vertical Line
+  &::before {
+    content: '';
+    position: absolute;
+    top: 6px; bottom: 6px; left: 19px; // Align with center of dots
+    width: 1px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .timeline-item {
+    position: relative;
+    padding: 0 0 20px 24px; // Left padding makes room for dots
+
+    &:last-child { padding-bottom: 0; }
+
+    // The Dot
+    .timeline-dot {
+      position: absolute;
+      left: 3.5px; top: 2px;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: $bg-dark; // mask the line behind it
+      border: 2px solid var(--text-dim, $text-dim);
+      z-index: 1;
+
+      &.success { border-color: $success; box-shadow: 0 0 8px rgba($success, 0.4); background: $success; }
+      &.failed { border-color: $danger; box-shadow: 0 0 8px rgba($danger, 0.4); background: $danger; }
+    }
+
+    .timeline-content {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 10px 12px;
+      transition: background 0.2s;
+
+      &:hover { background: rgba(255, 255, 255, 0.04); }
+
+      .header {
+        display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;
+        .trigger { font-size: 12px; font-weight: 600; color: var(--text-main, $text-main); }
+        .date { font-size: 10px; color: var(--text-dim, $text-dim); font-family: 'JetBrains Mono', monospace; }
+      }
+
+      .details {
+        display: flex; justify-content: space-between; align-items: center;
+        
+        .models-chip {
+          font-size: 10px; color: var(--text-dim, $text-dim);
+          background: rgba(255, 255, 255, 0.05); padding: 2px 6px; border-radius: 4px;
+        }
+
+        .duration {
+          font-size: 10px; font-weight: 600; color: var(--text-dim, $text-dim);
+          display: flex; align-items: center; gap: 4px;
+          
+          svg { width: 10px; height: 10px; opacity: 0.7; }
+        }
+      }
+    }
+  }
+}
