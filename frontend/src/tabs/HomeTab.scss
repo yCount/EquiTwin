@@ -29,25 +29,20 @@
 
   // -- Light Theme Overrides --
   &[data-theme='light'] {
-    --bg-main: #f3f4f6; // Light gray background
+    --bg-main: #f3f4f6;
     --bg-viewer-fallback: #e5e7eb;
-
-    --panel-bg: rgba(255, 255, 255, 0.85); // White frosted glass
+    --panel-bg: rgba(255, 255, 255, 0.85);
     --panel-border: rgba(0, 0, 0, 0.08);
     --panel-shadow: -4px 0 32px rgba(0, 0, 0, 0.1);
-
-    --text-main: #111827; // Very dark gray/black
+    --text-main: #111827;
     --text-dim: rgba(0, 0, 0, 0.5);
-
     --card-bg: rgba(0, 0, 0, 0.03);
     --card-border: rgba(0, 0, 0, 0.06);
     --card-hover-bg: rgba(0, 0, 0, 0.06);
-
     --scrollbar-thumb: rgba(0, 0, 0, 0.1);
   }
 }
 
-// SCSS Variables for structural reuse (mixins)
 @mixin glass-panel {
   background: var(--panel-bg);
   backdrop-filter: blur(12px);
@@ -75,7 +70,7 @@
   flex-direction: column;
   font-family: 'Inter', sans-serif;
   overflow: hidden;
-  transition: background-color 0.3s ease; // Smooth theme transition
+  transition: background-color 0.3s ease;
 
   // Main Content Area
   .home-content {
@@ -124,10 +119,14 @@
           font-weight: 700;
           letter-spacing: 1px;
           margin-bottom: 16px;
-          display: flex; align-items: center; gap: 8px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
           
           &::after {
-            content: ''; flex: 1; height: 1px; 
+            content: '';
+            flex: 1;
+            height: 1px;
             background: linear-gradient(90deg, var(--text-dim), transparent);
             opacity: 0.2;
           }
@@ -147,7 +146,10 @@
         border: 1px solid var(--card-border);
         border-radius: 12px;
         padding: 16px;
-        display: flex; flex-direction: column; align-items: center; text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
         transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
@@ -159,27 +161,47 @@
           border-color: var(--text-dim);
         }
 
-        // Color Variants (Using CSS Vars)
+        // Color Variants
         &.weather { .icon-box { color: var(--color-warning); background: rgba(251, 191, 36, 0.1); } }
         &.occupancy { .icon-box { color: #f88c33; background: rgba(248, 140, 51, 0.1); } }
         &.air { .icon-box { color: #3aa9d6; background: rgba(58, 169, 214, 0.1); } }
         &.temp { .icon-box { color: var(--color-danger); background: rgba(239, 68, 68, 0.1); } }
 
         .icon-box {
-          width: 40px; height: 40px;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           margin-bottom: 12px;
           
           svg { width: 20px; height: 20px; stroke-width: 2px; }
         }
 
-        .label { font-size: 11px; color: var(--text-dim); font-weight: 600; margin-bottom: 4px; }
+        .label {
+          font-size: 11px;
+          color: var(--text-dim);
+          font-weight: 600;
+          margin-bottom: 4px;
+        }
 
         .value-group {
-          display: flex; align-items: baseline; gap: 2px;
-          .val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: var(--text-main); }
-          .unit { font-size: 11px; color: var(--text-dim); }
+          display: flex;
+          align-items: baseline;
+          gap: 2px;
+
+          .val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+          }
+
+          .unit {
+            font-size: 11px;
+            color: var(--text-dim);
+          }
         }
       }
 
@@ -189,13 +211,18 @@
         border: 1px solid var(--card-border);
         border-radius: 12px;
         padding: 16px;
-        display: flex; align-items: center; gap: 16px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
         color: var(--text-main);
         
         .icon-box {
-          width: 48px; height: 48px;
+          width: 48px;
+          height: 48px;
           border-radius: 10px;
-          display: flex; align-items: center; justify-content: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           background: var(--card-hover-bg);
           color: var(--text-dim);
           
@@ -213,10 +240,109 @@
         }
 
         .content {
-          .label { font-size: 11px; text-transform: uppercase; color: var(--text-dim); font-weight: 600; margin-bottom: 4px; }
-          .val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: var(--text-main); }
-          .unit { font-size: 12px; color: var(--text-dim); margin-left: 4px; }
+          .label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            font-weight: 600;
+            margin-bottom: 4px;
+          }
+
+          .val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+          }
+
+          .unit {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-left: 4px;
+          }
         }
+      }
+    }
+  }
+
+  // Folder Toggle Buttons
+  .folder-toggle-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .folder-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    padding: 16px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    color: var(--text-main);
+
+    &:hover {
+      background: var(--card-hover-bg);
+      transform: translateY(-1px);
+      border-color: var(--text-dim);
+    }
+
+    &.active {
+      border-color: var(--color-success);
+      background: rgba(16, 185, 129, 0.08);
+
+      .folder-icon {
+        color: var(--color-success);
+        background: rgba(16, 185, 129, 0.15);
+      }
+    }
+
+    &:not(.active) {
+      opacity: 0.7;
+
+      .folder-icon {
+        color: var(--text-dim);
+        background: var(--card-bg);
+      }
+    }
+
+    .folder-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+
+      svg {
+        width: 22px;
+        height: 22px;
+      }
+    }
+
+    .folder-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+
+      .folder-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-main);
+      }
+
+      .folder-status {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-dim);
+        font-weight: 500;
       }
     }
   }
@@ -226,9 +352,12 @@
     background: var(--card-bg);
     border: 1px solid var(--panel-border);
     color: var(--text-main);
-    width: 32px; height: 32px;
+    width: 32px;
+    height: 32px;
     border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     transition: all 0.2s;
     margin-right: 8px;
@@ -245,7 +374,14 @@
   @media (max-width: 1024px) {
     .home-content {
       flex-direction: column;
-      .hud-sidebar { width: 100%; height: auto; max-height: 40%; border-left: none; border-top: 1px solid var(--panel-border); }
+
+      .hud-sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 40%;
+        border-left: none;
+        border-top: 1px solid var(--panel-border);
+      }
     }
   }
 }

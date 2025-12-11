@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Viewer,
   ViewerNavigationToolsProvider,
@@ -7,17 +7,14 @@ import {
 } from "@itwin/web-viewer-react";
 import { ECSchemaRpcInterface } from "@itwin/ecschema-rpcinterface-common";
 import {
-  CategoriesTreeComponent,
-  createTreeWidget,
-  ModelsTreeComponent,
-} from "@itwin/tree-widget-react";
-import {
   AncestorsNavigationControls,
   CopyPropertyTextContextMenuItem,
   createPropertyGrid,
   ShowHideNullValuesSettingsMenuItem,
 } from "@itwin/property-grid-react";
 import { MeasureToolsUiItemsProvider } from "@itwin/measure-tools-react";
+import { IModelApp, IModelConnection, EmphasizeElements } from "@itwin/core-frontend";
+import { QueryRowFormat } from "@itwin/core-common";
 import { unifiedSelectionStorage } from "../selectionStorage";
 import "./HomeTab.scss";
 import Topbar from "./components/Topbar";
@@ -32,6 +29,9 @@ interface HomeTabProps {
   onIModelAppInit: any;
 }
 
+const MODEL_ID_1 = "0x200000001c0";
+const MODEL_ID_2 = "0x3000000008b";
+
 const HomeTab: React.FC<HomeTabProps> = ({
   iTwinId,
   iModelId,
@@ -41,6 +41,11 @@ const HomeTab: React.FC<HomeTabProps> = ({
   onIModelAppInit,
 }) => {
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [iModelConnection, setIModelConnection] = useState<IModelConnection | null>(null);
+  
+  // State to track visibility of each category
+  const [category1Visible, setCategory1Visible] = useState(true);
+  const [category2Visible, setCategory2Visible] = useState(true);
 
   const sensorData = {
     weatherForecast: { value: "Sunny", unit: "25°C" },
@@ -55,9 +60,146 @@ const HomeTab: React.FC<HomeTabProps> = ({
   const handleExportState = () => { console.log("Exporting current state..."); };
   const toggleTheme = () => { setIsDarkMode((prev) => !prev); };
 
+  // Query elements by category ID using the correct iTwin.js API
+  const getElementIdsByCategory = useCallback(async (categoryId: string): Promise<string[]> => {
+    if (!iModelConnection) return [];
+
+    const query = `
+      SELECT Model.id
+      FROM bis.GeometricElement3d mesh
+      WHERE mesh.Model.Id = ${categoryId}
+    `;
+
+    const elementIds: string[] = [];
+    
+    try {
+      const result = iModelConnection.createQueryReader(query, undefined, { rowFormat: QueryRowFormat.UseJsPropertyNames });
+      console.log(result)
+      while (await result.step()) {
+        const row = result.current.toRow();
+        if (row.id) {
+          elementIds.push(row.id);
+        }
+      }
+    } catch (error) {
+      console.error(`Error querying elements for category ${categoryId}:`, error);
+    }
+
+    console.log("Found element IDs for category", categoryId, ":", elementIds);
+
+    return elementIds;
+  }, [iModelConnection]);
+
+  // Helper to manage the "Hidden" list (NeverDrawn)
+  const setElementsVisibility = useCallback(async (modelId: string, visible: boolean) => {
+    const vp = IModelApp.viewManager.selectedView;
+    if (!vp || !iModelConnection) return;
+
+    // 1. Get the IDs from your working SQL query
+    const elementIds = await getElementIdsByCategory(modelId);
+    
+    if (elementIds.length === 0) {
+      console.warn(`No elements found for Model ${modelId}`);
+      return;
+    }
+
+    // 2. specific 'Never Drawn' set manipulation
+    const neverDrawn = new Set(vp.neverDrawn); // Copy current hidden list
+
+    if (!visible) {
+      // HIDE: Add these IDs to the neverDrawn set
+      elementIds.forEach(id => neverDrawn.add(id));
+    } else {
+      // SHOW: Remove these IDs from the neverDrawn set
+      elementIds.forEach(id => neverDrawn.delete(id));
+    }
+
+    // 3. Apply the new set and refresh
+    vp.setNeverDrawn(neverDrawn);
+    console.log(`Updated visibility for Model ${modelId}: ${visible ? 'Shown' : 'Hidden'} (${elementIds.length} elements)`);
+    
+  }, [iModelConnection, getElementIdsByCategory]);
+
+// Toggle visibility for Model 1 (0x20000000074)
+  const toggleCategory1Visibility = useCallback(async () => {
+    const vp = IModelApp.viewManager.selectedView;
+    if (!vp || !iModelConnection) {
+      console.warn("Viewport or iModel connection not available");
+      return;
+    }
+
+    const newVisibility = !category1Visible;
+    setCategory1Visible(newVisibility);
+    setElementsVisibility(MODEL_ID_1, newVisibility);
+
+    try {
+      // FIX: Use changeModelDisplay instead of changeCategoryDisplay
+      // Note: changeModelDisplay does not require the 3rd 'overlay' argument
+      vp.changeModelDisplay([MODEL_ID_1], newVisibility);
+      
+      console.log(`Model 1 (${MODEL_ID_1}) visibility: ${newVisibility}`);
+    } catch (error) {
+      console.error("Error toggling model 1 visibility:", error);
+    }
+  }, [category1Visible, iModelConnection]);
+
+// Toggle visibility for Model 2 (0x3000000008b)
+  const toggleCategory2Visibility = useCallback(async () => {
+    const vp = IModelApp.viewManager.selectedView;
+    if (!vp || !iModelConnection) {
+      console.warn("Viewport or iModel connection not available");
+      return;
+    }
+
+    const newVisibility = !category2Visible;
+    setCategory2Visible(newVisibility);
+    setElementsVisibility(MODEL_ID_2, newVisibility);
+
+    try {
+      // FIX: Use changeModelDisplay instead of changeCategoryDisplay
+      vp.changeModelDisplay([MODEL_ID_2], newVisibility);
+      
+      console.log(`Model 2 (${MODEL_ID_2}) visibility: ${newVisibility}`);
+    } catch (error) {
+      console.error("Error toggling model 2 visibility:", error);
+    }
+  }, [category2Visible, iModelConnection]);
+
+  // Alternative method: Hide/show individual elements using EmphasizeElements
+  // Use this if changeCategoryDisplay doesn't work for your use case
+  const toggleElementsVisibilityByCategory = useCallback(async (categoryId: string, visible: boolean) => {
+    const vp = IModelApp.viewManager.selectedView;
+    if (!vp || !iModelConnection) return;
+
+    const elementIds = await getElementIdsByCategory(categoryId);
+    if (elementIds.length === 0) {
+      console.warn(`No elements found for category ${categoryId}`);
+      return;
+    }
+
+    const emphasize = EmphasizeElements.getOrCreate(vp);
+    
+    if (!visible) {
+      // Hide elements
+      emphasize.hideElements(elementIds, vp, false);
+    } else {
+      // Show elements (clear hide override for these elements)
+      emphasize.clearHiddenElements(vp);
+    }
+
+    vp.invalidateScene();
+    console.log(`Toggled ${elementIds.length} elements for category ${categoryId} to ${visible ? 'visible' : 'hidden'}`);
+  }, [iModelConnection, getElementIdsByCategory]);
+
+  // Handle iModel connection when viewer is ready
+  const handleIModelConnected = useCallback((iModel: IModelConnection) => {
+    setIModelConnection(iModel);
+    console.log("iModel connected:", iModel.name);
+  }, []);
+
   return (
     <div 
-      className={`home-tab-container iui-root ${isDarkMode ? 'iui-theme-dark' : 'iui-theme-light'}`} 
+      className={`home-tab-container iui-root ${isDarkMode ? 'iui-theme-dark' : 'iui-theme-light'}`}
       data-theme={isDarkMode ? 'dark' : 'light'}
     >
       <Topbar 
@@ -65,30 +207,15 @@ const HomeTab: React.FC<HomeTabProps> = ({
         subtitle="Real-time Building Visualization & Telemetry"
         rightContent={
           <>
-            <div className="topbar-status" style={{
-              // display: 'flex', alignItems: 'center', gap: '8px',
-              // fontSize: '12px', color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
-              // padding: '6px 12px', background: 'var(--card-bg)',
-              // borderRadius: '20px', border: '1px solid var(--panel-border)'
-            }}>
+            <div className="topbar-status" style={{}}>
               <span className="status-dot online" />
-               <span>System Online</span>
+              <span>System Online</span>
             </div>
-
-            {/* <button className="theme-toggle-btn" onClick={toggleTheme} title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}>
-              {isDarkMode ? (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-              ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-              )}
-            </button> */}
-
             <button className="topbar-btn" onClick={handleCaptureScreenshot}>Capture</button>
             <button className="topbar-btn primary" onClick={handleExportState} style={{background: '#224c91'}}>Export</button>
           </>
         }
       />
-
       <div className="home-content">
         <div className="viewer-wrapper">
           <Viewer
@@ -99,48 +226,13 @@ const HomeTab: React.FC<HomeTabProps> = ({
             viewCreatorOptions={viewCreatorOptions}
             enablePerformanceMonitors={true}
             onIModelAppInit={onIModelAppInit}
+            onIModelConnected={handleIModelConnected}
             mapLayerOptions={{ BingMaps: { key: "key", value: process.env.IMJS_BING_MAPS_KEY ?? "" } }}
             backendConfiguration={{ defaultBackend: { rpcInterfaces: [ECSchemaRpcInterface] } }}
             uiProviders={[
               new ViewerNavigationToolsProvider(),
               new ViewerContentToolsProvider({ vertical: { measureGroup: false } }),
               new ViewerStatusbarItemsProvider(),
-              {
-                id: "TreeWidgetUIProvider",
-                getWidgets: () => [
-                  createTreeWidget({
-                    trees: [
-                      {
-                        id: ModelsTreeComponent.id,
-                        getLabel: () => ModelsTreeComponent.getLabel(),
-                        render: (props) => (
-                          <ModelsTreeComponent
-                            getSchemaContext={(iModel) => iModel.schemaContext}
-                            density={props.density}
-                            selectionStorage={unifiedSelectionStorage}
-                            selectionMode="extended"
-                            onPerformanceMeasured={props.onPerformanceMeasured}
-                            onFeatureUsed={props.onFeatureUsed}
-                          />
-                        ),
-                      },
-                      {
-                        id: CategoriesTreeComponent.id,
-                        getLabel: () => CategoriesTreeComponent.getLabel(),
-                        render: (props) => (
-                          <CategoriesTreeComponent
-                            getSchemaContext={(iModel) => iModel.schemaContext}
-                            density={props.density}
-                            selectionStorage={unifiedSelectionStorage}
-                            onPerformanceMeasured={props.onPerformanceMeasured}
-                            onFeatureUsed={props.onFeatureUsed}
-                          />
-                        ),
-                      },
-                    ],
-                  }),
-                ],
-              },
               {
                 id: "PropertyGridUIProvider",
                 getWidgets: () => [
@@ -158,8 +250,60 @@ const HomeTab: React.FC<HomeTabProps> = ({
           />
         </div>
 
-        {/* Updated Right Sidebar Implementation */}
         <RightSidebar width="360px">
+          {/* Folder Visibility Controls */}
+          <SidebarSection title="Model Visibility" defaultExpanded={true}>
+            <div className="folder-toggle-grid">
+              <button 
+                className={`folder-toggle-btn ${category1Visible ? 'active' : ''}`}
+                onClick={toggleCategory1Visibility}
+                disabled={!iModelConnection}
+              >
+                <div className="folder-icon">
+                  {category1Visible ? (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  )}
+                </div>
+                <div className="folder-info">
+                  <span className="folder-name">Level 4</span>
+                  <span className="folder-status">{category1Visible ? 'Visible' : 'Hidden'}</span>
+                </div>
+              </button>
+
+              <button 
+                className={`folder-toggle-btn ${category2Visible ? 'active' : ''}`}
+                onClick={toggleCategory2Visibility}
+                disabled={!iModelConnection}
+              >
+                <div className="folder-icon">
+                  {category2Visible ? (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  )}
+                </div>
+                <div className="folder-info">
+                  <span className="folder-name">Level 3</span>
+                  <span className="folder-status">{category2Visible ? 'Visible' : 'Hidden'}</span>
+                </div>
+              </button>
+            </div>
+          </SidebarSection>
+
           <SidebarSection title="Environment" defaultExpanded={true}>
             <div className="sensor-grid">
               <div className="sensor-card weather">
@@ -171,7 +315,6 @@ const HomeTab: React.FC<HomeTabProps> = ({
                   <span className="val">{sensorData.weatherForecast.value}</span>
                 </div>
               </div>
-
               <div className="sensor-card temp">
                 <div className="icon-box">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
@@ -182,7 +325,6 @@ const HomeTab: React.FC<HomeTabProps> = ({
                   <span className="unit">{sensorData.temperature.unit}</span>
                 </div>
               </div>
-
               <div className="sensor-card air">
                 <div className="icon-box">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 8h14.5a2.5 2.5 0 0 1 0 5H14" /><path d="M6 16h13.5a2.5 2.5 0 0 0 0-5H19" /><path d="M2 12h5" /><path d="M16 8V7" /></svg>
@@ -193,7 +335,6 @@ const HomeTab: React.FC<HomeTabProps> = ({
                   <span className="unit">{sensorData.airQuality.unit}</span>
                 </div>
               </div>
-
               <div className="sensor-card occupancy">
                 <div className="icon-box">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -219,7 +360,6 @@ const HomeTab: React.FC<HomeTabProps> = ({
                   <span className="unit">{sensorData.energyUsage.unit}</span>
                 </div>
               </div>
-
               <div className="summary-card alert">
                 <div className="icon-box">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18" strokeDasharray="4 2" opacity="0.5" /><path d="M3 12l4 0 4-4 4 8 5-6" /><circle cx="20" cy="10" r="2" fill="currentColor" stroke="none" /></svg>

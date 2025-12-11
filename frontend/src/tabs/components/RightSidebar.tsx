@@ -10,7 +10,7 @@ interface RightSidebarProps {
 }
 
 interface SidebarSectionProps {
-  title?: ReactNode; // Can be string or JSX (for icons/toggles)
+  title?: ReactNode;
   children: ReactNode;
   className?: string;
   noBorder?: boolean;
