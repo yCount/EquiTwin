@@ -373,13 +373,22 @@ const ForecastTab: React.FC = () => {
               <span className="status-dot online" />
               <span>All Models Ready</span>
             </div>
-            {/* <button 
+            <button className="topbar-btn" onClick={() => console.log('Export models')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+              </svg>
+              Export Models
+            </button>
+            <button 
               className="topbar-btn primary" 
               onClick={handleRetrainAll}
               disabled={isRetrainingAll}
             >
-              {isRetrainingAll ? '⏳ Training...' : '🔄 Retrain All'}
-            </button> */}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+              </svg>
+              {isRetrainingAll ? 'Training...' : 'Retrain All'}
+            </button>
           </>
         }
       />

@@ -331,14 +331,32 @@ const ControllerTab: React.FC = () => {
     <div className="controller-container">
       <Topbar
         title="MPC Controller"
-        leftContent={
-          <div className="topbar-status active">
-            <div className="status-dot" />
-            {deploymentStatus.isActive ? 'Controller Active' : 'Paused'}
-          </div>
-        }
+        subtitle="Model Predictive Control Configuration"
         rightContent={
-          <button onClick={() => setShowDeployModal(true)} style={{ background: '#f0612e', color: '#e4e4e6'}}>Deploy</button>
+          <>
+            <div className="topbar-status">
+              <span className={`status-dot ${deploymentStatus.isActive ? 'online' : ''}`} />
+              <span>{deploymentStatus.isActive ? 'Controller Active' : 'Controller Paused'}</span>
+            </div>
+            <button className="topbar-btn" onClick={() => setIsSimulating(!isSimulating)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
+              {isSimulating ? 'Stop Simulation' : 'Run Simulation'}
+            </button>
+            <button 
+              className="topbar-btn primary" 
+              onClick={() => setShowDeployModal(true)}
+              disabled={!deploymentStatus.isActive}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <path d="M22 4L12 14.01l-3-3"/>
+              </svg>
+              Deploy to HVAC
+            </button>
+          </>
         }
       />
 

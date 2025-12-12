@@ -59,6 +59,12 @@ const HomeTab: React.FC<HomeTabProps> = ({
 
   const handleCaptureScreenshot = () => { console.log("Capturing screenshot..."); };
   const handleExportState = () => { console.log("Exporting current state..."); };
+  const handleRefreshView = () => { 
+    console.log("Refreshing view..."); 
+    if (IModelApp.viewManager.selectedView) {
+      IModelApp.viewManager.selectedView.invalidateScene();
+    }
+  };
   const toggleTheme = () => { setIsDarkMode((prev) => !prev); };
 
   useEffect(() => {
@@ -173,7 +179,7 @@ const HomeTab: React.FC<HomeTabProps> = ({
     } catch (error) {
       console.error("Error toggling model 1 visibility:", error);
     }
-  }, [category1Visible, iModelConnection]);
+  }, [category1Visible, iModelConnection, setElementsVisibility]);
 
 // Toggle visibility for Model 2 (0x3000000008b)
   const toggleCategory2Visibility = useCallback(async () => {
@@ -195,38 +201,11 @@ const HomeTab: React.FC<HomeTabProps> = ({
     } catch (error) {
       console.error("Error toggling model 2 visibility:", error);
     }
-  }, [category2Visible, iModelConnection]);
+  }, [category2Visible, iModelConnection, setElementsVisibility]);
 
-  // Alternative method: Hide/show individual elements using EmphasizeElements
-  // Use this if changeCategoryDisplay doesn't work for your use case
-  const toggleElementsVisibilityByCategory = useCallback(async (categoryId: string, visible: boolean) => {
-    const vp = IModelApp.viewManager.selectedView;
-    if (!vp || !iModelConnection) return;
-
-    const elementIds = await getElementIdsByCategory(categoryId);
-    if (elementIds.length === 0) {
-      console.warn(`No elements found for category ${categoryId}`);
-      return;
-    }
-
-    const emphasize = EmphasizeElements.getOrCreate(vp);
-    
-    if (!visible) {
-      // Hide elements
-      emphasize.hideElements(elementIds, vp, false);
-    } else {
-      // Show elements (clear hide override for these elements)
-      emphasize.clearHiddenElements(vp);
-    }
-
-    vp.invalidateScene();
-    console.log(`Toggled ${elementIds.length} elements for category ${categoryId} to ${visible ? 'visible' : 'hidden'}`);
-  }, [iModelConnection, getElementIdsByCategory]);
-
-  // Handle iModel connection when viewer is ready
   const handleIModelConnected = useCallback((iModel: IModelConnection) => {
+    console.log("iModel connected:", iModel);
     setIModelConnection(iModel);
-    console.log("iModel connected:", iModel.name);
   }, []);
 
   return (
@@ -239,12 +218,30 @@ const HomeTab: React.FC<HomeTabProps> = ({
         subtitle="Real-time Building Visualization & Telemetry"
         rightContent={
           <>
-            <div className="topbar-status" style={{}}>
+            <div className="topbar-status">
               <span className="status-dot online" />
               <span>System Online</span>
             </div>
-            <button className="topbar-btn" onClick={handleCaptureScreenshot}>Capture</button>
-            <button className="topbar-btn primary" onClick={handleExportState} style={{background: '#224c91'}}>Export</button>
+            <button className="topbar-btn" onClick={handleRefreshView}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+              </svg>
+              Refresh
+            </button>
+            <button className="topbar-btn" onClick={handleCaptureScreenshot}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <path d="m21 15-5-5L5 21"/>
+              </svg>
+              Capture
+            </button>
+            <button className="topbar-btn primary" onClick={handleExportState}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              Export
+            </button>
           </>
         }
       />
