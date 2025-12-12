@@ -608,7 +608,7 @@ const ForecastTab: React.FC = () => {
           </section>
         </div>
 
-        <RightSidebar width="360px">
+        <RightSidebar width="400px">
           <SidebarSection title="Prediction Preview" className="prediction-preview">
             <div className="preview-controls">
               <span className="control-label">Target Feature</span>
