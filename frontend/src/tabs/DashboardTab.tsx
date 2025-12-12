@@ -212,10 +212,10 @@ const DashboardTab = () => {
          floor4: d.value * 0.6
       })),
       deviations: [
-        { metric: "Temperature", actual: 23.5, ideal: 22, deviation: 6.8, status: 'warning', impact: "Efficiency" },
-        { metric: "Occupancy", actual: 180, ideal: 150, deviation: 20, status: 'critical', impact: "Crowding" },
-        { metric: "Air Quality", actual: 42, ideal: 50, deviation: -16, status: 'good', impact: "Optimal" },
         { metric: "Weather", actual: 22, ideal: 20, deviation: 10, status: 'good', impact: "Forecast" },
+        { metric: "Temperature", actual: 23.5, ideal: 22, deviation: 6.8, status: 'warning', impact: "Efficiency" },
+        { metric: "Air Quality", actual: 42, ideal: 50, deviation: -16, status: 'good', impact: "Optimal" },
+        { metric: "Occupancy", actual: 180, ideal: 150, deviation: 20, status: 'critical', impact: "Crowding" },
       ] as DeviationDataPoint[]
     };
   }, [activeTimeRange, refreshKey]);
@@ -638,9 +638,22 @@ const [level3Active, setLevel3Active] = useState(true);
         subtitle="Deep dive into sensor logs and weather data"
         rightContent={
           <>
-             <button className="topbar-btn" onClick={() => setRefreshKey(p => p + 1)} style={{background: '#349dd0'}}>
-               Refresh
-             </button>
+            <div className="topbar-status">
+              <span className="status-dot online" />
+              <span>Data Streaming</span>
+            </div>
+            <button className="topbar-btn" onClick={() => console.log('Export data')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              Export Data
+            </button>
+            <button className="topbar-btn primary" onClick={() => setRefreshKey(p => p + 1)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+              </svg>
+              Refresh
+            </button>
           </>
         }
       />
@@ -649,7 +662,6 @@ const [level3Active, setLevel3Active] = useState(true);
         <main className="main-stage">
           <div className="dashboard-scroll-area">
             <section className="analytics-grid">
-               <ChartCard title="Temperature" subtitle="Avg" data={filteredData.temperature} color="#ef4444" unit="°C" />
                <ChartCard 
                  title="External Weather" 
                  subtitle="Temp" 
@@ -658,8 +670,9 @@ const [level3Active, setLevel3Active] = useState(true);
                  unit="°C" 
                  type="weather"
                />
-               <ChartCard title="Occupancy" subtitle="Ppl" data={filteredData.occupancy} color="#8b5cf6" type="bar" unit="Ppl" />
-               <ChartCard title="Air Quality" subtitle="AQI" data={filteredData.airQuality} color="#10b981" unit="AQI" />
+               <ChartCard title="Temperature" subtitle="Avg" data={filteredData.temperature} color="#b2393a" unit="°C" />
+                <ChartCard title="Air Quality" subtitle="AQI" data={filteredData.airQuality} color="#379bc3" unit="AQI" />
+                <ChartCard title="Occupancy" subtitle="Ppl" data={filteredData.occupancy} color="#a8642d" type="bar" unit="Ppl" />
                
                <ChartCard 
                  title="Floor Distribution" 
