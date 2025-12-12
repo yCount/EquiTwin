@@ -212,10 +212,10 @@ const DashboardTab = () => {
          floor4: d.value * 0.6
       })),
       deviations: [
-        { metric: "Weather", actual: 22, ideal: 20, deviation: 10, status: 'good', impact: "Forecast" },
         { metric: "Temperature", actual: 23.5, ideal: 22, deviation: 6.8, status: 'warning', impact: "Efficiency" },
-        { metric: "Air Quality", actual: 42, ideal: 50, deviation: -16, status: 'good', impact: "Optimal" },
         { metric: "Occupancy", actual: 180, ideal: 150, deviation: 20, status: 'critical', impact: "Crowding" },
+        { metric: "Air Quality", actual: 42, ideal: 50, deviation: -16, status: 'good', impact: "Optimal" },
+        { metric: "Weather", actual: 22, ideal: 20, deviation: 10, status: 'good', impact: "Forecast" },
       ] as DeviationDataPoint[]
     };
   }, [activeTimeRange, refreshKey]);
@@ -635,7 +635,7 @@ const [level3Active, setLevel3Active] = useState(true);
     <div className="dashboard-container">
       <Topbar 
         title="Historical Analytics"
-        subtitle="Deep dive into sensor logs and weather data"
+        subtitle="Past sensor logs and weather data"
         rightContent={
           <>
             <div className="topbar-status">
@@ -662,6 +662,7 @@ const [level3Active, setLevel3Active] = useState(true);
         <main className="main-stage">
           <div className="dashboard-scroll-area">
             <section className="analytics-grid">
+               <ChartCard title="Temperature" subtitle="Avg" data={filteredData.temperature} color="#ef4444" unit="°C" />
                <ChartCard 
                  title="External Weather" 
                  subtitle="Temp" 
@@ -670,9 +671,8 @@ const [level3Active, setLevel3Active] = useState(true);
                  unit="°C" 
                  type="weather"
                />
-               <ChartCard title="Temperature" subtitle="Avg" data={filteredData.temperature} color="#b2393a" unit="°C" />
-                <ChartCard title="Air Quality" subtitle="AQI" data={filteredData.airQuality} color="#379bc3" unit="AQI" />
-                <ChartCard title="Occupancy" subtitle="Ppl" data={filteredData.occupancy} color="#a8642d" type="bar" unit="Ppl" />
+               <ChartCard title="Occupancy" subtitle="Ppl" data={filteredData.occupancy} color="#f97316" type="bar" unit="Ppl" />
+               <ChartCard title="Air Quality" subtitle="AQI" data={filteredData.airQuality} color="#10b981" unit="AQI" />
                
                <ChartCard 
                  title="Floor Distribution" 
@@ -690,7 +690,7 @@ const [level3Active, setLevel3Active] = useState(true);
             </section>
           </div>
 
-          <section className="master-timeline-section" style={{ background: 'gray' }}>
+          <section className="master-timeline-section">
             <div className="section-header">
               <h3>Timeline</h3>
               <div className="header-controls">
