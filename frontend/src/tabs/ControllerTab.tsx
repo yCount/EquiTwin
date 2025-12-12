@@ -96,12 +96,14 @@ const ControllerTab: React.FC = () => {
     rateConstraints: true,
     maxHvacChange: 20,
   });
+
   const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>({
     mode: 'scheduled',
     officeHours: { start: '08:00', end: '18:00', weekdaysOnly: true },
     inOfficeParams: { comfortWeight: 0.7, energyWeight: 0.3, temperatureSetpoint: 22, temperatureTolerance: 1.5 },
     outOfficeParams: { comfortWeight: 0.2, energyWeight: 0.8, temperatureSetpoint: 18, temperatureTolerance: 4 },
   });
+
   const [simulationData, setSimulationData] = useState<SimulationData[]>([]);
   const [deploymentStatus, setDeploymentStatus] = useState<DeploymentStatus>({
     isActive: true,
@@ -111,11 +113,17 @@ const ControllerTab: React.FC = () => {
     lastAction: 'Set heating to 45%, ventilation to 30%',
     nextOptimization: 12,
   });
+
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
   const [currentMode, setCurrentMode] = useState<'in-office' | 'out-office'>('in-office');
-  const [simulationMetrics, setSimulationMetrics] = useState({ avgTemp: 21.8, energy: 12.4, comfort: 94, cost: 2.48 });
+  const [simulationMetrics, setSimulationMetrics] = useState({
+    avgTemp: 21.8,
+    energy: 12.4,
+    comfort: 94,
+    cost: 2.48
+  });
 
   const scenarioPresets = [
     { name: 'Comfort', params: { comfortWeight: 0.85, energyWeight: 0.15, temperatureTolerance: 1 } },
@@ -164,10 +172,12 @@ const ControllerTab: React.FC = () => {
         lastTrained: new Date(Date.now() - 2 * 3600000),
       },
     ]);
+
     setForecasters([
       { type: 'occupancy', name: 'Occupancy', mode: 'ML Pattern', accuracy: 87.3, status: 'ready' },
       { type: 'weather', name: 'Weather', mode: 'External API', accuracy: 92.1, status: 'ready' },
     ]);
+
     const now = new Date();
     const hour = now.getHours();
     const isWeekend = now.getDay() === 0 || now.getDay() === 6;
@@ -177,22 +187,39 @@ const ControllerTab: React.FC = () => {
   useEffect(() => {
     const now = new Date();
     const data: SimulationData[] = [];
+
     for (let i = -24; i <= mpcParams.predictionHorizon; i++) {
       const timestamp = new Date(now.getTime() + i * 900000);
-      const type: SimulationData['type'] = i < 0 ? 'historical' : i === 0 ? 'current' : i <= mpcParams.controlHorizon ? 'control' : 'prediction';
+      const type: SimulationData['type'] =
+        i < 0 ? 'historical' : i === 0 ? 'current' : i <= mpcParams.controlHorizon ? 'control' : 'prediction';
+
       const hour = timestamp.getHours();
       const isWorkHour = hour >= 8 && hour < 18;
       const occupancy = isWorkHour ? 30 + Math.random() * 20 : Math.random() * 5;
+
       const tempDeviation = (1 - mpcParams.comfortWeight) * 2;
       const baseTemp = isWorkHour ? mpcParams.temperatureSetpoint : mpcParams.temperatureSetpoint - 2;
       const temperature = baseTemp + Math.sin(i / 5) * tempDeviation + (Math.random() - 0.5) * 0.5;
+
       const baseEnergy = 30 + (1 - mpcParams.comfortWeight) * -15;
       const energy = baseEnergy + (isWorkHour ? 20 : 0) + Math.random() * 10;
+
       const tempDiff = Math.abs(temperature - mpcParams.temperatureSetpoint);
       const comfort = Math.max(0, 100 - tempDiff * 15 - (occupancy > 10 ? 0 : 20));
-      data.push({ timestamp: timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), fullTimestamp: timestamp, temperature, energy, comfort, occupancy, type });
+
+      data.push({
+        timestamp: timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        fullTimestamp: timestamp,
+        temperature,
+        energy,
+        comfort,
+        occupancy,
+        type
+      });
     }
+
     setSimulationData(data);
+
     const futureData = data.filter(d => d.type !== 'historical');
     if (futureData.length > 0) {
       setSimulationMetrics({
@@ -204,10 +231,20 @@ const ControllerTab: React.FC = () => {
     }
   }, [mpcParams]);
 
-  const handlePresetClick = (preset: typeof scenarioPresets[0]) => setMPCParams(prev => ({ ...prev, ...preset.params }));
-  const handleDeploy = () => { setShowDeployModal(false); setDeploymentStatus(prev => ({ ...prev, isActive: true, runningSince: new Date(), optimizationsRun: 0 })); };
+  const handlePresetClick = (preset: typeof scenarioPresets[0]) =>
+    setMPCParams(prev => ({ ...prev, ...preset.params }));
+
+  const handleDeploy = () => {
+    setShowDeployModal(false);
+    setDeploymentStatus(prev => ({ ...prev, isActive: true, runningSince: new Date(), optimizationsRun: 0 }));
+  };
+
   const handlePause = () => setDeploymentStatus(prev => ({ ...prev, isActive: false }));
-  const handleRunSimulation = () => { setIsSimulating(true); setTimeout(() => setIsSimulating(false), 1500); };
+
+  const handleRunSimulation = () => {
+    setIsSimulating(true);
+    setTimeout(() => setIsSimulating(false), 1500);
+  };
 
   const getOverallStatus = () => {
     const allReady = selectedModels.every(m => m.status === 'ready') && forecasters.every(f => f.status === 'ready');
@@ -223,19 +260,63 @@ const ControllerTab: React.FC = () => {
     return { status: 'Models Need Training', color: '#ef4444' };
   };
 
+  // Calculate timeline percentages based on actual data distribution
+  const getTimelinePercentages = () => {
+    const historicalCount = simulationData.filter(d => d.type === 'historical').length;
+    const currentCount = simulationData.filter(d => d.type === 'current').length;
+    const controlCount = simulationData.filter(d => d.type === 'control').length;
+    const predictionCount = simulationData.filter(d => d.type === 'prediction').length;
+    const totalCount = historicalCount + currentCount + controlCount + predictionCount;
+
+    return {
+      historical: (historicalCount / totalCount) * 100,
+      control: ((currentCount + controlCount) / totalCount) * 100, // Include current in control
+      prediction: (predictionCount / totalCount) * 100,
+    };
+  };
+
+  const timelinePercentages = getTimelinePercentages();
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0]?.payload;
-      const typeColors: Record<string, string> = { historical: '#6b7280', current: '#ef4444', control: '#3b82f6', prediction: '#8b5cf6' };
+      const typeColors: Record<string, string> = {
+        historical: '#6b7280',
+        current: '#ef4444',
+        control: '#3b82f6',
+        prediction: '#8b5cf6'
+      };
+
       return (
         <div className="chart-tooltip-glass">
           <div className="tooltip-header">{label}</div>
           <div className="tooltip-body">
-            <div className="tooltip-row"><div className="row-left"><div className="indicator" style={{ background: '#ef4444' }} /><span>Temp</span></div><div className="row-value">{data?.temperature?.toFixed(1)}<span className="unit">°C</span></div></div>
-            <div className="tooltip-row"><div className="row-left"><div className="indicator" style={{ background: '#10b981' }} /><span>Comfort</span></div><div className="row-value">{data?.comfort?.toFixed(0)}<span className="unit">%</span></div></div>
-            <div className="tooltip-row"><div className="row-left"><div className="indicator" style={{ background: '#f59e0b' }} /><span>Occupancy</span></div><div className="row-value">{data?.occupancy?.toFixed(0)}<span className="unit">ppl</span></div></div>
+            <div className="tooltip-row">
+              <div className="row-left">
+                <div className="indicator" style={{ background: '#ef4444' }} />
+                Temp
+              </div>
+              <div className="row-value">{data?.temperature?.toFixed(1)}<span className="unit">°C</span></div>
+            </div>
+            <div className="tooltip-row">
+              <div className="row-left">
+                <div className="indicator" style={{ background: '#10b981' }} />
+                Comfort
+              </div>
+              <div className="row-value">{data?.comfort?.toFixed(0)}<span className="unit">%</span></div>
+            </div>
+            <div className="tooltip-row">
+              <div className="row-left">
+                <div className="indicator" style={{ background: '#f59e0b' }} />
+                Occupancy
+              </div>
+              <div className="row-value">{data?.occupancy?.toFixed(0)}<span className="unit">ppl</span></div>
+            </div>
           </div>
-          <div className="tooltip-badge" style={{ background: `${typeColors[data?.type]}20`, color: typeColors[data?.type] }}>
+          <div
+            className="tooltip-badge"
+            style={{ background: typeColors[data?.type] || '#6b7280' }}
+          >
             {data?.type === 'historical' ? 'Past' : data?.type === 'current' ? 'Now' : data?.type === 'control' ? 'Control' : 'Prediction'}
           </div>
         </div>
@@ -250,41 +331,37 @@ const ControllerTab: React.FC = () => {
     <div className="controller-container">
       <Topbar
         title="MPC Controller"
-        subtitle="Model Predictive Control Configuration & Deployment"
+        leftContent={
+          <div className="topbar-status active">
+            <div className="status-dot" />
+            {deploymentStatus.isActive ? 'Controller Active' : 'Paused'}
+          </div>
+        }
         rightContent={
-          <>
-            <div className={`topbar-status ${deploymentStatus.isActive ? 'active' : 'paused'}`}>
-              <span className="status-dot" />
-              <span>{deploymentStatus.isActive ? 'Controller Active' : 'Paused'}</span>
-            </div>
-            {/* <button className="topbar-btn" onClick={handleRunSimulation} disabled={isSimulating}>
-              {isSimulating ? 'Simulating...' : 'Simulate'}
-            </button> */}
-            <button className="topbar-btn success" onClick={() => setShowDeployModal(true)} style={{ background: '#f0612e', color: '#e4e4e6'}}>Deploy</button>
-          </>
+          <button onClick={() => setShowDeployModal(true)} style={{ background: '#f0612e', color: '#e4e4e6'}}>Deploy</button>
         }
       />
 
       <div className="dashboard-grid">
         {/* LEFT: Visualization */}
         <div className="visualization-panel">
-          <section className="model-status-section">
+          <div className="model-status-section">
             <div className="status-header">
               <h2>Model Selection</h2>
-              <div className="overall-status" style={{ color: overallStatus.color }}>
-                <span className="status-dot" style={{ background: overallStatus.color }} />
+              <div className="overall-status">
+                <div className="status-dot" style={{ background: overallStatus.color }} />
                 {overallStatus.status}
               </div>
             </div>
             <div className="models-row">
               {selectedModels.map(m => (
                 <div key={m.feature} className={`model-pill ${m.status}`}>
-                  <span className="model-icon">{m.icon}</span>
+                  <div className="model-icon">{m.icon}</div>
                   <div className="model-info">
-                    <span className="model-name">{m.featureLabel}</span>
-                    <span className="model-detail">{m.modelType} • {m.accuracy.toFixed(0)}%</span>
+                    <div className="model-name">{m.featureLabel}</div>
+                    <div className="model-detail">{m.modelType} • {m.accuracy.toFixed(0)}%</div>
                   </div>
-                  <span className={`status-badge ${m.status}`}>{m.status === 'ready' ? '✓' : '!'}</span>
+                  <div className={`status-badge ${m.status}`}>{m.status === 'ready' ? '✓' : '!'}</div>
                 </div>
               ))}
               {forecasters.map(f => (
@@ -299,7 +376,7 @@ const ControllerTab: React.FC = () => {
               ))}
             </div>
             <p className="model-hint">Models trained on <strong>Prediction</strong> page</p>
-          </section>
+          </div>
 
           <div className="kpi-row">
             <div className="kpi-card"><div className="kpi-icon temp"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div><div className="kpi-data"><span className="label">Avg Temp</span> <span className="value">{simulationMetrics.avgTemp.toFixed(1)}°C</span></div></div>
@@ -312,34 +389,50 @@ const ControllerTab: React.FC = () => {
             <div className="chart-header-row">
               <h3>System Response Forecast</h3>
               <div className="chart-legend">
-                <span><span className="dot" style={{ background: '#ef4444' }} />Temp</span>
-                <span><span className="dot" style={{ background: '#10b981' }} />Comfort</span>
-                <span className="line-legend"><span className="line dashed" />Setpoint</span>
+                <span><div className="dot" style={{ background: '#ef4444' }} /> Temp</span>
+                <span><div className="dot" style={{ background: '#10b981' }} /> Comfort</span>
+                <span><div className="line dashed" /> Setpoint</span>
               </div>
             </div>
             <div className="chart-container">
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={simulationData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="timestamp" stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 10 }} />
-                  <YAxis yAxisId="left" stroke="rgba(255,255,255,0.3)" domain={[15, 28]} tick={{ fontSize: 10 }} />
-                  <YAxis yAxisId="right" orientation="right" stroke="rgba(255,255,255,0.3)" domain={[0, 100]} tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="timestamp" stroke="rgba(255,255,255,0.3)" style={{ fontSize: 11 }} />
+                  <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: 11 }} />
                   <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine x={simulationData.find(d => d.type === 'current')?.timestamp} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={2} label={{ position: 'top', value: 'NOW', fill: '#ef4444', fontSize: 10 }} />
-                  <ReferenceLine yAxisId="left" y={mpcParams.temperatureSetpoint} stroke="#4ade80" strokeOpacity={0.5} strokeDasharray="5 5" />
-                  <Line yAxisId="left" type="monotone" dataKey="temperature" stroke="#ef4444" strokeWidth={2} dot={false} />
-                  <Line yAxisId="right" type="monotone" dataKey="comfort" stroke="#10b981" strokeWidth={2} dot={false} strokeOpacity={0.7} />
-                  <Area yAxisId="right" type="monotone" dataKey="occupancy" fill="#8b5cf6" fillOpacity={0.1} stroke="none" />
+                  <Line type="monotone" dataKey="temperature" stroke="#ef4444" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="comfort" stroke="#10b981" strokeWidth={2} dot={false} />
+                  <ReferenceLine
+                    y={mpcParams.temperatureSetpoint}
+                    stroke="#4ade80"
+                    strokeDasharray="5 5"
+                    strokeWidth={1.5}
+                  />
+                  <ReferenceLine
+                    x={simulationData.find(d => d.type === 'current')?.timestamp}
+                    stroke="#ef4444"
+                    strokeDasharray="3 3"
+                    strokeWidth={2}
+                    label={{ position: 'top', value: 'NOW', fill: '#ef4444', fontSize: 10 }}
+                  />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
+
             <div className="horizon-bar">
               <span className="horizon-label">Timeline</span>
               <div className="timeline-graphic">
-                <div className="segment history">Past 6h</div>
-                <div className="now-marker" />
-                <div className="segment control" style={{ flex: mpcParams.controlHorizon }}>Control ({mpcParams.controlHorizon * 15}m)</div>
-                <div className="segment prediction" style={{ flex: mpcParams.predictionHorizon - mpcParams.controlHorizon }}>Prediction ({(mpcParams.predictionHorizon - mpcParams.controlHorizon) * 15}m)</div>
+                <div className="segment history" style={{ width: `${timelinePercentages.historical}%` }}>
+                  Past 6h
+                </div>
+                <div className="now-marker" style={{ left: `${timelinePercentages.historical}%` }} />
+                <div className="segment control" style={{ width: `${timelinePercentages.control}%` }}>
+                  Control ({mpcParams.controlHorizon * 15}m)
+                </div>
+                <div className="segment prediction" style={{ width: `${timelinePercentages.prediction}%` }}>
+                  Prediction ({(mpcParams.predictionHorizon - mpcParams.controlHorizon) * 15}m)
+                </div>
               </div>
             </div>
           </div>

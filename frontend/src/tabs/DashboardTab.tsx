@@ -635,7 +635,7 @@ const [level3Active, setLevel3Active] = useState(true);
     <div className="dashboard-container">
       <Topbar 
         title="Historical Analytics"
-        subtitle="Deep dive into sensor logs and weather forecast"
+        subtitle="Deep dive into sensor logs and weather data"
         rightContent={
           <>
              <button className="topbar-btn" onClick={() => setRefreshKey(p => p + 1)} style={{background: '#349dd0'}}>
@@ -651,7 +651,7 @@ const [level3Active, setLevel3Active] = useState(true);
             <section className="analytics-grid">
                <ChartCard title="Temperature" subtitle="Avg" data={filteredData.temperature} color="#ef4444" unit="°C" />
                <ChartCard 
-                 title="Weather Forecast" 
+                 title="External Weather" 
                  subtitle="Temp" 
                  data={filteredData.weather} 
                  color="#f59e0b" 
@@ -677,7 +677,7 @@ const [level3Active, setLevel3Active] = useState(true);
             </section>
           </div>
 
-          <section className="master-timeline-section">
+          <section className="master-timeline-section" style={{ background: 'gray' }}>
             <div className="section-header">
               <h3>Timeline</h3>
               <div className="header-controls">

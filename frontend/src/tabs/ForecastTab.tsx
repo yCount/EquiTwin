@@ -416,7 +416,7 @@ const ForecastTab: React.FC = () => {
                   {dataStatus.variables.map(v => (
                     <div key={v.name} className={`variable-card ${v.status}`}>
                       <span className="var-name">{v.name}</span>
-                      <span className="var-samples">{v.samples.toLocaleString()} ✓</span>
+                      <span className="var-samples">{v.samples.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -495,7 +495,7 @@ const ForecastTab: React.FC = () => {
                             <span>{(model.rmse * (type === 'ANN' ? 1 : type === 'GPR' ? 1.15 : 1.4)).toFixed(2)}</span>
                             <span>{(model.mae * (type === 'ANN' ? 1 : type === 'GPR' ? 1.1 : 1.35)).toFixed(2)}</span>
                             <span>{(model.r2 * (type === 'ANN' ? 1 : type === 'GPR' ? 0.97 : 0.91)).toFixed(2)}</span>
-                            <span>{model.modelType === type ? '✓ Active' : ''}</span>
+                            <span>{model.modelType === type ? 'Active' : ''}</span>
                           </div>
                         ))}
                       </div>
