@@ -14,6 +14,7 @@ import {
   BarChart,
 } from "recharts";
 import "./ForecastTab.scss";
+import "./components/RightSidebar.scss";
 import Topbar from "./components/Topbar";
 import RightSidebar, { SidebarSection } from "./components/RightSidebar";
 
@@ -608,7 +609,7 @@ const ForecastTab: React.FC = () => {
           </section>
         </div>
 
-        <RightSidebar width="400px">
+        <RightSidebar width="360px">
           <SidebarSection title="Prediction Preview" className="prediction-preview">
             <div className="preview-controls">
               <span className="control-label">Target Feature</span>

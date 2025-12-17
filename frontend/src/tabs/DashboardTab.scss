@@ -26,7 +26,6 @@ $text-dim: rgba(255, 255, 255, 0.5);
 }
 
 .dashboard-container {
-  // CSS Variables for consistent theming (matching HomeTab)
   --bg-main: #0b0d12;
   --card-bg: #1c2128;
   --card-border: #30363d;
@@ -327,88 +326,9 @@ $text-dim: rgba(255, 255, 255, 0.5);
   }
 }
 
-  // Folder Toggle Buttons
-  .folder-toggle-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 8px; // Tighter gap
-  }
-
-  .folder-toggle-btn {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    padding: 12px;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: left;
-    color: var(--text-main);
-
-    &:hover {
-      background: var(--card-hover-bg);
-      border-color: var(--text-dim);
-    }
-
-    &.active {
-      background: rgba(63, 185, 80, 0.1); // Subtle green tint
-      border-color: rgba(63, 185, 80, 0.4);
-
-      .folder-icon {
-        color: var(--color-success);
-        background: rgba(63, 185, 80, 0.1);
-        border-color: rgba(63, 185, 80, 0.2);
-      }
-      
-      .folder-info .folder-status {
-        color: var(--color-success);
-      }
-    }
-
-    &:not(.active) {
-      .folder-icon {
-        color: var(--text-dim);
-        background: var(--bg-main);
-        border: 1px solid var(--card-border);
-      }
-    }
-
-    .folder-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-
-      svg {
-        width: 18px;
-        height: 18px;
-      }
-    }
-
-    .folder-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-
-      .folder-name {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text-main);
-      }
-
-      .folder-status {
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: var(--text-dim);
-        font-weight: 600;
-      }
-    }
-  }
-  
+// Folder Toggle Buttons
+.folder-toggle-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; // Tighter gap
+}

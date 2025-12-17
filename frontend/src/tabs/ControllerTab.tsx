@@ -456,7 +456,7 @@ const ControllerTab: React.FC = () => {
           </div>
         </div>
 
-        <RightSidebar width="420px">
+        <RightSidebar width="360px">
           {/* Optimization Objectives */}
           <SidebarSection title="Optimization Objectives" className="glass-card">
             <div className="weight-slider-card">

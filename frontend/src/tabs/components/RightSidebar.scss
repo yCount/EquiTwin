@@ -1,14 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
-// --- Updated Color Palette (Premium Dark / GitHub Dark style) ---
-$bg-dark: #111316;       // Matches Topbar/Main background
-$panel-border: #30363d;  // Subtle dark border
-$text-main: #e6edf3;     // High contrast text
-$text-dim: #8b949e;      // Muted text
-$card-bg: #1c2128;       // Solid card background (pops against $bg-dark)
-$card-bg-hover: #262c36; // Slightly lighter on hover
+// Variables
+$bg-dark: #111316;
+$panel-border: #30363d;
+$text-main: #e6edf3;
+$text-dim: #8b949e;
+$card-bg: #1c2128;
+$card-bg-hover: #262c36;
 
-// Accents
 $primary: #58a6ff;
 $success: #3fb950;
 $warning: #d29922;
@@ -16,25 +15,25 @@ $danger: #f85149;
 $info: #3aa9d6;
 $orange: #f0883e;
 
-// --- Mixins ---
+// Mixins
 @mixin scrollbar {
   &::-webkit-scrollbar { width: 6px; height: 6px; }
   &::-webkit-scrollbar-track { background: transparent; }
   &::-webkit-scrollbar-thumb { 
-    background: #30363d; 
+    background: $panel-border; 
     border-radius: 3px; 
-    &:hover { background: #8b949e; } 
+    &:hover { background: $text-dim; } 
   }
 }
 
-// --- Main Container ---
+// Main Container
 .right-sidebar-container {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: $bg-dark; // Seamless dark background
+  background: $bg-dark;
   border-left: 1px solid $panel-border;
   font-family: 'Inter', sans-serif;
   color: $text-main;
@@ -42,7 +41,7 @@ $orange: #f0883e;
   .sidebar-scroll-area {
     flex: 1;
     overflow-y: auto;
-    padding: 24px; // RESTORED: Original padding spacing
+    padding: 24px;
     display: flex;
     flex-direction: column;
     gap: 24px;
@@ -50,12 +49,11 @@ $orange: #f0883e;
   }
 }
 
-// --- Sidebar Sections ---
+// Sidebar Sections
 .sidebar-section {
   width: 100%;
   border-bottom: 1px solid $panel-border;
   padding-bottom: 20px;
-  margin-bottom: 4px;
 
   &.no-border, &:last-child {
     border-bottom: none;
@@ -67,7 +65,7 @@ $orange: #f0883e;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px; // RESTORED: Original spacing
+    margin-bottom: 16px;
     
     .title-content {
       font-size: 12px;
@@ -100,19 +98,17 @@ $orange: #f0883e;
   }
 }
 
-// --- Widgets & Cards (Repainted but Structurally RESTORED) ---
-
-// 1. Sensor Cards (HomeTab)
+// Sensor Grid
 .sensor-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 
   .sensor-card {
-    background: $card-bg;      // New solid dark color
+    background: $card-bg;
     border: 1px solid $panel-border;
-    border-radius: 12px;       // RESTORED: Original rounded corners
-    padding: 16px;             // RESTORED: Original padding
+    border-radius: 12px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -126,25 +122,28 @@ $orange: #f0883e;
       border-color: $text-dim;
     }
 
-    // Color Variants (Using new solid backgrounds for icon boxes)
     &.weather .icon-box { color: $warning; background: rgba($warning, 0.15); }
     &.occupancy .icon-box { color: $orange; background: rgba($orange, 0.15); }
     &.air .icon-box { color: $info; background: rgba($info, 0.15); }
     &.temp .icon-box { color: $danger; background: rgba($danger, 0.15); }
 
     .icon-box {
-      width: 40px; height: 40px; // RESTORED: Original size
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       margin-bottom: 12px;
+      
       svg { width: 20px; height: 20px; }
     }
 
     .label { 
-      font-size: 11px; 
-      color: $text-dim; 
-      font-weight: 600; 
-      margin-bottom: 4px; 
+      font-size: 11px;
+      color: $text-dim;
+      font-weight: 600;
+      margin-bottom: 4px;
     }
     
     .value-group {
@@ -154,28 +153,29 @@ $orange: #f0883e;
       gap: 2px;
       
       .val { 
-        font-family: 'JetBrains Mono', monospace; 
-        font-size: 20px; // RESTORED: Original large font
-        font-weight: 700; 
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 20px;
+        font-weight: 700;
         color: $text-main;
       }
+      
       .unit { 
-        font-size: 11px; 
-        color: $text-dim; 
-        margin-left: 2px; 
+        font-size: 11px;
+        color: $text-dim;
+        margin-left: 2px;
       }
     }
   }
 }
 
-// 2. Wide Summary Card (HomeTab)
+// Summary Card
 .summary-card {
-  background: $card-bg; // New solid dark color
+  background: $card-bg;
   border: 1px solid $panel-border;
-  border-radius: 12px; // RESTORED: Original rounded corners
-  padding: 16px;       // RESTORED: Original padding
-  display: flex; 
-  align-items: center; 
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
   gap: 16px;
   color: $text-main;
   transition: all 0.2s;
@@ -186,60 +186,71 @@ $orange: #f0883e;
   }
 
   .icon-box {
-    width: 48px; height: 48px; // RESTORED: Original size
+    width: 48px;
+    height: 48px;
     border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    background: rgba(255,255,255,0.03); // Subtle default bg
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.03);
     color: $text-dim;
     
     svg { width: 24px; height: 24px; }
   }
 
-  &.alert {
-    // border-left: 3px solid $warning; // Optional: Add left border for "pop"
-    .icon-box { color: $warning; background: rgba($warning, 0.15); }
+  &.alert .icon-box {
+    color: $warning;
+    background: rgba($warning, 0.15);
   }
 
-  &.normal {
-    // border-left: 3px solid $primary; // Optional
-    .icon-box { color: $primary; background: rgba($primary, 0.15); }
+  &.normal .icon-box {
+    color: $primary;
+    background: rgba($primary, 0.15);
   }
 
   .content {
     .label { 
-      font-size: 11px; 
-      text-transform: uppercase; 
-      color: $text-dim; 
-      font-weight: 600; 
-      margin-bottom: 4px; 
+      font-size: 11px;
+      text-transform: uppercase;
+      color: $text-dim;
+      font-weight: 600;
+      margin-bottom: 4px;
     }
+    
     .val { 
-      font-family: 'JetBrains Mono', monospace; 
-      font-size: 20px; // RESTORED: Original large font
-      font-weight: 700; 
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      font-weight: 700;
       color: $text-main;
     }
+    
     .unit { 
-      font-size: 12px; 
-      color: $text-dim; 
-      margin-left: 4px; 
+      font-size: 12px;
+      color: $text-dim;
+      margin-left: 4px;
     }
   }
 }
 
-// 3. Folder Toggle Buttons (Matches the Card style now)
+// Folder Toggle Grid
+.folder-toggle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 .folder-toggle-btn {
   display: flex;
+  flex-direction: row;  // ← Changed
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
-  padding: 16px; // RESTORED
-  background: $card-bg; // New solid dark
+  padding: 12px 16px;  // ← Adjusted
+  background: $card-bg;
   border: 1px solid $panel-border;
-  border-radius: 12px; // RESTORED
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
-  text-align: left;
   color: $text-main;
 
   &:hover {
@@ -250,53 +261,356 @@ $orange: #f0883e;
 
   &.active {
     border-color: rgba($success, 0.5);
-    background: rgba($success, 0.05); // Very subtle tint
+    background: rgba($success, 0.05);
 
     .folder-icon {
       color: $success;
       background: rgba($success, 0.15);
     }
-    
-    .folder-info .folder-status {
-      color: $success;
-    }
   }
 
-  &:not(.active) {
-    .folder-icon {
-      color: $text-dim;
-      background: rgba(255,255,255,0.03);
-    }
+  &:not(.active) .folder-icon {
+    color: $text-dim;
+    background: rgba(255,255,255,0.03);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .folder-icon {
-    width: 44px; height: 44px; // RESTORED
+    width: 40px;
+    height: 40px;
     border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     transition: all 0.2s ease;
 
-    svg { width: 22px; height: 22px; }
+    svg { 
+      width: 20px; 
+      height: 20px; 
+    }
   }
 
   .folder-info {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
+    flex: 1;
+    text-align: left;
 
     .folder-name {
       font-size: 14px;
       font-weight: 600;
       color: $text-main;
     }
+  }
+}
 
-    .folder-status {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: $text-dim;
-      font-weight: 500;
+// Pill Grid
+.pill-grid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  .pill-btn {
+    flex: 1;
+    min-width: 60px;
+    padding: 8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: $text-dim;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba(255,255,255,0.08);
+      color: $text-main;
+    }
+    
+    &.active {
+      background: rgba($primary, 0.15);
+      border-color: $primary;
+      color: lighten($primary, 10%);
+    }
+  }
+}
+
+// Control Group
+.control-group {
+  margin-bottom: 12px;
+  
+  label {
+    display: block;
+    font-size: 11px;
+    color: $text-dim;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  select, input[type="time"], input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    color: $text-main;
+    font-size: 12px;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+    
+    &:focus { border-color: $primary; }
+  }
+
+  input[type="range"] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    outline: none;
+    
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: white;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+  }
+}
+
+// Toggle Switch
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    
+    &:checked + .slider {
+      background: $primary;
+      
+      &::before { transform: translateX(20px); }
+    }
+  }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: rgba(255,255,255,0.1);
+    border-radius: 24px;
+    transition: 0.3s;
+
+    &::before {
+      content: '';
+      position: absolute;
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+  }
+}
+
+
+// ==========================================================================
+// ANOMALY FEED (Dashboard Tab)
+// ==========================================================================
+
+$card-bg: #1c2128; 
+$card-hover: #262c36;
+$border-color: #30363d;
+
+// --- MIXINS ---
+@mixin panel-base {
+  background: $card-bg;
+  border: 1px solid $border-color;
+  border-radius: 8px; 
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.anomaly-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 12px;
+
+  .anomaly-card {
+    @include panel-base;
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    gap: 16px;
+    align-items: center;
+    cursor: default;
+    
+    &:hover {
+      background: $card-hover;
+      border-color: $text-dim;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    &.critical {
+      border-left: 3px solid $danger;
+      .icon-wrapper { color: $danger; background: rgba($danger, 0.15); }
+      .deviation-val { color: $danger; }
+    }
+
+    &.warning {
+      border-left: 3px solid $warning;
+      .icon-wrapper { color: $warning; background: rgba($warning, 0.15); }
+      .deviation-val { color: $warning; }
+    }
+
+    &.good {
+      border-left: 3px solid $success;
+      .icon-wrapper { color: $success; background: rgba($success, 0.15); }
+      .deviation-val { color: $success; }
+    }
+
+    .icon-wrapper {
+      width: 40px; 
+      height: 40px;
+      border-radius: 6px;
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      
+      svg { width: 20px; height: 20px; stroke-width: 2px; }
+    }
+
+    .content {
+      display: flex; 
+      flex-direction: column; 
+      gap: 4px;
+      
+      .metric-name { font-size: 13px; font-weight: 600; color: $text-main; }
+      .impact-label { font-size: 10px; color: $text-dim; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+    }
+
+    .value-box {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      
+      .deviation-val { display: block; font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; }
+      .status-text { font-size: 9px; text-transform: uppercase; color: $text-dim; font-weight: 600; letter-spacing: 0.5px; }
+    }
+  }
+}
+
+// TRAINING HISTORY TIMELINE (Forecast Tab)
+
+.history-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  
+  .timeline-item {
+    display: flex;
+    gap: 12px;
+    position: relative;
+    padding-bottom: 16px;
+    
+    &:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 24px;
+      bottom: 0;
+      width: 2px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    
+    .timeline-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 2px;
+      border: 2px solid transparent;
+      
+      &.success {
+        background: $success;
+        border-color: rgba($success, 0.3);
+        box-shadow: 0 0 8px rgba($success, 0.4);
+      }
+      
+      &.failed {
+        background: $danger;
+        border-color: rgba($danger, 0.3);
+        box-shadow: 0 0 8px rgba($danger, 0.4);
+      }
+    }
+    
+    .timeline-content {
+      flex: 1;
+      min-width: 0;
+      
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+        
+        .trigger {
+          font-size: 12px;
+          font-weight: 600;
+          color: $text-main;
+        }
+        
+        .date {
+          font-size: 10px;
+          color: $text-dim;
+          font-weight: 500;
+        }
+      }
+      
+      .details {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        
+        .models-chip {
+          font-size: 10px;
+          color: $text-dim;
+          background: rgba(255, 255, 255, 0.05);
+          padding: 3px 8px;
+          border-radius: 6px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .duration {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 10px;
+          color: $text-dim;
+          
+          svg {
+            width: 12px;
+            height: 12px;
+            stroke-width: 2px;
+          }
+        }
+      }
     }
   }
 }
