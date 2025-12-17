@@ -1,6 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
-// Variables
 $bg-dark: #0b0d12;
 $panel-bg: rgba(255, 255, 255, 0.03);
 $panel-border: rgba(255, 255, 255, 0.08);
@@ -12,7 +11,6 @@ $danger: #ef4444;
 $text-main: #ffffff;
 $text-dim: rgba(255, 255, 255, 0.5);
 
-// Mixins
 @mixin glass-panel {
   background: $panel-bg;
   backdrop-filter: blur(12px);
@@ -122,11 +120,7 @@ $text-dim: rgba(255, 255, 255, 0.5);
     }
   }
 
-  // === DATA STATUS SECTION ===
-  .data-status-section {
-    @include glass-panel;
-    padding: 24px;
-
+  // --- DATA STATUS ---
     .data-status-content {
       display: flex;
       flex-direction: column;
@@ -213,9 +207,7 @@ $text-dim: rgba(255, 255, 255, 0.5);
       padding-top: 12px;
       border-top: 1px solid $panel-border;
     }
-  }
 
-  .models-section {
     .models-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -429,10 +421,8 @@ $text-dim: rgba(255, 255, 255, 0.5);
         }
       }
     }
-  }
 
-  // === FORECASTERS SECTION ===
-  .forecasters-section {
+  // --- FORECASTERS ---
     .forecasters-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -610,9 +600,8 @@ $text-dim: rgba(255, 255, 255, 0.5);
         }
       }
     }
-  }
 
-  // === SIDEBAR ===
+  // --- SIDEBAR ---
   .sidebar {
     border-left: 1px solid $panel-border;
     background: rgba(0, 0, 0, 0.2);
@@ -623,7 +612,6 @@ $text-dim: rgba(255, 255, 255, 0.5);
     flex-direction: column;
     gap: 24px;
 
-    // Preview Section
     .preview-section {
       @include glass-panel;
       padding: 20px;
@@ -698,7 +686,6 @@ $text-dim: rgba(255, 255, 255, 0.5);
       }
     }
 
-    // Training Settings
     .training-settings-section {
       @include glass-panel;
       overflow: hidden;
@@ -838,7 +825,6 @@ $text-dim: rgba(255, 255, 255, 0.5);
       }
     }
 
-    // History Section
     .history-section {
       @include glass-panel;
       padding: 20px;
@@ -919,7 +905,6 @@ $text-dim: rgba(255, 255, 255, 0.5);
     }
   }
 
-  // Tooltip badge
   .tooltip-badge {
     display: inline-block;
     margin-top: 8px;
@@ -962,18 +947,17 @@ $text-dim: rgba(255, 255, 255, 0.5);
       border-top: 1px solid $panel-border;
     }
 
-    .data-status-section .variables-grid {
+    .variables-grid {
       grid-template-columns: repeat(2, 1fr);
     }
 
-    .forecasters-section .forecasters-grid {
+    .forecasters-grid {
       grid-template-columns: 1fr;
     }
   }
 }
 
 .prediction-preview {
-  // 1. Controls Area
   .preview-controls {
     margin-bottom: 20px;
 
@@ -1036,7 +1020,6 @@ $text-dim: rgba(255, 255, 255, 0.5);
     }
   }
 
-  // 2. Chart Area
   .preview-chart-container {
     margin-bottom: 16px;
     padding: 10px 0;
@@ -1044,7 +1027,6 @@ $text-dim: rgba(255, 255, 255, 0.5);
     border-radius: 8px;
   }
 
-  // 3. Legend
   .preview-legend {
     display: flex;
     justify-content: center;

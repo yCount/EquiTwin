@@ -1,6 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
-// Variables
 $bg-dark: #111316;
 $panel-border: #30363d;
 $text-main: #e6edf3;
@@ -15,7 +14,6 @@ $danger: #f85149;
 $info: #3aa9d6;
 $orange: #f0883e;
 
-// Mixins
 @mixin scrollbar {
   &::-webkit-scrollbar { width: 6px; height: 6px; }
   &::-webkit-scrollbar-track { background: transparent; }
@@ -26,10 +24,10 @@ $orange: #f0883e;
   }
 }
 
-// Main Container
 .right-sidebar-container {
   width: 100%;
-  height: 100%;
+  height: 100% !important;
+  min-height: 100vh !important;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -39,17 +37,19 @@ $orange: #f0883e;
   color: $text-main;
 
   .sidebar-scroll-area {
-    flex: 1;
+    flex: 1 1 auto;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 24px;
     display: flex;
     flex-direction: column;
     gap: 24px;
+    min-height: 0;
+    height: 100%;
     @include scrollbar;
   }
 }
 
-// Sidebar Sections
 .sidebar-section {
   width: 100%;
   border-bottom: 1px solid $panel-border;
@@ -98,141 +98,6 @@ $orange: #f0883e;
   }
 }
 
-// Sensor Grid
-.sensor-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-
-  .sensor-card {
-    background: $card-bg;
-    border: 1px solid $panel-border;
-    border-radius: 12px;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    transition: all 0.2s;
-    color: $text-main;
-
-    &:hover { 
-      background: $card-bg-hover; 
-      transform: translateY(-2px); 
-      border-color: $text-dim;
-    }
-
-    &.weather .icon-box { color: $warning; background: rgba($warning, 0.15); }
-    &.occupancy .icon-box { color: $orange; background: rgba($orange, 0.15); }
-    &.air .icon-box { color: $info; background: rgba($info, 0.15); }
-    &.temp .icon-box { color: $danger; background: rgba($danger, 0.15); }
-
-    .icon-box {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 12px;
-      
-      svg { width: 20px; height: 20px; }
-    }
-
-    .label { 
-      font-size: 11px;
-      color: $text-dim;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    
-    .value-group {
-      display: flex;
-      align-items: baseline;
-      justify-content: center;
-      gap: 2px;
-      
-      .val { 
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 20px;
-        font-weight: 700;
-        color: $text-main;
-      }
-      
-      .unit { 
-        font-size: 11px;
-        color: $text-dim;
-        margin-left: 2px;
-      }
-    }
-  }
-}
-
-// Summary Card
-.summary-card {
-  background: $card-bg;
-  border: 1px solid $panel-border;
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  color: $text-main;
-  transition: all 0.2s;
-
-  &:hover {
-    background: $card-bg-hover;
-    border-color: $text-dim;
-  }
-
-  .icon-box {
-    width: 48px;
-    height: 48px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255,255,255,0.03);
-    color: $text-dim;
-    
-    svg { width: 24px; height: 24px; }
-  }
-
-  &.alert .icon-box {
-    color: $warning;
-    background: rgba($warning, 0.15);
-  }
-
-  &.normal .icon-box {
-    color: $primary;
-    background: rgba($primary, 0.15);
-  }
-
-  .content {
-    .label { 
-      font-size: 11px;
-      text-transform: uppercase;
-      color: $text-dim;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    
-    .val { 
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 20px;
-      font-weight: 700;
-      color: $text-main;
-    }
-    
-    .unit { 
-      font-size: 12px;
-      color: $text-dim;
-      margin-left: 4px;
-    }
-  }
-}
-
-// Folder Toggle Grid
 .folder-toggle-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -241,11 +106,11 @@ $orange: #f0883e;
 
 .folder-toggle-btn {
   display: flex;
-  flex-direction: row;  // ← Changed
+  flex-direction: row;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 12px 16px;  // ← Adjusted
+  padding: 12px 16px;
   background: $card-bg;
   border: 1px solid $panel-border;
   border-radius: 12px;
@@ -289,10 +154,7 @@ $orange: #f0883e;
     flex-shrink: 0;
     transition: all 0.2s ease;
 
-    svg { 
-      width: 20px; 
-      height: 20px; 
-    }
+    svg { width: 20px; height: 20px; }
   }
 
   .folder-info {
@@ -310,35 +172,33 @@ $orange: #f0883e;
   }
 }
 
-// Pill Grid
 .pill-grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  flex-wrap: wrap;
+}
 
-  .pill-btn {
-    flex: 1;
-    min-width: 60px;
-    padding: 8px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
-    color: $text-dim;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-
-    &:hover {
-      background: rgba(255,255,255,0.08);
-      color: $text-main;
-    }
-    
-    &.active {
-      background: rgba($primary, 0.15);
-      border-color: $primary;
-      color: lighten($primary, 10%);
-    }
+.pill-btn {
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: $text-dim;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  
+  &:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.12);
+  }
+  
+  &.active {
+    background: rgba($primary, 0.15);
+    border-color: rgba($primary, 0.4);
+    color: $primary;
   }
 }
 
@@ -428,9 +288,7 @@ $orange: #f0883e;
 }
 
 
-// ==========================================================================
-// ANOMALY FEED (Dashboard Tab)
-// ==========================================================================
+// ANOMALY FEED
 
 $card-bg: #1c2128; 
 $card-hover: #262c36;
@@ -451,55 +309,64 @@ $border-color: #30363d;
   padding-bottom: 12px;
 
   .anomaly-card {
-    @include panel-base;
-    padding: 16px;
-    display: grid;
-    grid-template-columns: 40px 1fr auto;
-    gap: 16px;
+    background: $card-bg;
+    border: 1px solid $border-color;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 14px;
+    display: flex;
     align-items: center;
+    gap: 14px;
     cursor: default;
-    
+
     &:hover {
       background: $card-hover;
-      border-color: $text-dim;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      transform: translateY(-1px);
     }
 
-    &.critical {
-      border-left: 3px solid $danger;
-      .icon-wrapper { color: $danger; background: rgba($danger, 0.15); }
-      .deviation-val { color: $danger; }
+    // Status-based left border (Must come after base border)
+    &.warning { 
+      border-left: 4px solid $warning !important; 
     }
-
-    &.warning {
-      border-left: 3px solid $warning;
-      .icon-wrapper { color: $warning; background: rgba($warning, 0.15); }
-      .deviation-val { color: $warning; }
+    &.critical { 
+      border-left: 4px solid $danger !important; 
     }
-
-    &.good {
-      border-left: 3px solid $success;
-      .icon-wrapper { color: $success; background: rgba($success, 0.15); }
-      .deviation-val { color: $success; }
+    &.info { 
+      border-left: 4px solid $info !important; 
+    }
+    &.good { 
+      border-left: 4px solid $success !important; 
     }
 
     .icon-wrapper {
-      width: 40px; 
-      height: 40px;
-      border-radius: 6px;
-      display: flex; 
-      align-items: center; 
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
       justify-content: center;
-      
-      svg { width: 20px; height: 20px; stroke-width: 2px; }
+      flex-shrink: 0;
+
+      svg { 
+        width: 20px; 
+        height: 20px;
+        stroke-width: 2px;
+      }
+
+      // Icon colors
+      .anomaly-card.warning & { background: rgba($warning, 0.12); color: $warning; }
+      .anomaly-card.critical & { background: rgba($danger, 0.12); color: $danger; }
+      .anomaly-card.info & { background: rgba($info, 0.12); color: $info; }
+      .anomaly-card.good & { background: rgba($success, 0.12); color: $success; }
     }
 
     .content {
-      display: flex; 
-      flex-direction: column; 
-      gap: 4px;
-      
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0; 
+
       .metric-name { font-size: 13px; font-weight: 600; color: $text-main; }
       .impact-label { font-size: 10px; color: $text-dim; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
     }
@@ -516,7 +383,7 @@ $border-color: #30363d;
   }
 }
 
-// TRAINING HISTORY TIMELINE (Forecast Tab)
+// TRAINING HISTORY TIMELINE
 
 .history-timeline {
   display: flex;

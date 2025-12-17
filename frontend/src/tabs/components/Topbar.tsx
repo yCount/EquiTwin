@@ -4,8 +4,8 @@ import './Topbar.scss';
 interface TopbarProps {
   title: string;
   subtitle?: string;
-  rightContent?: ReactNode; // For buttons, toggles, status pills
-  leftContent?: ReactNode;  // In case you need an icon next to the title
+  rightContent?: ReactNode;
+  leftContent?: ReactNode; 
   className?: string;
 }
 

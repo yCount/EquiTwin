@@ -12,21 +12,19 @@ $tooltip-bg: #1e1e24;
   user-select: none;
   padding-top: 12px; 
 
-  // 1. The Sparkline Layer (with selection indicators)
   .timeline-sparkline-layer {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: all; // Allow mouse events for tooltip
+    pointer-events: all;
     
     svg {
       width: 100%;
       height: 100%;
-      pointer-events: none; // But SVG elements don't intercept clicks
+      pointer-events: none;
       
-      // Base sparkline styles
       .sparkline-fill {
         fill: rgba(59, 130, 246, 0.08);
         transition: fill 0.3s ease;
@@ -38,7 +36,6 @@ $tooltip-bg: #1e1e24;
         transition: stroke 0.3s ease;
       }
       
-      // NEW: Selection overlay styles
       .selection-dim {
         fill: rgba(0, 0, 0, 0.5);
       }
@@ -58,7 +55,6 @@ $tooltip-bg: #1e1e24;
         }
       }
 
-      // Hover indicator line
       .hover-line {
         stroke: rgba(255, 255, 255, 0.6);
         stroke-width: 1;
@@ -67,7 +63,6 @@ $tooltip-bg: #1e1e24;
     }
   }
 
-  // Hover Tooltip
   .timeline-tooltip {
     position: absolute;
     top: -50px;
@@ -94,7 +89,6 @@ $tooltip-bg: #1e1e24;
       font-weight: 600;
     }
 
-    // Tooltip arrow
     &::after {
       content: '';
       position: absolute;
@@ -107,7 +101,6 @@ $tooltip-bg: #1e1e24;
     }
   }
 
-  // 2. The Base Line (The "Axis")
   .timeline-ruler-track {
     position: absolute;
     top: 24px; 
@@ -146,7 +139,6 @@ $tooltip-bg: #1e1e24;
     }
   }
 
-  // 3. The Interactive Slider
   .slider-wrapper {
     position: absolute;
     top: 24px;
@@ -180,10 +172,8 @@ $tooltip-bg: #1e1e24;
         opacity: 1;
         box-shadow: none !important;
 
-        // Reset default active styles
         &-dragging {
            box-shadow: none !important;
-           // When dragging, force tooltip to show on the child
            .custom-timeline-handle .handle-tooltip {
               opacity: 1;
               transform: translateX(-50%) translateY(-5px);
@@ -222,7 +212,6 @@ $tooltip-bg: #1e1e24;
                 transition: background 0.2s;
             }
 
-            // --- The New Tooltip Styles ---
             .handle-tooltip {
               position: absolute;
               bottom: 100%; // Above the handle
@@ -242,7 +231,6 @@ $tooltip-bg: #1e1e24;
               box-shadow: 0 4px 12px rgba(0,0,0,0.3);
               z-index: 200;
 
-              // Little triangle arrow
               &::after {
                 content: '';
                 position: absolute;
@@ -255,7 +243,6 @@ $tooltip-bg: #1e1e24;
               }
             }
 
-            // Show tooltip on hover
             &:hover {
                 .handle-line { 
                     height: 20px; 

@@ -1,24 +1,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
 // Shared Variables
-$bg-dark: #111316; // MATCHED: Matches new Sidebar BG
-$panel-border: #30363d; // MATCHED: Matches HomeTab border
+$bg-dark: #111316;
+$panel-border: #30363d;
 $primary: #58a6ff; 
 $success: #3fb950;
 $text-main: #e6edf3;
 $text-dim: #8b949e;
-$btn-bg: #21262d; // MATCHED: New button bg
+$btn-bg: #21262d;
 $btn-border: #30363d;
 
 .topbar-container {
   flex-shrink: 0;
   padding: 0 24px;
-  height: 56px; // Fixed height for tighter feel
+  height: 56px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid $panel-border;
-  background: $bg-dark; // Solid dark background
+  background: $bg-dark;
   z-index: 20;
   font-family: 'Inter', sans-serif;
 
@@ -28,7 +28,7 @@ $btn-border: #30363d;
     justify-content: center;
 
     .topbar-title {
-      font-size: 16px; // Slightly smaller, cleaner
+      font-size: 16px;
       font-weight: 600;
       margin: 0;
       color: $text-main;
@@ -73,7 +73,7 @@ $btn-border: #30363d;
 
     // Standardized Button Class
     .topbar-btn {
-      height: 32px; // Compact button
+      height: 32px;
       padding: 0 12px;
       background: $btn-bg;
       border: 1px solid $btn-border;
@@ -93,7 +93,7 @@ $btn-border: #30363d;
       }
 
       &.primary {
-        background: #1f6feb; // GitHub Primary Button Blue
+        background: #1f6feb;
         border-color: rgba(255,255,255,0.1);
         color: #fff;
         

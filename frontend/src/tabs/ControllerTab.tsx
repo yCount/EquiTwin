@@ -12,9 +12,11 @@ import {
   ComposedChart,
 } from "recharts";
 import "./ControllerTab.scss";
+import "./components/RightSidebar.scss";
+import "./components/MainContent.scss";
 import Topbar from "./components/Topbar";
-import "./components/ControllerSidebar.scss";
 import RightSidebar, { SidebarSection } from "./components/RightSidebar";
+import MainContent, { ContentArea, Section } from "./components/MainContent";
 
 interface SelectedModel {
   feature: 'temperature' | 'airquality' | 'energy';
@@ -360,104 +362,10 @@ const ControllerTab: React.FC = () => {
         }
       />
 
-      <div className="dashboard-grid">
-        {/* LEFT: Visualization */}
-        <div className="visualization-panel">
-          <div className="model-status-section">
-            <div className="status-header">
-              <h2>Model Selection</h2>
-              <div className="overall-status">
-                <div className="status-dot" style={{ background: overallStatus.color }} />
-                {overallStatus.status}
-              </div>
-            </div>
-            <div className="models-row">
-              {selectedModels.map(m => (
-                <div key={m.feature} className={`model-pill ${m.status}`}>
-                  <div className="model-icon">{m.icon}</div>
-                  <div className="model-info">
-                    <div className="model-name">{m.featureLabel}</div>
-                    <div className="model-detail">{m.modelType} • {m.accuracy.toFixed(0)}%</div>
-                  </div>
-                  <div className={`status-badge ${m.status}`}>{m.status === 'ready' ? '✓' : '!'}</div>
-                </div>
-              ))}
-              {forecasters.map(f => (
-                <div key={f.type} className={`model-pill forecaster ${f.status}`}>
-                  <span className="model-icon">{f.type === 'occupancy' ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> : '🌤️'}</span>
-                  <div className="model-info">
-                    <span className="model-name">{f.name}</span>
-                    <span className="model-detail">{f.mode} • {f.accuracy.toFixed(0)}%</span>
-                  </div>
-                  <span className={`status-badge ${f.status}`}>{f.status === 'ready' ? '✓' : '!'}</span>
-                </div>
-              ))}
-            </div>
-            <p className="model-hint">Models trained on <strong>Prediction</strong> page</p>
-          </div>
-
-          <div className="kpi-row">
-            <div className="kpi-card"><div className="kpi-icon temp"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div><div className="kpi-data"><span className="label">Avg Temp</span> <span className="value">{simulationMetrics.avgTemp.toFixed(1)}°C</span></div></div>
-            <div className="kpi-card"><div className="kpi-icon energy"> <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg> </div><div className="kpi-data"><span className="label">Energy</span><span className="value">{simulationMetrics.energy.toFixed(1)} kWh</span></div></div>
-            <div className="kpi-card"><div className="kpi-icon comfort"> <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"><rect x="6" y="12" width="12" height="6" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M10 6c0 1 1 1 1 2s-1 1-1 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M14 6c0 1 1 1 1 2s-1 1-1 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> </div><div className="kpi-data"><span className="label">Comfort</span><span className="value">{simulationMetrics.comfort.toFixed(0)}%</span></div></div>
-            <div className="kpi-card"><div className="kpi-icon cost"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M13 7L9 12h4l-2 5"/></svg> </div><div className="kpi-data"><span className="label">Est. Cost</span><span className="value">£{simulationMetrics.cost.toFixed(2)}</span></div></div>
-          </div>
-
-          <div className="chart-section">
-            <div className="chart-header-row">
-              <h3>System Response Forecast</h3>
-              <div className="chart-legend">
-                <span><div className="dot" style={{ background: '#ef4444' }} /> Temp</span>
-                <span><div className="dot" style={{ background: '#10b981' }} /> Comfort</span>
-                <span><div className="line dashed" /> Setpoint</span>
-              </div>
-            </div>
-            <div className="chart-container">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={simulationData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="timestamp" stroke="rgba(255,255,255,0.3)" style={{ fontSize: 11 }} />
-                  <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: 11 }} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Line type="monotone" dataKey="temperature" stroke="#ef4444" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="comfort" stroke="#10b981" strokeWidth={2} dot={false} />
-                  <ReferenceLine
-                    y={mpcParams.temperatureSetpoint}
-                    stroke="#4ade80"
-                    strokeDasharray="5 5"
-                    strokeWidth={1.5}
-                  />
-                  <ReferenceLine
-                    x={simulationData.find(d => d.type === 'current')?.timestamp}
-                    stroke="#ef4444"
-                    strokeDasharray="3 3"
-                    strokeWidth={2}
-                    label={{ position: 'top', value: 'NOW', fill: '#ef4444', fontSize: 10 }}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="horizon-bar">
-              <span className="horizon-label">Timeline</span>
-              <div className="timeline-graphic">
-                <div className="segment history" style={{ width: `${timelinePercentages.historical}%` }}>
-                  Past 6h
-                </div>
-                <div className="now-marker" style={{ left: `${timelinePercentages.historical}%` }} />
-                <div className="segment control" style={{ width: `${timelinePercentages.control}%` }}>
-                  Control ({mpcParams.controlHorizon * 15}m)
-                </div>
-                <div className="segment prediction" style={{ width: `${timelinePercentages.prediction}%` }}>
-                  Prediction ({(mpcParams.predictionHorizon - mpcParams.controlHorizon) * 15}m)
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <RightSidebar width="360px">
-          {/* Optimization Objectives */}
+      <MainContent
+        sidebar={
+          <RightSidebar width="360px">
+            {/* Sidebar sections from lines 459-573 */}
           <SidebarSection title="Optimization Objectives" className="glass-card">
             <div className="weight-slider-card">
               <div className="weight-labels" style={{display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px'}}>
@@ -572,7 +480,105 @@ const ControllerTab: React.FC = () => {
                 </label>
           </SidebarSection>
         </RightSidebar>
-      </div>
+        }
+        sidebarWidth="360px"
+      >
+        <ContentArea padding="compact" gap="16px">
+          <div className="model-status-section">
+            <div className="status-header">
+              <h2>Model Selection</h2>
+              <div className="overall-status">
+                <div className="status-dot" style={{ background: overallStatus.color }} />
+                {overallStatus.status}
+              </div>
+            </div>
+            <div className="models-row">
+              {selectedModels.map(m => (
+                <div key={m.feature} className={`model-pill ${m.status}`}>
+                  <div className="model-icon">{m.icon}</div>
+                  <div className="model-info">
+                    <div className="model-name">{m.featureLabel}</div>
+                    <div className="model-detail">{m.modelType} • {m.accuracy.toFixed(0)}%</div>
+                  </div>
+                  <div className={`status-badge ${m.status}`}>{m.status === 'ready' ? '✓' : '!'}</div>
+                </div>
+              ))}
+              {forecasters.map(f => (
+                <div key={f.type} className={`model-pill forecaster ${f.status}`}>
+                  <span className="model-icon">{f.type === 'occupancy' ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> : '🌤️'}</span>
+                  <div className="model-info">
+                    <span className="model-name">{f.name}</span>
+                    <span className="model-detail">{f.mode} • {f.accuracy.toFixed(0)}%</span>
+                  </div>
+                  <span className={`status-badge ${f.status}`}>{f.status === 'ready' ? '✓' : '!'}</span>
+                </div>
+              ))}
+            </div>
+            <p className="model-hint">Models trained on <strong>Prediction</strong> page</p>
+          </div>
+
+          <div className="kpi-row">
+            <div className="kpi-card"><div className="kpi-icon temp"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg></div><div className="kpi-data"><span className="label">Avg Temp</span> <span className="value">{simulationMetrics.avgTemp.toFixed(1)}°C</span></div></div>
+            <div className="kpi-card"><div className="kpi-icon energy"> <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg> </div><div className="kpi-data"><span className="label">Energy</span><span className="value">{simulationMetrics.energy.toFixed(1)} kWh</span></div></div>
+            <div className="kpi-card"><div className="kpi-icon comfort"> <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"><rect x="6" y="12" width="12" height="6" rx="2" stroke="currentColor" strokeWidth="2"/><path d="M10 6c0 1 1 1 1 2s-1 1-1 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><path d="M14 6c0 1 1 1 1 2s-1 1-1 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> </div><div className="kpi-data"><span className="label">Comfort</span><span className="value">{simulationMetrics.comfort.toFixed(0)}%</span></div></div>
+            <div className="kpi-card"><div className="kpi-icon cost"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M13 7L9 12h4l-2 5"/></svg> </div><div className="kpi-data"><span className="label">Est. Cost</span><span className="value">£{simulationMetrics.cost.toFixed(2)}</span></div></div>
+          </div>
+
+          <div className="chart-section">
+            <div className="chart-header-row">
+              <h3>System Response Forecast</h3>
+              <div className="chart-legend">
+                <span><div className="dot" style={{ background: '#ef4444' }} /> Temp</span>
+                <span><div className="dot" style={{ background: '#10b981' }} /> Comfort</span>
+                <span><div className="line dashed" /> Setpoint</span>
+              </div>
+            </div>
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={simulationData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="timestamp" stroke="rgba(255,255,255,0.3)" style={{ fontSize: 11 }} />
+                  <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: 11 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Line type="monotone" dataKey="temperature" stroke="#ef4444" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="comfort" stroke="#10b981" strokeWidth={2} dot={false} />
+                  <ReferenceLine
+                    y={mpcParams.temperatureSetpoint}
+                    stroke="#4ade80"
+                    strokeDasharray="5 5"
+                    strokeWidth={1.5}
+                  />
+                  <ReferenceLine
+                    x={simulationData.find(d => d.type === 'current')?.timestamp}
+                    stroke="#ef4444"
+                    strokeDasharray="3 3"
+                    strokeWidth={2}
+                    label={{ position: 'top', value: 'NOW', fill: '#ef4444', fontSize: 10 }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="horizon-bar">
+              <span className="horizon-label">Timeline</span>
+              <div className="timeline-graphic">
+                <div className="segment history" style={{ width: `${timelinePercentages.historical}%` }}>
+                  Past 6h
+                </div>
+                <div className="now-marker" style={{ left: `${timelinePercentages.historical}%` }} />
+                <div className="segment control" style={{ width: `${timelinePercentages.control}%` }}>
+                  Control ({mpcParams.controlHorizon * 15}m)
+                </div>
+                <div className="segment prediction" style={{ width: `${timelinePercentages.prediction}%` }}>
+                  Prediction ({(mpcParams.predictionHorizon - mpcParams.controlHorizon) * 15}m)
+                </div>
+              </div>
+            </div>
+          </div>
+        </ContentArea>
+      </MainContent>
+
+      {/* Deploy Modal */}
       {showDeployModal && (
         <div className="modal-overlay" onClick={() => setShowDeployModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>

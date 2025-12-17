@@ -15,9 +15,12 @@ import {
 } from "recharts";
 import "./DashboardTab.scss";
 import "./components/ChartTooltip.scss";
+import "./components/RightSidebar.scss";
+import "./components/MainContent.scss";
 import Topbar from "./components/Topbar";
 import TimelineControl from "./components/TimelineControl";
 import RightSidebar, { SidebarSection } from "./components/RightSidebar";
+import MainContent, { ContentArea, Section } from "./components/MainContent";
 import {
   EyeIcon,
   EyeOffIcon,
@@ -669,52 +672,133 @@ const [level3Active, setLevel3Active] = useState(true);
         }
       />
 
-      <div className="dashboard-layout">
-        <main className="main-stage">
-          <div className="dashboard-scroll-area">
-            <section className="analytics-grid">
-               <ChartCard title="Temperature" subtitle="Avg" data={filteredData.temperature} color="#ef4444" unit="°C" />
-               <ChartCard 
-                 title="External Weather" 
-                 subtitle="Temp" 
-                 data={filteredData.weather} 
-                 color="#f59e0b" 
-                 unit="°C" 
-                 type="weather"
-               />
-               <ChartCard title="Occupancy" subtitle="Ppl" data={filteredData.occupancy} color="#f97316" type="bar" unit="Ppl" />
-               <ChartCard title="Air Quality" subtitle="AQI" data={filteredData.airQuality} color="#10b981" unit="AQI" />
-               
-               <ChartCard 
-                 title="Floor Distribution" 
-                 subtitle="Energy" 
-                 data={filteredData.energyByFloor} 
-                 color="#3b82f6" 
-                 unit="kWh"
-                 type="stacked"
-                 stackConfig={[
-                   { dataKey: 'floor3', name: 'Level 3', color: '#3b82f6' },
-                   { dataKey: 'floor4', name: 'Level 4', color: '#8b5cf6' }
-                 ]}
-                 isWide={true}
-               />
-            </section>
-          </div>
+      <MainContent
+        sidebar={
+          <RightSidebar width="360px">
+            <SidebarSection title="Floor Filter" defaultExpanded={true}>
+              <div className="folder-toggle-grid">
+                
+                {/* Level 4 Button */}
+                <button 
+                  className={`folder-toggle-btn ${level4Active ? 'active' : ''}`}
+                  onClick={() => setLevel4Active(!level4Active)}
+                >
+                  <div className="folder-icon">
+                    {level4Active ? (
+                      <EyeIcon />
+                    ) : (
+                      <EyeOffIcon />
+                    )}
+                  </div>
+                  <div className="folder-info">
+                    <span className="folder-name">Level 4</span>
+                  </div>
+                </button>
 
-          <section className="master-timeline-section">
-            <div className="section-header">
-              <h3>Timeline</h3>
-              <div className="header-controls">
+                {/* Level 3 Button */}
+                <button 
+                  className={`folder-toggle-btn ${level3Active ? 'active' : ''}`}
+                  onClick={() => setLevel3Active(!level3Active)}
+                >
+                  <div className="folder-icon">
+                    {level3Active ? (
+                      <EyeIcon />
+                    ) : (
+                      <EyeOffIcon />
+                    )}
+                  </div>
+                  <div className="folder-info">
+                    <span className="folder-name">Level 3</span>
+                  </div>
+                </button>
+
+              </div>
+            </SidebarSection>
+            <SidebarSection title="Time Range Filter">
+              <div className="control-group">
+                <div className="pill-grid">
+                  {['24hr', '7days', '30days', '3M', '1Y', 'ALL'].map(r => (
+                    <button 
+                      key={r} 
+                      className={`pill-btn ${activeTimeRange === r ? 'active' : ''}`}
+                      onClick={() => { setActiveTimeRange(r); resetTimeline(); }}
+                    >
+                      {r.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </SidebarSection>
+            <SidebarSection title="Anomaly Detection Log" noBorder>
+              <div className="anomaly-feed">
+                {sensorData?.deviations.map((dev) => (
+                  <div key={dev.metric} className={`anomaly-card ${dev.status}`}>
+                    <div className="icon-wrapper">
+                      {getMetricIcon(dev.metric)}
+                    </div>
+                    <div className="content">
+                      <span className="metric-name">{dev.metric}</span>
+                      <span className="impact-label">{dev.impact} Impact</span>
+                    </div>
+                    <div className="value-box">
+                      <span className="deviation-val">
+                        {dev.deviation > 0 ? '+' : ''}{dev.deviation.toFixed(1)}%
+                      </span>
+                      <span className="status-text">{dev.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SidebarSection>
+          </RightSidebar>
+        }
+        sidebarWidth="360px"
+      >
+        <ContentArea padding="compact" gap="12px">
+          <section className="analytics-grid">
+            <ChartCard title="Temperature" subtitle="Avg" data={filteredData.temperature} color="#ef4444" unit="°C" />
+            <ChartCard 
+              title="External Weather" 
+              subtitle="Temp" 
+              data={filteredData.weather} 
+              color="#f59e0b" 
+              unit="°C" 
+              type="weather"
+            />
+            <ChartCard title="Occupancy" subtitle="Ppl" data={filteredData.occupancy} color="#f97316" type="bar" unit="Ppl" />
+            <ChartCard title="Air Quality" subtitle="AQI" data={filteredData.airQuality} color="#10b981" unit="AQI" />
+            
+            <ChartCard 
+              title="Floor Distribution" 
+              subtitle="Energy" 
+              data={filteredData.energyByFloor} 
+              color="#3b82f6" 
+              unit="kWh"
+              type="stacked"
+              stackConfig={[
+                { dataKey: 'floor3', name: 'Level 3', color: '#3b82f6' },
+                { dataKey: 'floor4', name: 'Level 4', color: '#8b5cf6' }
+              ]}
+              isWide={true}
+            />
+          </section>
+
+          <Section 
+            className="glass-panel"
+            title="Timeline"
+            headerActions={
+              <>
                 <span className="range-display">
                   {timeRange.start ? 'CUSTOM FILTER' : 'FULL RANGE'}
                 </span>
                 {timeRange.start && (
-                  <button className="reset-zoom-btn" onClick={resetTimeline}>
+                  <button className="reset-btn" onClick={resetTimeline}>
                     Reset Zoom
                   </button>
                 )}
-              </div>
-            </div>
+              </>
+            }
+          >
             <div 
               className="timeline-wrapper"
               onWheel={(e) => {
@@ -780,87 +864,9 @@ const [level3Active, setLevel3Active] = useState(true);
                  dataKey="temperature"
                />
             </div>
-          </section>
-        </main>
-
-        <RightSidebar width="360px">
-          <SidebarSection title="Floor Filter" defaultExpanded={true}>
-    <div className="folder-toggle-grid">
-      
-      {/* Level 4 Button */}
-      <button 
-        className={`folder-toggle-btn ${level4Active ? 'active' : ''}`}
-        onClick={() => setLevel4Active(!level4Active)}
-      >
-        <div className="folder-icon">
-          {level4Active ? (
-            <EyeIcon />
-          ) : (
-            <EyeOffIcon />
-          )}
-        </div>
-        <div className="folder-info">
-          <span className="folder-name">Level 4</span>
-        </div>
-      </button>
-
-      {/* Level 3 Button */}
-      <button 
-        className={`folder-toggle-btn ${level3Active ? 'active' : ''}`}
-        onClick={() => setLevel3Active(!level3Active)}
-      >
-        <div className="folder-icon">
-          {level3Active ? (
-            <EyeIcon />
-          ) : (
-            <EyeOffIcon />
-          )}
-        </div>
-        <div className="folder-info">
-          <span className="folder-name">Level 3</span>
-        </div>
-      </button>
-
-    </div>
-        </SidebarSection>
-          <SidebarSection title="Time Range Filter">
-            <div className="control-group">
-              <div className="pill-grid">
-                {['24hr', '7days', '30days', '3M', '1Y', 'ALL'].map(r => (
-                  <button 
-                    key={r} 
-                    className={`pill-btn ${activeTimeRange === r ? 'active' : ''}`}
-                    onClick={() => { setActiveTimeRange(r); resetTimeline(); }}
-                  >
-                    {r.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </SidebarSection>
-        <SidebarSection title="Anomaly Detection Log" noBorder>
-            <div className="anomaly-feed">
-              {sensorData?.deviations.map((dev) => (
-                <div key={dev.metric} className={`anomaly-card ${dev.status}`}>
-                  <div className="icon-wrapper">
-                    {getMetricIcon(dev.metric)}
-                  </div>
-                  <div className="content">
-                    <span className="metric-name">{dev.metric}</span>
-                    <span className="impact-label">{dev.impact} Impact</span>
-                  </div>
-                  <div className="value-box">
-                    <span className="deviation-val">
-                      {dev.deviation > 0 ? '+' : ''}{dev.deviation.toFixed(1)}%
-                    </span>
-                    <span className="status-text">{dev.status}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SidebarSection>
-        </RightSidebar>
-      </div>
+          </Section>
+        </ContentArea>
+      </MainContent>
     </div>
   );
 };

@@ -19,7 +19,9 @@ import { unifiedSelectionStorage } from "../selectionStorage";
 import "./HomeTab.scss";
 import Topbar from "./components/Topbar";
 import "./components/RightSidebar.scss";
+import "./components/MainContent.scss";
 import RightSidebar, { SidebarSection } from "./components/RightSidebar";
+import MainContent from "./components/MainContent";
 import {
   EyeIcon,
   EyeOffIcon,
@@ -213,7 +215,109 @@ const HomeTab: React.FC<HomeTabProps> = ({
           </>
         }
       />
-      <div className="home-content">
+      
+      <MainContent 
+        sidebar={
+          <RightSidebar width="360px">
+            <SidebarSection title="Floor Filter" defaultExpanded={true}>
+              <div className="folder-toggle-grid">
+                <button 
+                  className={`folder-toggle-btn ${category2Visible ? 'active' : ''}`}
+                  onClick={toggleCategory2Visibility}
+                  disabled={!iModelConnection}
+                >
+                  <div className="folder-icon">
+                    {category2Visible ? <EyeIcon /> : <EyeOffIcon />}
+                  </div>
+                  <div className="folder-info">
+                    <span className="folder-name">Level 4</span>
+                  </div>
+                </button>
+                <button 
+                  className={`folder-toggle-btn ${category1Visible ? 'active' : ''}`}
+                  onClick={toggleCategory1Visibility}
+                  disabled={!iModelConnection}
+                >
+                  <div className="folder-icon">
+                    {category1Visible ? <EyeIcon /> : <EyeOffIcon />}
+                  </div>
+                  <div className="folder-info">
+                    <span className="folder-name">Level 3</span>
+                  </div>
+                </button>
+              </div>
+            </SidebarSection>
+
+            <SidebarSection title="Environment" defaultExpanded={true}>
+              <div className="sensor-grid">
+                <div className="sensor-card weather">
+                  <div className="icon-box">
+                    <SunIcon />
+                  </div>
+                  <div className="label">Weather</div>
+                  <div className="value-group">
+                    <span className="val">{sensorData.weatherForecast.value}</span>
+                  </div>
+                </div>
+                <div className="sensor-card temp">
+                  <div className="icon-box">
+                    <TemperatureIcon />
+                  </div>
+                  <div className="label">Temperature</div>
+                  <div className="value-group">
+                    <span className="val">{sensorData.temperature.value}</span>
+                    <span className="unit">{sensorData.temperature.unit}</span>
+                  </div>
+                </div>
+                <div className="sensor-card air">
+                  <div className="icon-box">
+                    <AirQualityIcon />
+                  </div>
+                  <div className="label">Air Quality</div>
+                  <div className="value-group">
+                    <span className="val">{sensorData.airQuality.value}</span>
+                    <span className="unit">{sensorData.airQuality.unit}</span>
+                  </div>
+                </div>
+                <div className="sensor-card occupancy">
+                  <div className="icon-box">
+                    <OccupancyIcon />
+                  </div>
+                  <div className="label">Occupancy</div>
+                  <div className="value-group">
+                    <span className="val">{sensorData.occupancy.value}</span>
+                    <span className="unit">{sensorData.occupancy.unit}</span>
+                  </div>
+                </div>
+              </div>
+            </SidebarSection>
+
+            <SidebarSection title="System Vitals" defaultExpanded={true}>
+              <div className="summary-card normal">
+                <div className="icon-box">
+                  <EnergyIcon />
+                </div>
+                <div className="content">
+                  <div className="label">Energy Load</div>
+                  <span className="val">{sensorData.energyUsage.value}</span>
+                  <span className="unit">{sensorData.energyUsage.unit}</span>
+                </div>
+              </div>
+              <div className="summary-card alert">
+                <div className="icon-box">
+                  <DeviationIcon />
+                </div>
+                <div className="content">
+                  <div className="label">Deviation</div>
+                  <span className="val">{sensorData.deviation.value}</span>
+                  <span className="unit">{sensorData.deviation.unit}</span>
+                </div>
+              </div>
+            </SidebarSection>
+          </RightSidebar>
+        }
+        sidebarWidth="360px"
+      >
         <div className="viewer-wrapper">
           <Viewer
             iTwinId={iTwinId ?? ""}
@@ -246,105 +350,7 @@ const HomeTab: React.FC<HomeTabProps> = ({
             selectionStorage={unifiedSelectionStorage}
           />
         </div>
-
-        <RightSidebar width="360px">
-          <SidebarSection title="Floor Filter" defaultExpanded={true}>
-            <div className="folder-toggle-grid">
-              <button 
-                className={`folder-toggle-btn ${category2Visible ? 'active' : ''}`}
-                onClick={toggleCategory2Visibility}
-                disabled={!iModelConnection}
-              >
-                <div className="folder-icon">
-                  {category2Visible ? <EyeIcon /> : <EyeOffIcon />}
-                </div>
-                <div className="folder-info">
-                  <span className="folder-name">Level 4</span>
-                </div>
-              </button>
-              <button 
-                className={`folder-toggle-btn ${category1Visible ? 'active' : ''}`}
-                onClick={toggleCategory1Visibility}
-                disabled={!iModelConnection}
-              >
-                <div className="folder-icon">
-                  {category1Visible ? <EyeIcon /> : <EyeOffIcon />}
-                </div>
-                <div className="folder-info">
-                  <span className="folder-name">Level 3</span>
-                </div>
-              </button>
-            </div>
-          </SidebarSection>
-
-          <SidebarSection title="Environment" defaultExpanded={true}>
-            <div className="sensor-grid">
-              <div className="sensor-card weather">
-                <div className="icon-box">
-                  <SunIcon />
-                </div>
-                <div className="label">Weather</div>
-                <div className="value-group">
-                  <span className="val">{sensorData.weatherForecast.value}</span>
-                </div>
-              </div>
-              <div className="sensor-card temp">
-                <div className="icon-box">
-                  <TemperatureIcon />
-                </div>
-                <div className="label">Temperature</div>
-                <div className="value-group">
-                  <span className="val">{sensorData.temperature.value}</span>
-                  <span className="unit">{sensorData.temperature.unit}</span>
-                </div>
-              </div>
-              <div className="sensor-card air">
-                <div className="icon-box">
-                  <AirQualityIcon />
-                </div>
-                <div className="label">Air Quality</div>
-                <div className="value-group">
-                  <span className="val">{sensorData.airQuality.value}</span>
-                  <span className="unit">{sensorData.airQuality.unit}</span>
-                </div>
-              </div>
-              <div className="sensor-card occupancy">
-                <div className="icon-box">
-                  <OccupancyIcon />
-                </div>
-                <div className="label">Occupancy</div>
-                <div className="value-group">
-                  <span className="val">{sensorData.occupancy.value}</span>
-                  <span className="unit">{sensorData.occupancy.unit}</span>
-                </div>
-              </div>
-            </div>
-          </SidebarSection>
-
-          <SidebarSection title="System Vitals" defaultExpanded={true}>
-            <div className="summary-card normal">
-              <div className="icon-box">
-                <EnergyIcon />
-              </div>
-              <div className="content">
-                <div className="label">Energy Load</div>
-                <span className="val">{sensorData.energyUsage.value}</span>
-                <span className="unit">{sensorData.energyUsage.unit}</span>
-              </div>
-            </div>
-            <div className="summary-card alert">
-              <div className="icon-box">
-                <DeviationIcon />
-              </div>
-              <div className="content">
-                <div className="label">Deviation</div>
-                <span className="val">{sensorData.deviation.value}</span>
-                <span className="unit">{sensorData.deviation.unit}</span>
-              </div>
-            </div>
-          </SidebarSection>
-        </RightSidebar>
-      </div>
+      </MainContent>
     </div>
   );
 };

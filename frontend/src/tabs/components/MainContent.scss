@@ -1,0 +1,325 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+$bg-dark: #0b0d12;
+$bg-main: #1A1D21;
+$panel-bg: rgba(255, 255, 255, 0.03);
+$panel-border: rgba(255, 255, 255, 0.08);
+$card-bg: #1c2128;
+$card-border: #30363d;
+$card-hover-bg: #262c36;
+
+$text-main: #e6edf3;
+$text-dim: #8b949e;
+
+$primary: #58a6ff;
+$success: #3fb950;
+$warning: #d29922;
+$danger: #f85149;
+
+// MIXINS
+
+@mixin glass-panel {
+  background: $panel-bg;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid $panel-border;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+@mixin card {
+  background: $card-bg;
+  border: 1px solid $card-border;
+  border-radius: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &:hover {
+    border-color: $text-dim;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+}
+
+@mixin scrollbar {
+  &::-webkit-scrollbar { 
+    width: 6px; 
+    height: 6px; 
+  }
+  
+  &::-webkit-scrollbar-track { 
+    background: transparent; 
+  }
+  
+  &::-webkit-scrollbar-thumb { 
+    background: rgba(255, 255, 255, 0.1); 
+    border-radius: 3px; 
+    
+    &:hover { 
+      background: rgba(255, 255, 255, 0.2); 
+    } 
+  }
+}
+
+// MAIN CONTENT LAYOUT - FULL HEIGHT FIX
+
+.main-content-layout {
+  flex: 1 1 auto;
+  display: flex;
+  overflow: hidden;
+  width: 100%;
+  height: 100% !important;
+  min-height: 100vh !important;
+  
+  // When sidebar is present, create horizontal split
+  &.with-sidebar {
+    display: grid;
+    // Grid columns set via inline style: gridTemplateColumns: `1fr ${sidebarWidth}`
+    // This allows dynamic sidebar width from props
+    height: 100% !important;
+    min-height: 100vh !important;
+    
+    .main-content-area {
+      border-right: 1px solid $panel-border;
+    }
+  }
+  
+  .main-content-area {
+    flex: 1 1 auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-width: 0; // Prevent flex overflow
+    min-height: 0; // Prevent flex overflow
+    width: 100%; // Take full width of grid cell
+    height: 100% !important; // Take full height
+  }
+  
+  .main-content-sidebar {
+    flex-shrink: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    width: 100%; // Take full width of grid cell
+    height: 100% !important; // Take full height
+    min-height: 100vh !important;
+  }
+}
+
+// CONTENT AREA (Scrollable container)
+
+.content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  @include scrollbar;
+  
+  &.compact {
+    padding: 16px 20px;
+  }
+  
+  &.spacious {
+    padding: 24px 32px;
+  }
+}
+
+// CONTENT SECTION
+
+.content-section {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  
+  &.glass-panel {
+    @include glass-panel;
+    padding: 12px 16px;
+  }
+  
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 16px;
+    
+    .section-header-content {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      
+      .section-title {
+        margin: 0;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: $text-dim;
+        font-weight: 600;
+      }
+      
+      .section-subtitle {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.4);
+      }
+    }
+    
+    .section-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      
+      .range-display {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: $primary;
+        background: rgba($primary, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      
+      .reset-btn {
+        font-size: 10px;
+        padding: 3px 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: $text-main;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        
+        &:hover {
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.2);
+        }
+      }
+    }
+  }
+  
+  .section-content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+// CARD GRID
+
+.card-grid {
+  display: grid;
+  // Grid template columns set via inline style for flexibility
+  
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
+  }
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+// UTILITY CLASSES
+
+// Spacing
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-20 { margin-bottom: 20px; }
+.mb-24 { margin-bottom: 24px; }
+
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.gap-20 { gap: 20px; }
+.gap-24 { gap: 24px; }
+
+.p-8 { padding: 8px; }
+.p-12 { padding: 12px; }
+.p-16 { padding: 16px; }
+.p-20 { padding: 20px; }
+.p-24 { padding: 24px; }
+
+// Layout
+.flex { display: flex; }
+.flex-column { display: flex; flex-direction: column; }
+.flex-row { display: flex; flex-direction: row; }
+.flex-1 { flex: 1; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+
+// Status Pills
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  
+  &.active {
+    background: rgba($success, 0.15);
+    color: $success;
+    border: 1px solid rgba($success, 0.3);
+    
+    &::before {
+      background: $success;
+      box-shadow: 0 0 6px $success;
+    }
+  }
+  
+  &.warning {
+    background: rgba($warning, 0.15);
+    color: $warning;
+    border: 1px solid rgba($warning, 0.3);
+    
+    &::before {
+      background: $warning;
+    }
+  }
+  
+  &.error {
+    background: rgba($danger, 0.15);
+    color: $danger;
+    border: 1px solid rgba($danger, 0.3);
+    
+    &::before {
+      background: $danger;
+    }
+  }
+}
+
+// RESPONSIVE
+
+@media (max-width: 1200px) {
+  .main-content-layout.with-sidebar {
+    grid-template-columns: 1fr 320px;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content-layout.with-sidebar {
+    grid-template-columns: 1fr;
+    
+    .main-content-sidebar {
+      display: none; // Hide sidebar on mobile
+    }
+  }
+  
+  .content-area {
+    padding: 12px 16px !important;
+  }
+}

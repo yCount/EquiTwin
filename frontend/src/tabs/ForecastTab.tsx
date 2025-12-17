@@ -15,8 +15,10 @@ import {
 } from "recharts";
 import "./ForecastTab.scss";
 import "./components/RightSidebar.scss";
+import "./components/MainContent.scss";
 import Topbar from "./components/Topbar";
 import RightSidebar, { SidebarSection } from "./components/RightSidebar";
+import MainContent, { ContentArea, Section } from "./components/MainContent";
 
 interface ProcessModel {
   id: string;
@@ -394,15 +396,150 @@ const ForecastTab: React.FC = () => {
         }
       />
 
-      <div className="forecast-dashboard">
-        {/* === LEFT: Main Content === */}
-        <div className="main-content">
+      <MainContent
+        sidebar={
+          <RightSidebar width="360px">
+            <SidebarSection title="Prediction Preview" className="prediction-preview">
+              <div className="preview-controls">
+                <span className="control-label">Target Feature</span>
+                <div className="feature-selector">
+                  {processModels.map(m => (
+                    <button
+                      key={m.feature}
+                      className={`selector-btn ${selectedFeature === m.feature ? 'active' : ''}`}
+                      onClick={() => setSelectedFeature(m.feature)}
+                      title={m.name}
+                    >
+                      <span className="icon">
+                        {m.feature === 'temperature' ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg> 
+                         : m.feature === 'energy' ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> 
+                         : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 8h14.5a2.5 2.5 0 0 1 0 5H14" /><path d="M6 16h13.5a2.5 2.5 0 0 0 0-5H19" /></svg>}
+                      </span>
+                      <span className="label">{m.feature}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="preview-chart-container">
+                <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={predictionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="confidenceGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis 
+                      dataKey="timestamp" 
+                      stroke="rgba(255,255,255,0.2)" 
+                      tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.4)' }} 
+                      interval="preserveStartEnd" 
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis 
+                      stroke="rgba(255,255,255,0.2)" 
+                      tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.4)' }} 
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }} />
+                    <Area type="monotone" dataKey="confidence_upper" stroke="none" fill="url(#confidenceGrad)" />
+                    <Area type="monotone" dataKey="confidence_lower" stroke="none" fill="#0b0d12" />
+                    <Line type="monotone" dataKey="actual" stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#3b82f6' }} />
+                    <Line type="monotone" dataKey="predicted" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="4 4" dot={false} activeDot={{ r: 4, fill: '#8b5cf6' }} />
+                    <ReferenceLine x={predictionData[48]?.timestamp} stroke="#ef4444" strokeDasharray="2 2" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="preview-legend">
+                <div className="legend-item">
+                  <span className="dot actual" /> Actual
+                </div>
+                <div className="legend-item">
+                  <span className="dot predicted" /> Predicted
+                </div>
+                <div className="legend-item">
+                  <span className="box confidence" /> Confidence
+                </div>
+              </div>
+            </SidebarSection>
+
+            <SidebarSection title="Training Settings" collapsible={true} defaultExpanded={false}>
+                <div className="control-group" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                  <label style={{marginBottom: 0}}>Auto-Retrain</label>
+                  <div className="toggle-switch">
+                    <input 
+                      type="checkbox" 
+                      checked={trainingConfig.autoRetrain}
+                      onChange={e => setTrainingConfig({ ...trainingConfig, autoRetrain: e.target.checked })}
+                    />
+                    <span className="slider" />
+                  </div>
+                </div>
+
+                <div className="control-group">
+                  <label>Frequency</label>
+                  <select 
+                    value={trainingConfig.frequency}
+                    onChange={e => setTrainingConfig({ ...trainingConfig, frequency: e.target.value as any })}
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+
+                <div className="control-group">
+                  <label>Time</label>
+                  <input 
+                    type="time" 
+                    value={trainingConfig.time}
+                    onChange={e => setTrainingConfig({ ...trainingConfig, time: e.target.value })}
+                  />
+                </div>
+            </SidebarSection>
+
+            <SidebarSection title="Training History" noBorder>
+              <div className="history-timeline">
+                {trainingHistory.slice(0, 5).map((item, i) => (
+                  <div key={i} className="timeline-item">
+                    <div className={`timeline-dot ${item.result}`} />
+                    <div className="timeline-content">
+                      <div className="header">
+                        <span className="trigger">{item.trigger} Trigger</span>
+                        <span className="date">
+                          {item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                      <div className="details">
+                        <span className="models-chip">
+                          {item.modelsUpdated.length} models updated
+                        </span>
+                        <span className="duration">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                          {item.duration}m
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SidebarSection>
+          </RightSidebar>
+        }
+        sidebarWidth="360px"
+      >
+        <ContentArea padding="compact" gap="16px">
           
-          <section className="data-status-section">
-            <div className="section-header">
-              <h2>Data Collection Status</h2>
-              <span className="status-pill active">● Active</span>
-            </div>
+          <Section 
+            className="glass-panel"
+            title="Data Collection Status"
+            headerActions={<span className="status-pill active">● Active</span>}
+          >
             
             {dataStatus && (
               <div className="data-status-content">
@@ -437,13 +574,13 @@ const ForecastTab: React.FC = () => {
                 </div>
               </div>
             )}
-          </section>
+          </Section>
 
-          <section className="models-section">
-            <div className="section-header">
-              <h2>Process Models</h2>
-              <span className="section-subtitle">Predict how the building responds to HVAC actions</span>
-            </div>
+          <Section
+            className="glass-panel"
+            title="Process Models"
+            subtitle="Predict how the building responds to HVAC actions"
+          >
 
             <div className="models-grid">
               {processModels.map(model => (
@@ -535,13 +672,13 @@ const ForecastTab: React.FC = () => {
                 </div>
               ))}
             </div>
-          </section>
+          </Section>
 
-          <section className="forecasters-section">
-            <div className="section-header">
-              <h2>Forecasters</h2>
-              <span className="section-subtitle">Predict future disturbances (external factors)</span>
-            </div>
+          <Section
+            className="glass-panel"
+            title="Forecasters"
+            subtitle="Predict future disturbances (external factors)"
+          >
 
             <div className="forecasters-grid">
               {forecasters.map(forecaster => (
@@ -606,144 +743,9 @@ const ForecastTab: React.FC = () => {
                 </div>
               ))}
             </div>
-          </section>
-        </div>
-
-        <RightSidebar width="360px">
-          <SidebarSection title="Prediction Preview" className="prediction-preview">
-            <div className="preview-controls">
-              <span className="control-label">Target Feature</span>
-              <div className="feature-selector">
-                {processModels.map(m => (
-                  <button
-                    key={m.feature}
-                    className={`selector-btn ${selectedFeature === m.feature ? 'active' : ''}`}
-                    onClick={() => setSelectedFeature(m.feature)}
-                    title={m.name}
-                  >
-                    <span className="icon">
-                      {m.feature === 'temperature' ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg> 
-                       : m.feature === 'energy' ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> 
-                       : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 8h14.5a2.5 2.5 0 0 1 0 5H14" /><path d="M6 16h13.5a2.5 2.5 0 0 0 0-5H19" /></svg>}
-                    </span>
-                    <span className="label">{m.feature}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="preview-chart-container">
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={predictionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="confidenceGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis 
-                    dataKey="timestamp" 
-                    stroke="rgba(255,255,255,0.2)" 
-                    tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.4)' }} 
-                    interval="preserveStartEnd" 
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis 
-                    stroke="rgba(255,255,255,0.2)" 
-                    tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.4)' }} 
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }} />
-                  <Area type="monotone" dataKey="confidence_upper" stroke="none" fill="url(#confidenceGrad)" />
-                  <Area type="monotone" dataKey="confidence_lower" stroke="none" fill="#0b0d12" /> {/* Masking area */}
-                  <Line type="monotone" dataKey="actual" stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#3b82f6' }} />
-                  <Line type="monotone" dataKey="predicted" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="4 4" dot={false} activeDot={{ r: 4, fill: '#8b5cf6' }} />
-                  <ReferenceLine x={predictionData[48]?.timestamp} stroke="#ef4444" strokeDasharray="2 2" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="preview-legend">
-              <div className="legend-item">
-                <span className="dot actual" /> Actual
-              </div>
-              <div className="legend-item">
-                <span className="dot predicted" /> Predicted
-              </div>
-              <div className="legend-item">
-                <span className="box confidence" /> Confidence
-              </div>
-            </div>
-          </SidebarSection>
-
-          {/* Training Settings (Collapsible) */}
-          <SidebarSection title="Training Settings" collapsible={true} defaultExpanded={false}>
-              <div className="control-group" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                <label style={{marginBottom: 0}}>Auto-Retrain</label>
-                <div className="toggle-switch">
-                  <input 
-                    type="checkbox" 
-                    checked={trainingConfig.autoRetrain}
-                    onChange={e => setTrainingConfig({ ...trainingConfig, autoRetrain: e.target.checked })}
-                  />
-                  <span className="slider" />
-                </div>
-              </div>
-
-              <div className="control-group">
-                <label>Frequency</label>
-                <select 
-                  value={trainingConfig.frequency}
-                  onChange={e => setTrainingConfig({ ...trainingConfig, frequency: e.target.value as any })}
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
-              </div>
-
-              <div className="control-group">
-                <label>Time</label>
-                <input 
-                  type="time" 
-                  value={trainingConfig.time}
-                  onChange={e => setTrainingConfig({ ...trainingConfig, time: e.target.value })}
-                />
-              </div>
-              Sunday
-          </SidebarSection>
-
-          <SidebarSection title="Training History">
-            <div className="history-timeline">
-              {trainingHistory.slice(0, 5).map((item, i) => (
-                <div key={i} className="timeline-item">
-                  <div className={`timeline-dot ${item.result}`} />
-                  <div className="timeline-content">
-                    <div className="header">
-                      <span className="trigger">{item.trigger} Trigger</span>
-                      <span className="date">
-                        {item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                    </div>
-                    <div className="details">
-                      <span className="models-chip">
-                        {item.modelsUpdated.length} models updated
-                      </span>
-                      <span className="duration">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        {item.duration}m
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SidebarSection>
-        </RightSidebar>
-      </div>
+          </Section>
+        </ContentArea>
+      </MainContent>
     </div>
   );
 };
