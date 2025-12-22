@@ -1,1095 +1,391 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+// ============================================
+// FORECASTTAB - Full Styles
+// ============================================
 
-$bg-dark: #0b0d12;
-$panel-bg: rgba(255, 255, 255, 0.03);
-$panel-border: rgba(255, 255, 255, 0.08);
-$primary: #8b5cf6;
-$secondary: #3b82f6;
-$success: #10b981;
-$warning: #f59e0b;
-$danger: #ef4444;
-$text-main: #ffffff;
-$text-dim: rgba(255, 255, 255, 0.5);
+// Adjust this path if your styles folder is in a different location
+// e.g., use './styles/shared' if styles is inside the tabs folder
+@import 'styles/shared'; 
 
-@mixin glass-panel {
-  background: $panel-bg;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid $panel-border;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-}
-
-@mixin scrollbar {
-  &::-webkit-scrollbar { width: 6px; height: 6px; }
-  &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { 
-    background: rgba(255, 255, 255, 0.1); 
-    border-radius: 3px; 
-    &:hover { background: rgba(255, 255, 255, 0.2); } 
-  }
-}
-
-// Main Container
 .forecast-container {
   width: 100%;
   height: 100%;
   min-height: 100vh;
-  background-color: #1A1D21;
-  color: $text-main;
-  font-family: 'Inter', sans-serif;
+  background: $bg-dark;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-
-  // Topbar additions
-  .topbar-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: $text-dim;
-    padding: 6px 12px;
-    background: rgba(255,255,255,0.03);
-    border-radius: 20px;
-    
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
+  
+  // === HEADER CONTROLS ===
+  .kpi-section-header {
+      @include flex-between;
+      margin-bottom: $spacing-md;
       
-      &.online {
-        background: $success;
-        box-shadow: 0 0 8px $success;
-        animation: pulse 2s infinite;
-      }
-    }
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-
-  // Dashboard Grid
-  .forecast-dashboard {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 400px;
-    overflow: hidden;
-  }
-
-  // Main Content Area
-  .main-content {
-    padding: 24px 32px;
-    overflow-y: auto;
-    @include scrollbar;
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-
-    .section-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 16px;
-
-      h2 {
-        font-size: 18px;
-        font-weight: 700;
-        margin: 0;
-      }
-
-      .section-subtitle {
-        font-size: 12px;
-        color: $text-dim;
-      }
-
-      .status-pill {
-        font-size: 11px;
-        padding: 4px 10px;
-        border-radius: 12px;
-        background: rgba($success, 0.15);
-        color: $success;
-        font-weight: 600;
-
-        &.active {
-          animation: pulse 2s infinite;
-        }
-      }
-    }
-  }
-
-  // --- DATA STATUS ---
-    .data-status-content {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .progress-block {
-      .progress-header {
-        display: flex;
-        align-items: baseline;
-        gap: 8px;
-        margin-bottom: 12px;
-
-        .samples-count {
-          font-size: 28px;
-          font-weight: 700;
-          font-family: 'JetBrains Mono', monospace;
-          color: $primary;
-        }
-
-        .samples-target {
-          font-size: 14px;
-          color: $text-dim;
-        }
-      }
-
-      .progress-bar {
-        height: 8px;
-        background: rgba(255,255,255,0.1);
-        border-radius: 4px;
-        overflow: hidden;
-
-        .progress-fill {
-          height: 100%;
-          background: linear-gradient(90deg, $secondary, $primary);
-          border-radius: 4px;
-          transition: width 0.5s ease;
-        }
-      }
-
-      .progress-hint {
-        font-size: 12px;
-        color: $text-dim;
-        margin-top: 8px;
-      }
-    }
-
-    .variables-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-
-      .variable-card {
-        padding: 12px 16px;
-        background: rgba(255,255,255,0.03);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-
-        .var-name {
-          font-size: 12px;
-          color: $text-dim;
-        }
-
-        .var-samples {
-          font-size: 14px;
-          font-weight: 600;
-          font-family: 'JetBrains Mono', monospace;
-        }
-
-        &.good .var-samples { color: $success; }
-        &.warning .var-samples { color: $warning; }
-        &.error .var-samples { color: $danger; }
-      }
-    }
-
-    .data-meta {
-      display: flex;
-      gap: 24px;
-      font-size: 12px;
-      color: $text-dim;
-      padding-top: 12px;
-      border-top: 1px solid $panel-border;
-    }
-
-    .models-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
-
-    .model-card {
-      @include glass-panel;
-      padding: 20px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      position: relative;
-      overflow: hidden;
-
-      &:hover {
-        border-color: rgba(255,255,255,0.15);
-        transform: translateY(-2px);
-      }
-
-      &.expanded {
-        grid-column: span 3;
-        cursor: default;
-      }
-
-      &.training {
-        border-color: $warning;
-        
-        &::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 3px;
-          background: linear-gradient(90deg, transparent, $warning, transparent);
-          animation: shimmer 2s infinite;
-        }
-      }
-
-      @keyframes shimmer {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(100%); }
-      }
-
-      .model-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 12px;
-
-        .model-title {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-
-          .feature-label {
-            font-size: 16px;
-            font-weight: 700;
-          }
-
-          .status-badge {
-            font-size: 10px;
-            padding: 3px 8px;
-            border-radius: 10px;
-            text-transform: uppercase;
-            font-weight: 700;
-            width: fit-content;
-
-            &.trained { background: rgba($success, 0.15); color: $success; }
-            &.training { background: rgba($warning, 0.15); color: $warning; }
-            &.pending { background: rgba($secondary, 0.15); color: $secondary; }
-            &.error { background: rgba($danger, 0.15); color: $danger; }
-          }
-        }
-
-        .accuracy-badge {
-          font-size: 20px;
-          font-weight: 700;
-          font-family: 'JetBrains Mono', monospace;
-        }
-      }
-
-      .training-progress {
-        height: 4px;
-        background: rgba(255,255,255,0.1);
-        border-radius: 2px;
-        margin-bottom: 12px;
-        overflow: hidden;
-
-        .progress-fill {
-          height: 100%;
-          background: $warning;
-          transition: width 0.3s ease;
-        }
-      }
-
-      .model-metrics {
-        display: flex;
-        gap: 16px;
-
-        .metric {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-
-          .metric-label {
-            font-size: 10px;
-            color: $text-dim;
-            text-transform: uppercase;
-          }
-
-          .metric-value {
-            font-size: 14px;
-            font-weight: 600;
-            font-family: 'JetBrains Mono', monospace;
-          }
-        }
-      }
-
-      .model-expanded {
-        margin-top: 20px;
-        padding-top: 20px;
-
-        .comparison-table {
-          background: rgba(0,0,0,0.2);
-          border-radius: 10px;
-          overflow: hidden;
-          margin-bottom: 16px;
-
-          .table-header, .table-row {
-            display: grid;
-            grid-template-columns: 1fr 80px 80px 80px 100px;
-            padding: 12px 16px;
-            font-size: 12px;
-          }
-
-          .table-header {
-            background: rgba(255,255,255,0.05);
-            color: $text-dim;
-            font-weight: 600;
-            text-transform: uppercase;
-          }
-
-          .table-row {
-            cursor: pointer;
-            transition: background 0.2s;
-
-            &:hover {
-              background: rgba(255,255,255,0.03);
-            }
-
-            &.selected {
-              background: rgba($primary, 0.1);
-              border-left: 3px solid $primary;
-
-              .type-name {
-                color: $primary;
-                font-weight: 700;
-              }
-            }
-
-            .type-name {
-              font-weight: 600;
-            }
-          }
-        }
-
-        .model-actions {
-          display: flex;
-          gap: 12px;
-          margin-bottom: 16px;
-
-          .action-btn {
-            padding: 10px 20px;
-            background: rgba($primary, 0.15);
-            border: 1px solid #c52937;
-            border-radius: 8px;
-            color: #e5e7eb;
-            font-weight: 600;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s;
-
-            &:hover {
-              background: #c52937;
-              color: #e5e7eb;
-            }
-
-            &.secondary {
-              background: rgba(255,255,255,0.05);
-              border-color: rgba(255,255,255,0.2);
-              color: $text-main;
-
-              &:hover {
-                background: rgba(255,255,255,0.1);
-              }
-            }
-
-            &:disabled {
-              opacity: 0.5;
-              cursor: not-allowed;
-            }
-          }
-        }
-
-        .model-meta {
-          display: flex;
-          gap: 24px;
-          font-size: 11px;
-          color: $text-dim;
-        }
-      }
-    }
-
-  // --- FORECASTERS ---
-    .forecasters-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
-    }
-
-    .forecaster-card {
-      @include glass-panel;
-      padding: 24px;
-
-      &.occupancy {
-
-      }
-
-      &.weather {
-
-      }
-
-      .forecaster-header {
-        display: flex;
-        gap: 16px;
-        margin-bottom: 20px;
-
-        .forecaster-icon {
-          width: 48px;
-          height: 48px;
-          background: rgba(255,255,255,0.05);
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 24px;
-        }
-
-        .forecaster-title {
-          h3 {
-            margin: 0 0 4px 0;
-            font-size: 16px;
-            font-weight: 700;
-          }
-
-          .status-indicator {
-            font-size: 11px;
-            
-            &.ready { color: $success; }
-            &.training { color: $warning; }
-            &.disconnected { color: $danger; }
-          }
-        }
-      }
-
-      .forecaster-config {
-        margin-bottom: 20px;
-
-        .config-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 10px 0;
-          border-bottom: 1px solid $panel-border;
-
-          &:last-child {
-            border-bottom: none;
-          }
-
-          .config-label {
-            font-size: 12px;
-            color: $text-dim;
-          }
-
-          .config-value {
-            font-size: 14px;
-            font-weight: 600;
-            font-family: 'JetBrains Mono', monospace;
-          }
-
-          .mode-selector {
-            display: flex;
-            gap: 4px;
-
-            button {
-              padding: 6px 12px;
-              background: rgba(255,255,255,0.05);
-              border: 1px solid rgba(255,255,255,0.1);
-              border-radius: 6px;
-              color: $text-dim;
-              font-size: 11px;
-              cursor: pointer;
-              transition: all 0.2s;
-
-              &:hover {
-                background: rgba(255,255,255,0.1);
-              }
-
-              &.active {
-                background: rgba($primary, 0.15);
-                border-color: $primary;
-                color: $primary;
-              }
-            }
-          }
-        }
-      }
-
-      .forecaster-preview {
-        background: rgba(0,0,0,0.2);
-        border-radius: 10px;
-        padding: 16px;
-        margin-bottom: 16px;
-
-        .preview-label {
-          font-size: 11px;
-          color: $text-dim;
-          text-transform: uppercase;
-          margin-bottom: 12px;
-          display: block;
-        }
-
-        .occupancy-preview {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-
-          .hour-bar {
-            display: grid;
-            grid-template-columns: 50px 1fr 30px;
-            align-items: center;
-            gap: 12px;
-            font-size: 12px;
-            color: $text-dim;
-
-            .bar {
-              height: 6px;
-              background: linear-gradient(90deg, $success, lighten($success, 10%));
-              border-radius: 3px;
-            }
-          }
-        }
-
-        .weather-preview {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-
-          .weather-item {
-            display: flex;
-            justify-content: space-between;
-            font-size: 13px;
-
-            span:first-child {
-              color: $text-dim;
-            }
-
-            span:last-child {
-              font-weight: 600;
-            }
-          }
-        }
-      }
-
-      .forecaster-configure-btn {
-        width: 100%;
-        padding: 12px;
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 8px;
-        color: $text-dim;
-        font-size: 13px;
-        cursor: pointer;
-        transition: all 0.2s;
-
-        &:hover {
-          background: rgba(255,255,255,0.1);
-          color: $text-main;
-        }
-      }
-    }
-
-  // --- SIDEBAR ---
-  .sidebar {
-    border-left: 1px solid $panel-border;
-    background: rgba(0, 0, 0, 0.2);
-    padding: 24px;
-    overflow-y: auto;
-    @include scrollbar;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-
-    .preview-section {
-      @include glass-panel;
-      padding: 20px;
-
-      .preview-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 16px;
-
-        h3 {
-          font-size: 14px;
-          font-weight: 700;
-          margin: 0;
-        }
-
-        .feature-pills {
-          display: flex;
-          gap: 4px;
-
-          .feature-pill {
-            width: 32px;
-            height: 32px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 14px;
-
-            &:hover {
-              background: rgba(255,255,255,0.1);
-            }
-
-            &.active {
-              background: rgba($primary, 0.15);
-              border-color: $primary;
-            }
-          }
-        }
-      }
-
-      .preview-chart {
-        margin-bottom: 16px;
-      }
-
-      .preview-legend {
-        display: flex;
-        justify-content: center;
-        gap: 16px;
-        font-size: 11px;
-        color: $text-dim;
-
-        span {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-
-          .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-          }
-
-          .area {
-            width: 16px;
-            height: 8px;
-            border-radius: 2px;
-            opacity: 0.3;
-          }
-        }
-      }
-    }
-
-    .training-settings-section {
-      @include glass-panel;
-      overflow: hidden;
-
-      .settings-header {
-        padding: 16px 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        cursor: pointer;
-        transition: background 0.2s;
-
-        &:hover {
-          background: rgba(255,255,255,0.03);
-        }
-
-        h3 {
-          font-size: 14px;
-          font-weight: 700;
-          margin: 0;
-        }
-
-        .toggle-icon {
-          color: $text-dim;
-          font-size: 10px;
-        }
-      }
-
-      .settings-content {
-        padding: 0 20px 20px;
-        border-top: 1px solid $panel-border;
-
-        .setting-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 0;
-          border-bottom: 1px solid $panel-border;
-
-          label {
-            font-size: 13px;
-            color: $text-dim;
-          }
-
-          select, input[type="time"] {
-            padding: 6px 10px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 6px;
-            color: $text-main;
-            font-size: 12px;
-            outline: none;
-
-            &:focus {
-              border-color: $primary;
-            }
-          }
-
-          .toggle-switch {
-            position: relative;
-            width: 44px;
-            height: 24px;
-
-            input {
-              opacity: 0;
-              width: 0;
-              height: 0;
-
-              &:checked + .slider {
-                background: $primary;
-
-                &::before {
-                  transform: translateX(20px);
-                }
-              }
-            }
-
-            .slider {
-              position: absolute;
-              cursor: pointer;
-              inset: 0;
-              background: rgba(255,255,255,0.1);
-              border-radius: 24px;
-              transition: 0.3s;
-
-              &::before {
-                content: '';
-                position: absolute;
-                height: 18px;
-                width: 18px;
-                left: 3px;
-                bottom: 3px;
-                background: white;
-                border-radius: 50%;
-                transition: 0.3s;
-              }
-            }
-          }
-        }
-
-        .triggers-section {
-          margin-top: 16px;
-
-          .triggers-label {
-            display: block;
-            font-size: 11px;
-            text-transform: uppercase;
-            color: $text-dim;
-            font-weight: 600;
-            margin-bottom: 12px;
-          }
-
-          .trigger-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: rgba(255,255,255,0.02);
-            border-radius: 8px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            transition: background 0.2s;
-            font-size: 12px;
-            color: $text-dim;
-
-            &:hover {
-              background: rgba(255,255,255,0.05);
-            }
-
-            input[type="checkbox"] {
-              width: 16px;
-              height: 16px;
-              accent-color: $primary;
-            }
-          }
-        }
-      }
-    }
-
-    .history-section {
-      @include glass-panel;
-      padding: 20px;
-
       h3 {
         font-size: 14px;
-        font-weight: 700;
-        margin: 0 0 16px 0;
+        color: $text-main;
+        font-weight: 600;
+        margin: 0;
       }
-
-      .history-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-
-        .history-item {
+      
+      .time-selector {
+          background: rgba(255,255,255,0.05);
+          padding: 2px;
+          border-radius: 6px;
           display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px;
-          background: rgba(255,255,255,0.02);
-          border-radius: 8px;
-          border-left: 3px solid transparent;
-
-          &.success {
-            border-left-color: $success;
-          }
-
-          &.failed {
-            border-left-color: $danger;
-          }
-
-          .history-main {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-
-            .history-date {
-              font-size: 12px;
+          
+          button {
+              background: transparent;
+              border: none;
+              color: $text-dim;
+              font-size: 11px;
               font-weight: 600;
-            }
+              padding: 4px 12px;
+              border-radius: 4px;
+              cursor: pointer;
+              transition: all 0.2s;
+              
+              &.active {
+                  background: $bg-dark;
+                  color: $text-main;
+                  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+              }
+              
+              &:hover:not(.active) {
+                  color: $text-main;
+              }
+          }
+      }
+  }
 
-            .history-trigger {
+  // === 1. DATA HEALTH KPIs ===
+  .data-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: $spacing-lg;
+      margin-bottom: $spacing-xl;
+
+      .kpi-card {
+          @include glass-panel;
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          height: 120px;
+          
+          .kpi-top { 
+              @include flex-between; 
+              .kpi-label { font-size: 10px; text-transform: uppercase; color: $text-dim; font-weight: 700; }
+              .kpi-icon { font-size: 14px; opacity: 0.7; }
+          }
+          
+          .kpi-val { 
+              font-size: 28px;
+              font-weight: 700;
+              color: $text-main;
+              font-family: $font-family-mono;
+              
+              .trend { font-size: 12px; margin-left: 8px; font-weight: 500; &.up { color: $success; } }
+              .unit { font-size: 14px; color: $text-dim; font-weight: 400; margin-left: 2px; }
+          }
+          
+          .kpi-sub {
               font-size: 11px;
               color: $text-dim;
-            }
-          }
-
-          .history-meta {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 11px;
-            color: $text-dim;
-
-            .result-badge {
-              width: 20px;
-              height: 20px;
-              border-radius: 50%;
               display: flex;
               align-items: center;
-              justify-content: center;
-              font-size: 10px;
-
-              &.success {
-                background: rgba($success, 0.15);
-                color: $success;
-              }
-
-              &.failed {
-                background: rgba($danger, 0.15);
-                color: $danger;
-              }
-            }
+              gap: 8px;
+              
+              .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 4px; &.train { background: $primary; } &.test { background: rgba($primary, 0.3); } }
+              .ok { color: $success; } 
+              .warn { color: $warning; }
           }
-        }
+          
+          &.action-center {
+              .action-buttons {
+                  margin-top: auto;
+                  .btn { justify-content: flex-start; gap: 10px; font-size: 12px; padding: 10px; width: 100%; }
+              }
+          }
       }
-    }
   }
 
-  .tooltip-badge {
-    display: inline-block;
-    margin-top: 8px;
-    padding: 3px 8px;
-    font-size: 10px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    font-weight: 700;
-
-    &.historical {
-      background: rgba($secondary, 0.2);
-      color: $secondary;
-    }
-
-    &.forecast {
-      background: rgba($primary, 0.2);
-      color: $primary;
-    }
+  // === 2. MODEL CARDS GRID ===
+  .models-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: $spacing-lg;
+      margin-bottom: $spacing-xl;
   }
-
-  // Responsive
-  @media (max-width: 1400px) {
-    .models-section .models-grid {
-      grid-template-columns: 1fr;
-
-      .model-card.expanded {
-        grid-column: span 1;
-      }
-    }
-  }
-
-  @media (max-width: 1024px) {
-    .forecast-dashboard {
-      grid-template-columns: 1fr;
-      overflow-y: auto;
-    }
-
-    .sidebar {
-      border-left: none;
-      border-top: 1px solid $panel-border;
-    }
-
-    .variables-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    .forecasters-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-}
-
-.prediction-preview {
-  .preview-controls {
-    margin-bottom: 20px;
-
-    .control-label {
-      display: block;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-dim, $text-dim);
-      margin-bottom: 8px;
-      font-weight: 600;
-    }
-
-    .feature-selector {
+  
+  .model-card {
+      @include glass-panel;
+      padding: 0;
       display: flex;
-      background: rgba(0, 0, 0, 0.2);
-      padding: 4px;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      flex-direction: column;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border: 1px solid $panel-border;
+      overflow: hidden;
+      position: relative;
 
-      .selector-btn {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        padding: 8px 4px;
-        background: transparent;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        color: var(--text-dim, $text-dim);
-
-        &:hover {
-          background: rgba(255, 255, 255, 0.05);
-          color: var(--text-main, $text-main);
-        }
-
-        &.active {
-          background: rgba($primary, 0.15);
-          color: lighten($primary, 10%);
-          box-shadow: 0 2px 8px rgba($primary, 0.1);
-
-          .icon svg { stroke-width: 2.5px; }
-        }
-
-        .icon {
-          height: 20px;
-          display: flex; align-items: center;
-          svg { width: 18px; height: 18px; }
-        }
-
-        .label {
-          font-size: 10px;
-          font-weight: 500;
-          text-transform: capitalize;
-        }
+      &:hover, &.active {
+          border-color: rgba($primary, 0.4);
+          background: rgba($primary, 0.02);
+          transform: translateY(-2px);
       }
-    }
+
+      // -- Normal State --
+      .card-header {
+          padding: 16px 16px 12px 16px;
+          @include flex-between;
+          border-bottom: 1px solid rgba(255,255,255,0.03);
+          
+          .title-group {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              
+              .model-icon { 
+                  color: $text-dim;
+                  background: rgba(255,255,255,0.03);
+                  width: 32px;
+                  height: 32px;
+                  border-radius: 6px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+              }
+              
+              .title-text {
+                  display: flex;
+                  flex-direction: column;
+                  h3 { font-size: 14px; font-weight: 600; color: $text-main; margin: 0; }
+                  .meta-row { font-size: 10px; color: $text-dim; font-family: $font-family-mono; margin-top: 2px; .sep { margin: 0 4px; } }
+              }
+          }
+          
+          .status-badge {
+              font-size: 10px;
+              text-transform: uppercase;
+              font-weight: 700;
+              padding: 2px 8px;
+              border-radius: 4px;
+              
+              &.active { background: rgba($success, 0.1); color: $success; }
+              &.drift-detected { background: rgba($warning, 0.1); color: $warning; border: 1px solid rgba($warning, 0.2); }
+              &.optimized { background: rgba($primary, 0.1); color: $primary; }
+          }
+      }
+
+      .card-body {
+          padding: 16px;
+          
+          .insight-message {
+              font-size: 11px;
+              color: $text-main;
+              background: rgba(255,255,255,0.03);
+              padding: 6px 10px;
+              border-radius: 4px;
+              margin-bottom: 16px;
+              border-left: 2px solid $text-dim;
+          }
+          
+          .metric-row {
+              display: flex;
+              align-items: flex-end;
+              justify-content: space-between;
+              margin-bottom: 16px;
+              
+              .main-metric { 
+                  display: flex; 
+                  flex-direction: column; 
+                  .val { font-size: 32px; font-weight: 700; color: $text-main; font-family: $font-family-mono; line-height: 1; } 
+                  .label { font-size: 10px; color: $text-dim; margin-top: 4px; } 
+              }
+              .sparkline-container { width: 100px; height: 32px; }
+          }
+          
+          .inputs-row {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 6px;
+              .input-tag { font-size: 9px; background: rgba(255,255,255,0.05); padding: 3px 6px; border-radius: 3px; color: $text-dim; }
+          }
+      }
+
+      .card-actions-footer {
+          padding: 12px 16px;
+          background: rgba(0,0,0,0.2);
+          display: flex;
+          gap: 8px;
+          border-top: 1px solid rgba(255,255,255,0.03);
+          
+          .btn { flex: 1; font-size: 11px; padding: 6px; }
+      }
+
+      // -- Training State --
+      &.training-mode {
+          border-color: $warning;
+          background: rgba($warning, 0.02);
+          cursor: default;
+          
+          .training-overlay-content {
+              padding: 24px;
+              display: flex;
+              flex-direction: column;
+              gap: 20px;
+              height: 100%;
+              justify-content: center;
+              
+              .training-header {
+                  display: flex;
+                  align-items: center;
+                  gap: 12px;
+                  color: $warning;
+                  font-weight: 600;
+                  font-size: 13px;
+                  
+                  .spinner { 
+                      width: 16px; height: 16px; border: 2px solid rgba($warning, 0.3); border-top-color: $warning; border-radius: 50%; animation: spin 1s linear infinite; 
+                  }
+              }
+              
+              .progress-section {
+                  .progress-bar-track { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+                  .progress-bar-fill { height: 100%; background: $warning; transition: width 0.2s linear; }
+                  .progress-stats { @include flex-between; font-size: 10px; color: $text-dim; font-family: $font-family-mono; }
+              }
+              
+              .live-metrics {
+                   @include glass-panel;
+                   background: rgba(0,0,0,0.2);
+                   padding: 12px;
+                   display: flex;
+                   justify-content: center;
+                   
+                   .lm-item { 
+                       display: flex; 
+                       flex-direction: column; 
+                       align-items: center; 
+                       .lbl { font-size: 9px; text-transform: uppercase; color: $text-dim; } 
+                       .val { font-family: $font-family-mono; font-size: 16px; font-weight: 600; color: $text-main; } 
+                   }
+              }
+              
+              .training-footer { 
+                  text-align: center; 
+                  .btn-xs { 
+                      font-size: 10px; padding: 4px 12px; background: rgba($danger, 0.1); color: $danger; border: 1px solid rgba($danger, 0.2); 
+                      &:hover { background: rgba($danger, 0.2); } 
+                  } 
+              }
+          }
+      }
   }
 
-  .preview-chart-container {
-    margin-bottom: 16px;
-    padding: 10px 0;
-    background: linear-gradient(180deg, rgba(255,255,255,0.01) 0%, transparent 100%);
-    border-radius: 8px;
-  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-  .preview-legend {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255,255,255,0.05);
-
-    .legend-item {
+  // === 3. VERIFICATION CHART ===
+  .forecast-chart-section {
+      @include glass-panel;
+      padding: 24px;
+      min-height: 300px;
       display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 11px;
-      color: var(--text-dim, $text-dim);
-      font-weight: 500;
+      flex-direction: column;
+      
+      .section-header-custom {
+          @include flex-between;
+          margin-bottom: 20px;
+          
+          .header-title { 
+              h3 { font-size: 14px; font-weight: 600; margin: 0; } 
+              .subtitle { font-size: 11px; color: $text-dim; margin-top: 2px; } 
+          }
+          
+          .chart-legend { 
+              display: flex; gap: 16px; font-size: 11px; color: $text-dim; 
+              .item { display: flex; align-items: center; gap: 6px; } 
+              .dot { width: 8px; height: 8px; border-radius: 50%; &.actual { background: $primary; } &.predicted { background: $secondary; } } 
+          } 
+      }
+      
+      .chart-container { flex: 1; min-height: 0; }
+  }
 
-      .dot { width: 8px; height: 8px; border-radius: 50%; }
-      .box { width: 12px; height: 12px; border-radius: 3px; }
-
-      .actual { background: $secondary; box-shadow: 0 0 6px rgba($secondary, 0.4); }
-      .predicted { background: $primary; border: 2px solid $primary; background: transparent; }
-      .confidence { background: rgba($primary, 0.3); }
-    }
+  // === SIDEBAR COMPONENTS ===
+  .correlation-chart { 
+      .corr-row { 
+          display: grid; grid-template-columns: 90px 1fr 30px; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 8px; 
+          .f-name { color: $text-dim; } 
+          .f-bar-track { height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; } 
+          .f-bar { height: 100%; border-radius: 3px; &.positive { background: $primary; } &.negative { background: $warning; } } 
+          .f-val { color: $text-dim; text-align: right; } 
+      } 
   }
 }
 
-// --- Tooltip Styles (Ensuring they exist locally) ---
-.chart-tooltip-glass {
-  background: rgba(11, 13, 18, 0.85); // Dark glass
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  min-width: 140px;
+// === MODALS (Global Overlay) ===
+.modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+    z-index: 1000; display: flex; align-items: center; justify-content: center;
+    
+    .modal-content {
+        @include glass-panel; background: #161b22; width: 400px; max-width: 90vw;
+        display: flex; flex-direction: column; overflow: hidden;
+        animation: slideUp 0.3s ease;
+        
+        &.large { width: 800px; }
 
-  .tooltip-header {
-    font-size: 11px;
-    color: var(--text-dim, $text-dim);
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    font-family: 'JetBrains Mono', monospace;
-  }
+        .modal-header {
+            padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex; justify-content: space-between; align-items: center;
+            h3 { margin: 0; font-size: 16px; font-weight: 600; color: $text-main; }
+            .close-btn { background: none; border: none; font-size: 20px; color: $text-dim; cursor: pointer; &:hover { color: $text-main; } }
+        }
 
-  .tooltip-body {
-    display: flex; flex-direction: column; gap: 6px;
+        .modal-body {
+            padding: 24px;
+            
+            // Ingest Styles
+            .ingest-options {
+                display: flex; flex-direction: column; gap: 12px;
+                .source-btn {
+                    display: flex; align-items: center; gap: 16px; padding: 12px;
+                    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
+                    border-radius: 8px; cursor: pointer; transition: all 0.2s;
+                    &:hover { background: rgba($primary, 0.1); border-color: $primary; }
+                    .icon { font-size: 24px; }
+                    .text { text-align: left; .title { display: block; font-weight: 600; font-size: 14px; color: $text-main; } .desc { font-size: 11px; color: $text-dim; } }
+                }
+            }
+            .ingest-progress {
+                text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px;
+                .spinner-large { width: 40px; height: 40px; border: 3px solid rgba($primary, 0.3); border-top-color: $primary; border-radius: 50%; animation: spin 1s linear infinite; }
+                .progress-bar-track { width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+                .progress-bar-fill { height: 100%; background: $success; transition: width 0.2s; }
+            }
 
-    .tooltip-row {
-      display: flex; justify-content: space-between; align-items: center;
-      gap: 12px;
-      font-size: 12px;
-
-      .row-left {
-        display: flex; align-items: center; gap: 6px;
-        .indicator { width: 6px; height: 6px; border-radius: 50%; }
-        span { color: var(--text-dim, $text-dim); }
-      }
-
-      .row-value {
-        font-family: 'JetBrains Mono', monospace;
-        font-weight: 600;
-        .unit { font-size: 10px; color: var(--text-dim, $text-dim); margin-left: 2px; }
-      }
+            // Inspect Styles
+            &.inspect-body {
+                .inspect-grid {
+                    display: grid; grid-template-columns: 1fr 2fr; gap: 24px;
+                    h4 { font-size: 12px; text-transform: uppercase; color: $text-dim; margin-bottom: 12px; }
+                    .metric-table {
+                        .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; color: $text-main; strong { font-family: $font-family-mono; } }
+                    }
+                    .tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; .tag { font-size: 11px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px; color: $text-dim; } }
+                    .scatter-chart-wrapper { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; }
+                }
+            }
+        }
+        
+        .modal-footer {
+            padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2);
+            display: flex; justify-content: flex-end; gap: 12px;
+        }
     }
-  }
 }
+
+// Animation keyframes
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
