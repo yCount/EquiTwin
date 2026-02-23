@@ -262,3 +262,89 @@ $tooltip-bg: #1e1e24;
     }
   }
 }
+
+.timeline-control-container {
+  position: relative;
+  height: 84px;                 /* slimmer, timeline-like */
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Sparkline becomes the “track background” */
+.timeline-sparkline-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0.9;
+}
+
+/* Subtle tick marks overlay */
+.timeline-control-container::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.07) 1px, transparent 1px);
+  background-size: 10% 100%;   /* 10 major ticks */
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+/* Slider sits on top */
+.slider-wrapper {
+  position: absolute;
+  inset: 0;
+  padding: 10px 14px 12px 14px; /* gives breathing room */
+  display: flex;
+  align-items: flex-end;        /* puts the track near the bottom */
+}
+
+/* rc-slider track/rail: timeline bar */
+.rc-slider {
+  width: 100%;
+}
+
+.rc-slider-rail {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+}
+
+.rc-slider-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(59,130,246,0.55); /* soft “selected range” */
+}
+
+.rc-slider-handle {
+  opacity: 0; /* we’ll use your custom handleRender instead */
+}
+
+/* Your custom handles (from handleRender in TimelineControl.tsx) */
+.custom-timeline-handle {
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+.custom-timeline-handle .handle-line {
+  position: absolute;
+  bottom: -8px;
+  width: 2px;
+  height: 44px;
+  background: rgba(255,255,255,0.7);
+  border-radius: 999px;
+}
+
+.custom-timeline-handle .handle-dot {
+  position: absolute;
+  bottom: -12px;
+  width: 12px;
+  height: 12px;
+  transform: translateX(-5px);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 0 0 6px rgba(59,130,246,0.22);
+}
+

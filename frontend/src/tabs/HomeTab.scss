@@ -1,287 +1,158 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+@import './styles/shared';
 
-// 1. Define Base Variables using CSS Custom Properties for dynamic switching
+// HomeTab specific layout overrides
 .home-tab-container {
-  // -- Default (Dark Theme) --
-  --bg-main: #0b0d12;
-  --bg-viewer-fallback: #1a1d24;
-  
-  // Refined Sidebar/Panel Background (Darker, sleeker)
-  --panel-bg: #111316; 
-  --panel-border: #30363d;
-  --panel-shadow: -4px 0 32px rgba(0, 0, 0, 0.5);
-  
-  --text-main: #e6edf3; // Brighter off-white for better readability
-  --text-dim: #8b949e;  // Muted blue-grey
-  
-  // New Card & Button Scheme
-  --card-bg: #1c2128;   // Distinct dark card color
-  --card-border: #30363d;
-  --card-hover-bg: #22272e;
-  
-  --btn-bg: #21262d;
-  --btn-border: #30363d;
-  --btn-hover-bg: #30363d;
-  
-  --scrollbar-thumb: #30363d;
-  --scrollbar-track: transparent;
-
-  // Accents (More vibrant to cut through the dark)
-  --color-primary: #58a6ff; // Brighter blue
-  --color-accent: #bc8cff;
-  --color-success: #3fb950;
-  --color-warning: #d29922;
-  --color-danger: #f85149;
-
-  // -- Light Theme Overrides (Cleaned up to match structure) --
-  &[data-theme='light'] {
-    --bg-main: #ffffff;
-    --bg-viewer-fallback: #f6f8fa;
-    --panel-bg: #f6f8fa;
-    --panel-border: #d0d7de;
-    --panel-shadow: -4px 0 32px rgba(0, 0, 0, 0.1);
-    
-    --text-main: #1f2328;
-    --text-dim: #656d76;
-    
-    --card-bg: #ffffff;
-    --card-border: #d0d7de;
-    --card-hover-bg: #f3f4f6;
-    
-    --btn-bg: #f6f8fa;
-    --btn-border: #d0d7de;
-    --btn-hover-bg: #f3f4f6;
-
-    --scrollbar-thumb: #d0d7de;
-  }
-}
-
-@mixin glass-panel {
-  background: var(--panel-bg);
-  // Removed heavy blur for performance and cleaner look
-  border-left: 1px solid var(--panel-border);
-  box-shadow: var(--panel-shadow);
-  color: var(--text-main);
-}
-
-@mixin scrollbar {
-  &::-webkit-scrollbar { width: 6px; }
-  &::-webkit-scrollbar-track { background: var(--scrollbar-track); }
-  &::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: 3px;
-    &:hover { background: var(--text-dim); }
-  }
-}
-
-.home-tab-container {
-  width: 100%;
-  height: 100%;
-  min-height: 100vh;
-  background-color: var(--bg-main);
+  height: 100dvh;
   display: flex;
   flex-direction: column;
-  font-family: 'Inter', sans-serif;
   overflow: hidden;
-  transition: background-color 0.3s ease;
+  background: $bg-dark; // From variables
+}
 
-  // MainContent Layout Integration
-  .main-content-layout {
-    flex: 1;
-    display: flex;
-    overflow: hidden;
-    min-height: 0;
-    height: 100%;
-  }
+.viewer-wrapper {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  
+  // Ensure viewer canvas fits
+  > div { height: 100%; }
+}
 
-  .main-content-area {
-    flex: 1;
-    display: flex;
-    position: relative;
-    overflow: hidden;
-    min-height: 0;
-    height: 100%;
-  }
+// === SIDEBAR ELEMENTS ===
 
-  // The iTwin Viewer Container
-  .viewer-wrapper {
-    flex: 1;
-    position: relative;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    background: radial-gradient(circle at 50% 50%, var(--bg-viewer-fallback) 0%, var(--bg-main) 100%);
+// 1. Sensor Grid Layout (Uses shared mixin for responsiveness)
+.sensor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: $spacing-md;
+}
+
+// 2. Sensor Card (Refactored to use shared mixins)
+.sensor-card {
+  @include glass-panel; // The shared glass effect
+  padding: $spacing-lg;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  @include hover-lift; // Shared hover animation
+  
+  .icon-box {
+    width: 36px;
+    height: 36px;
+    border-radius: $radius-sm;
+    @include flex-center;
+    margin-bottom: $spacing-md;
     
-    .itwin-viewer-container { 
-      background: transparent !important; 
-      width: 100%;
-      height: 100%;
-    }
+    svg { width: 20px; height: 20px; }
   }
 
-  // Right Sidebar Styling (Using RightSidebar component)
-  .right-sidebar-container {
-    // Override default RightSidebar styles with HomeTab theme
-    background: var(--panel-bg) !important;
-    border-left: 1px solid var(--panel-border) !important;
-    box-shadow: var(--panel-shadow);
-    color: var(--text-main);
-    height: 100%;
-    min-height: 0;
+  // Color Variants mapped to shared variables
+  &.weather .icon-box { background: rgba($warning, 0.15); color: $warning; }
+  &.occupancy .icon-box { background: rgba($primary, 0.15); color: $primary; }
+  &.air .icon-box { background: rgba($success, 0.15); color: $success; }
+  &.temp .icon-box { background: rgba($danger, 0.15); color: $danger; }
 
-    .sidebar-scroll-area {
-      padding: 20px !important;
-      flex: 1;
-      min-height: 0;
+  .label {
+    font-size: $font-size-xs;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: $text-dim;
+    margin-bottom: 4px;
+    font-weight: $font-weight-semibold;
+  }
+
+  .value-group {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+
+    .val {
+      font-family: $font-family-mono;
+      font-weight: $font-weight-bold;
+      color: $text-main;
+      font-size: $font-size-xl;
     }
 
-    // Sensor Grid Layout
-    .sensor-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    // Individual Sensor Card
-    .sensor-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 6px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
-      color: var(--text-main);
-
-      &:hover {
-        background: var(--card-hover-bg);
-        border-color: var(--text-dim);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      }
-
-      // Color Variants
-      &.weather { .icon-box { color: var(--color-warning); background: rgba(210, 153, 34, 0.15); } }
-      &.occupancy { .icon-box { color: #f0883e; background: rgba(240, 136, 62, 0.15); } }
-      &.air { .icon-box { color: var(--color-primary); background: rgba(88, 166, 255, 0.15); } }
-      &.temp { .icon-box { color: var(--color-danger); background: rgba(248, 81, 73, 0.15); } }
-
-      .icon-box {
-        width: 36px;
-        height: 36px;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 12px;
-        
-        svg { width: 18px; height: 18px; stroke-width: 2px; }
-      }
-
-      .label {
-        font-size: 11px;
-        color: var(--text-dim);
-        font-weight: 600;
-        margin-bottom: 4px;
-      }
-
-      .value-group {
-        display: flex;
-        align-items: baseline;
-        gap: 3px;
-
-        .val {
-          font-family: 'JetBrains Mono', monospace;
-          font-size: 18px;
-          font-weight: 600;
-          color: var(--text-main);
-        }
-
-        .unit {
-          font-size: 10px;
-          color: var(--text-dim);
-        }
-      }
-    }
-
-    // Wide Summary Card
-    .summary-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 6px;
-      padding: 16px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      color: var(--text-main);
-      
-      .icon-box {
-        width: 42px;
-        height: 42px;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--bg-main);
-        border: 1px solid var(--card-border);
-        color: var(--text-dim);
-        
-        svg { width: 20px; height: 20px; }
-      }
-
-      &.alert {
-        border-left: 3px solid var(--color-warning);
-        .icon-box { color: var(--color-warning); }
-      }
-
-      &.normal {
-        border-left: 3px solid var(--color-primary);
-        .icon-box { color: var(--color-primary); }
-      }
-
-      .content {
-        .label {
-          font-size: 11px;
-          text-transform: uppercase;
-          color: var(--text-dim);
-          font-weight: 600;
-          margin-bottom: 2px;
-        }
-
-        .val {
-          font-family: 'JetBrains Mono', monospace;
-          font-size: 18px;
-          font-weight: 700;
-          color: var(--text-main);
-        }
-
-        .unit {
-          font-size: 11px;
-          color: var(--text-dim);
-          margin-left: 4px;
-        }
-      }
+    .unit {
+      font-size: $font-size-xs;
+      color: $text-dim;
     }
   }
 }
 
-// Responsive
-@media (max-width: 1024px) {
-  .home-tab-container {
-    .main-content-layout {
-      flex-direction: column;
-
-      .right-sidebar-container {
-        width: 100%;
-        height: auto;
-        max-height: 40%;
-        border-left: none;
-        border-top: 1px solid var(--panel-border);
-      }
-    }
+// 3. Wide Summary Cards
+.summary-card {
+  @include glass-panel;
+  padding: $spacing-lg;
+  display: flex;
+  align-items: center;
+  gap: $spacing-lg;
+  margin-bottom: $spacing-md;
+  
+  .icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: $radius-sm;
+    @include flex-center;
+    background: rgba(255, 255, 255, 0.05);
+    color: $text-dim;
   }
+
+  &.alert {
+    border-left: 3px solid $warning;
+    .icon-box { color: $warning; background: rgba($warning, 0.1); }
+  }
+
+  &.normal {
+    border-left: 3px solid $primary;
+    .icon-box { color: $primary; background: rgba($primary, 0.1); }
+  }
+
+  .content {
+    flex: 1;
+    .label {
+      font-size: $font-size-xs;
+      text-transform: uppercase; 
+      color: $text-dim; 
+      font-weight: $font-weight-bold;
+    }
+    .val {
+      font-family: $font-family-mono;
+      font-weight: $font-weight-bold;
+      color: $text-main;
+      font-size: $font-size-lg;
+    }
+    .unit { font-size: $font-size-xs; color: $text-dim; margin-left: 4px; }
+  }
+}
+
+// 4. Folder Buttons
+.folder-toggle-grid {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.folder-toggle-btn {
+  @include flex-between;
+  padding: $spacing-md;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid $panel-border;
+  border-radius: $radius-sm;
+  color: $text-dim;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover { background: rgba(255, 255, 255, 0.06); }
+
+  &.active {
+    background: rgba($primary, 0.1);
+    border-color: rgba($primary, 0.3);
+    color: $text-main;
+    .folder-icon { color: $primary; }
+  }
+  
+  .folder-icon { display: flex; align-items: center; }
+  .folder-name { font-size: $font-size-sm; font-weight: $font-weight-medium; }
 }
