@@ -68,7 +68,7 @@ $danger: #f85149;
   overflow: hidden;
   width: 100%;
   height: 100% !important;
-  min-height: 100vh !important;
+  min-height: 0;
   
   // When sidebar is present, create horizontal split
   &.with-sidebar {
@@ -76,7 +76,7 @@ $danger: #f85149;
     // Grid columns set via inline style: gridTemplateColumns: `1fr ${sidebarWidth}`
     // This allows dynamic sidebar width from props
     height: 100% !important;
-    min-height: 100vh !important;
+    min-height: 0;
     
     .main-content-area {
       border-right: 1px solid $panel-border;
@@ -101,7 +101,7 @@ $danger: #f85149;
     flex-direction: column;
     width: 100%; // Take full width of grid cell
     height: 100% !important; // Take full height
-    min-height: 100vh !important;
+    min-height: 0;
   }
 }
 

@@ -49,10 +49,8 @@
   transition: background 0.16s ease, border-color 0.16s ease, transform 0.08s ease;
   white-space: nowrap;
   margin-left: -2px;
-  /* Default: No background */
-  background-image: none;
-  background-size: cover;
-  background-position: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .tab-button {
@@ -73,12 +71,62 @@
   cursor: pointer;
 }
 
+/* Active indicator bar - vertical bar on the left */
+.tab-button::before,
+.info-button::before,
+.logo-button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 0;
+  border-radius: 0 4px 4px 0;
+  transition: height 0.2s ease, opacity 0.2s ease;
+  opacity: 0;
+}
+
+/* Fixed height for active vertical bar - consistent across all buttons */
+$active-bar-height: 32px;
+
+/* Tab-specific active bar colors with image backgrounds */
+#home-button::before {
+  background: url('/public/images/home_bg.webp') center/cover;
+}
+#dashboard-button::before {
+  background: url('/public/images/dashboard_bg.webp') center/cover;
+}
+#prediction-button::before {
+  background: url('/public/images/prediction_bg.webp') center/cover;
+}
+#controller-button::before {
+  background: url('/public/images/controller_bg.webp') center/cover;
+}
+
+/* Info button and logo button active bar - solid color */
+.info-button::before {
+  background: linear-gradient(180deg, #60a5fa, #3b82f6);
+}
+.logo-button::before {
+  background: linear-gradient(180deg, #a78bfa, #7c3aed);
+}
+
+/* Active state for all buttons - show the vertical bar with fixed height */
+.tab-button.active::before,
+.info-button.active::before,
+.logo-button.active::before {
+  height: $active-bar-height;
+  opacity: 1;
+}
+
 .tab-icon, .info-icon {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 50px;
+  position: relative;
 }
 
 .tab-icon, .info-icon {
@@ -86,9 +134,11 @@
   height: 38px;
 }
 
-.tab-icon svg{
+.tab-icon svg {
   width: 38px;
   height: 38px;
+  position: relative;
+  z-index: 2;
 }
 
 .info-icon svg {
@@ -115,49 +165,102 @@
   transition-delay: 0.1s;
 }
 
-#home-button:hover:not(:active) {
+/* Hover states for tab buttons */
+#home-button:hover:not(:active):not(.active) {
   background: rgba(30, 64, 175, 0.15);
-  border-color: rgba(59, 130, 246, 0.8);}
-#dashboard-button:hover:not(:active) {
+  border-color: rgba(59, 130, 246, 0.8);
+}
+#dashboard-button:hover:not(:active):not(.active) {
   background: rgba(14, 165, 233, 0.15); 
   border-color: rgba(56, 189, 248, 0.8);
 }
-#prediction-button:hover:not(:active) {
+#prediction-button:hover:not(:active):not(.active) {
   background: rgba(220, 38, 38, 0.15); 
   border-color: rgba(239, 68, 68, 0.8);
 }
-#controller-button:hover:not(:active) {
+#controller-button:hover:not(:active):not(.active) {
   background: rgba(234, 88, 12, 0.15); 
   border-color: rgba(249, 115, 22, 0.8);
-
 }
 
+/* Active tab button styles */
 .tab-button.active {
-  // background: rgba(37, 99, 235, 0.25);
-  // border-color: rgba(59, 130, 246, 0.9);
+  background: rgba(0, 0, 0, 0.2);
+  color: white;
+  padding-left: 12px; /* Offset for the vertical bar */
+}
+
+/* SVG icon wrapper for image-masked background */
+.tab-button .tab-icon {
+  position: relative;
+}
+
+/* 
+ * Image-filled SVG effect for active tab icons
+ * The filled SVG shape gets masked by the image background
+ */
+
+/* Base setup for the image-masked icon effect */
+.tab-button.active .tab-icon {
+  position: relative;
+}
+
+/* Create a pseudo-element that shows the image through the SVG shape */
+.tab-button.active .tab-icon::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   background-size: cover;
   background-position: center;
-  color: white;
-}
-.tab-button.active svg {
-  color: #e5e7eb;
-}
-#home-button.active {
-  background-image: url('/public/images/home_bg.webp');
-}
-#dashboard-button.active {
-  background-image: url('/public/images/dashboard_bg.webp');
-}
-#prediction-button.active {
-  background-image: url('/public/images/prediction_bg.webp');
-}
-#controller-button.active {
-  background-image: url('/public/images/controller_bg.webp');
+  pointer-events: none;
+  z-index: 3;
 }
 
-.info-button:hover {
-  // background: rgba(59, 130, 246, 0.1);
-  // border-color: rgba(59, 130, 246, 0.4);
+/* Hide the original SVG when active (the pseudo-element replaces it) */
+.tab-button.active svg {
+  opacity: 0;
+}
+
+/* Home button - filled house icon mask */
+#home-button.active .tab-icon::after {
+  background-image: url('/public/images/home_bg.webp');
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 2.5L2 10.5V21.5C2 22.05 2.45 22.5 3 22.5H9C9.55 22.5 10 22.05 10 21.5V15.5H14V21.5C14 22.05 14.45 22.5 15 22.5H21C21.55 22.5 22 22.05 22 21.5V10.5L12 2.5Z'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 2.5L2 10.5V21.5C2 22.05 2.45 22.5 3 22.5H9C9.55 22.5 10 22.05 10 21.5V15.5H14V21.5C14 22.05 14.45 22.5 15 22.5H21C21.55 22.5 22 22.05 22 21.5V10.5L12 2.5Z'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+/* Dashboard button - filled grid icon mask */
+#dashboard-button.active .tab-icon::after {
+  background-image: url('/public/images/dashboard_bg.webp');
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Crect x='3' y='3' width='7' height='7' rx='1.5'/%3E%3Crect x='14' y='3' width='7' height='5' rx='1.5'/%3E%3Crect x='14' y='11' width='7' height='10' rx='1.5'/%3E%3Crect x='3' y='12' width='7' height='9' rx='1.5'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Crect x='3' y='3' width='7' height='7' rx='1.5'/%3E%3Crect x='14' y='3' width='7' height='5' rx='1.5'/%3E%3Crect x='14' y='11' width='7' height='10' rx='1.5'/%3E%3Crect x='3' y='12' width='7' height='9' rx='1.5'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+/* Prediction button - line chart */
+#prediction-button.active .tab-icon::after {
+  background-image: url('/public/images/prediction_bg.webp');
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Crect x='2' y='2' width='20' height='18' rx='2'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Crect x='2' y='2' width='20' height='18' rx='2'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+/* Controller button - fan blades */
+#controller-button.active .tab-icon::after {
+  background-image: url('/public/images/controller_bg.webp');
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 8C12 8 12 2 7 2C7 2 7 8 12 8Z'/%3E%3Cpath d='M16 12C16 12 22 12 22 7C22 7 16 7 16 12Z'/%3E%3Cpath d='M12 16C12 16 12 22 17 22C17 22 17 16 12 16Z'/%3E%3Cpath d='M8 12C8 12 2 12 2 17C2 17 8 17 8 12Z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 8C12 8 12 2 7 2C7 2 7 8 12 8Z'/%3E%3Cpath d='M16 12C16 12 22 12 22 7C22 7 16 7 16 12Z'/%3E%3Cpath d='M12 16C12 16 12 22 17 22C17 22 17 16 12 16Z'/%3E%3Cpath d='M8 12C8 12 2 12 2 17C2 17 8 17 8 12Z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+/* Info button hover and active states */
+.info-button:hover:not(.active) {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.info-button.active {
+  background: rgba(59, 130, 246, 0.15);
+  padding-left: 12px;
 }
 
 /* Logo specific styling */
