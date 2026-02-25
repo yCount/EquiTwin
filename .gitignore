@@ -143,3 +143,6 @@ vite.config.ts.timestamp-*
 
 # Environment Variables
 .env
+
+# pycache
+__pycache__/
