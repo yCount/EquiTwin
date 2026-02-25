@@ -331,7 +331,7 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
     else:
         result["energy"] = []
 
-    # --- Outdoor weather temp (often empty if WeatherClient not configured) --
+    # --- Outdoor weather (DB column preferred; Open-Meteo archive as fallback) -
     if "outdoor_temp" in schema:
         rows = run(f"""
             SELECT {bkt()} AS ts, AVG(outdoor_temp) AS v
@@ -340,11 +340,34 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
             GROUP BY {grp()} ORDER BY ts
         """)
         result["weather"] = [
-            {"ts": r[0].isoformat(), "value": round(float(r[1]), 1)}
+            {"ts": r[0].isoformat(), "value": round(float(r[1]), 1), "condition": "cloudy"}
             for r in rows if r[0] and r[1] is not None
         ]
     else:
+        # No stored weather column — fetch historical data from Open-Meteo archive
+        # for the same time span as the sensor data so the chart lines up.
         result["weather"] = []
+        if ts_range and ts_range[0] and ts_range[1]:
+            try:
+                from core.weather_client import WeatherClient
+                import math as _math
+                wc = WeatherClient(55.8617, -4.2583)          # Glasgow (from bootstrap.py)
+                start_str = ts_range[0].strftime("%Y-%m-%d")
+                end_str   = ts_range[1].strftime("%Y-%m-%d")
+                df = wc.get_historical_df(start_str, end_str)
+                if not df.empty:
+                    result["weather"] = [
+                        {
+                            "ts":        str(row["timestamp"].isoformat()),
+                            "value":     round(float(row["outdoor_temp"]), 1),
+                            "condition": str(row["weather_condition"]),
+                        }
+                        for _, row in df.iterrows()
+                        if row["outdoor_temp"] is not None
+                        and not _math.isnan(float(row["outdoor_temp"]))
+                    ]
+            except Exception as _exc:
+                print(f"[timeseries] WeatherClient archive failed: {_exc}")
 
     return result
 

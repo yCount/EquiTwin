@@ -157,13 +157,27 @@ const getMetricIcon = (metric: string) => {
 
 interface TimeseriesPoint { ts: string; value: number; }
 interface EnergyPoint extends TimeseriesPoint { circuit0: number; circuit1: number; }
+interface WeatherApiPoint extends TimeseriesPoint { condition?: string; }
 interface TimeseriesApiResponse {
   temperature: TimeseriesPoint[];
   airQuality:  TimeseriesPoint[];
   occupancy:   TimeseriesPoint[];
   energy:      EnergyPoint[];
-  weather:     TimeseriesPoint[];
+  weather:     WeatherApiPoint[];
 }
+
+// Map Open-Meteo / WeatherClient condition strings → chart's 5 categories.
+const mapWeatherCondition = (c?: string): WeatherDataPoint['condition'] => {
+  switch (c) {
+    case 'sunny':        return 'sunny';
+    case 'mostly_sunny': return 'partly-cloudy';
+    case 'rain':         return 'rainy';
+    case 'snow':         return 'snowy';
+    case 'thunderstorm': return 'rainy';
+    case 'fog':          return 'cloudy';
+    default:             return 'cloudy';
+  }
+};
 
 const convertApiToSensorData = (api: TimeseriesApiResponse): SensorData => {
   const toChart = (pts: TimeseriesPoint[]): ChartDataPoint[] =>
@@ -187,12 +201,12 @@ const convertApiToSensorData = (api: TimeseriesApiResponse): SensorData => {
     temperature: toChart(api.temperature),
     occupancy:   toChart(api.occupancy),
     airQuality:  toChart(api.airQuality),
-    weather: api.weather.length > 0
-      ? api.weather.map(p => ({
-          timestamp: "", fullTimestamp: new Date(p.ts),
-          value: p.value, condition: "partly-cloudy" as const, temperature: p.value,
-        }))
-      : [],
+    weather: api.weather.map(p => ({
+      timestamp: "", fullTimestamp: new Date(p.ts),
+      value: p.value,
+      condition: mapWeatherCondition(p.condition),
+      temperature: p.value,
+    })),
     energyByFloor: api.energy.map(p => ({
       timestamp: "", fullTimestamp: new Date(p.ts),
       value: p.value, floor3: p.circuit0, floor4: p.circuit1,
@@ -527,7 +541,7 @@ const [level3Active, setLevel3Active] = useState(true);
               if (index === points.length - 1) return null;
               const nextPoint = points[index + 1];
               const currentData = chartData[index] as WeatherDataPoint;
-              const color = WEATHER_COLORS[currentData.condition as keyof typeof WEATHER_COLORS];
+              const color = WEATHER_COLORS[currentData.condition as keyof typeof WEATHER_COLORS] ?? '#94a3b8';
               return (
                 <line
                   key={`line-${index}`}
