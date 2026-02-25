@@ -5,13 +5,19 @@ FastAPI entrypoint for Energy Management System.
 Glues: services/* + adapters/* + security
 """
 
+import asyncio
 import os
+from contextlib import asynccontextmanager
 from decimal import Decimal
-from fastapi import FastAPI, HTTPException, WebSocket, Depends
+from fastapi import FastAPI, HTTPException, Request, WebSocket, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from sqlalchemy import create_engine, text
-from models import EnergyPoint, AirPoint, OccPoint, WeatherPoint, MpcRequest, MpcSuggestion
+from models import (
+    EnergyPoint, AirPoint, OccPoint, WeatherPoint,
+    MpcRequest, MpcSuggestion,
+    MpcTickRequest, MpcTickResponse, ForecastStatusResponse,
+)
 from services.mpc import run_mpc
 from services.forecast import forecast_energy
 from services.kpis import compute_kpis
@@ -30,7 +36,51 @@ def _get_db_engine():
         _db_engine = create_engine(db_url, pool_pre_ping=True)
     return _db_engine
 
-app = FastAPI()
+
+# ---- ForecastService lifecycle ----------------------------------------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    At startup: build the pythonDNM ForecastService and optionally warm it up
+    from the PostgreSQL matches table so forecasts are available immediately.
+    At shutdown: nothing to clean up (sklearn models are in-memory only).
+    """
+    artifacts_root = os.environ.get(
+        "ARTIFACTS_ROOT",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts"),
+    )
+    db_url = os.environ.get("DATABASE_URL")
+    app.state.forecast = None
+
+    try:
+        from equitwin_dnm_integration_point import build_forecast_service, warmup_from_db
+        svc = build_forecast_service(artifacts_root=artifacts_root)
+        app.state.forecast = svc
+        print(f"[EquiTwin] ForecastService ready. Loaded features: {svc.loaded_features()}")
+
+        if db_url:
+            try:
+                n = await asyncio.to_thread(warmup_from_db, svc, db_url)
+                print(f"[EquiTwin] Buffer warmed up: {n} rows ingested. Ready: {svc.is_ready}")
+            except Exception as exc:
+                print(f"[EquiTwin] DB warmup skipped: {exc}")
+
+    except FileNotFoundError as exc:
+        print(
+            f"[EquiTwin] Artifacts not found at '{artifacts_root}' ({exc}). "
+            "Train models first:  python -m equitwin_integration.train_all "
+            "--db-url postgresql+psycopg2://... --table matches\n"
+            "[EquiTwin] MPC endpoints will return HTTP 503 until artifacts exist."
+        )
+    except Exception as exc:
+        print(f"[EquiTwin] ForecastService init failed: {exc}. MPC endpoints will return HTTP 503.")
+
+    yield   # app runs here
+    # Shutdown — nothing to tear down
+
+
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],  # dev
@@ -370,6 +420,106 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
                 print(f"[timeseries] WeatherClient archive failed: {_exc}")
 
     return result
+
+
+# ---- pythonDNM MPC / Forecast endpoints ------------------------------------
+
+@app.get("/api/mpc/status", response_model=ForecastStatusResponse)
+def mpc_status(request: Request):
+    """
+    Return ForecastService health: whether the ring buffer has enough history
+    to produce forecasts and which feature models are loaded.
+    """
+    svc = getattr(request.app.state, "forecast", None)
+    if svc is None:
+        return ForecastStatusResponse(
+            status="unavailable",
+            reason=(
+                "ForecastService not initialised. "
+                "Artifacts may be missing — run training first."
+            ),
+        )
+    return ForecastStatusResponse(
+        status="ready" if svc.is_ready else "warming_up",
+        buffer_size=svc.buffer_size,
+        min_warm_rows=64,
+        is_ready=svc.is_ready,
+        loaded_features=svc.loaded_features(),
+    )
+
+
+@app.post("/api/mpc/tick", response_model=MpcTickResponse)
+def mpc_tick(req: MpcTickRequest, request: Request):
+    """
+    Feed one 15-minute sensor row into the ForecastService, run the
+    hierarchical MPC (OuterMPC 4h + InnerMPC 15m), and return the HVAC
+    control action together with a summary of the forecast bundle.
+
+    The buffer warms up after 64 ticks (~16 h).  Check ``warmed_up`` before
+    acting on the ``action`` field.
+    """
+    svc = getattr(request.app.state, "forecast", None)
+    if svc is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "ForecastService not initialised. "
+                "Train models first: "
+                "python -m equitwin_integration.train_all "
+                "--db-url postgresql+psycopg2://... --table matches"
+            ),
+        )
+
+    # Build sensor row dict (exclude temp_target — it's a state override, not a signal).
+    sensor_row: Dict[str, Any] = req.model_dump(exclude={"temp_target"})
+
+    # Build optional state override for InnerMPC comfort setpoint.
+    state: Optional[Dict[str, Any]] = (
+        {"temp_target": req.temp_target} if req.temp_target is not None else None
+    )
+
+    output = svc.tick(sensor_row, state=state)
+
+    return MpcTickResponse(
+        warmed_up=output.warmed_up,
+        error=output.error,
+        action=output.inner_action.u if output.inner_action else {},
+        outer_plan=output.outer_plan.refs if output.outer_plan else {},
+        bundle_summary=(
+            svc.forecast_summary(output.bundle)
+            if output.bundle and output.bundle.by_feature
+            else {}
+        ),
+    )
+
+
+@app.get("/api/forecast")
+def get_forecast(request: Request):
+    """
+    Return the most recent ST + LT forecast bundle without ingesting a new row.
+    Useful for polling from the frontend to display prediction charts.
+
+    Returns ``status: "warming_up"`` until the buffer has ≥ 64 rows.
+    """
+    svc = getattr(request.app.state, "forecast", None)
+    if svc is None:
+        return {"status": "unavailable", "buffer_size": 0, "features": {}}
+
+    bundle = svc.get_forecast()
+    if bundle is None:
+        return {
+            "status": "warming_up",
+            "buffer_size": svc.buffer_size,
+            "min_warm_rows": 64,
+            "features": {},
+        }
+
+    return {
+        "status": "ready",
+        "buffer_size": svc.buffer_size,
+        "loaded_features": svc.loaded_features(),
+        "features": svc.forecast_summary(bundle),
+    }
 
 
 # ---- WebSocket for live telemetry push --------------------------------------

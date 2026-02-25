@@ -82,11 +82,11 @@ import numpy as np
 import pandas as pd
 
 # ---------------------------------------------------------------------------
-# pythonDNM imports  (library is on sys.path or installed as a package)
+# pythonDNM imports  (equitwin_integration / equitwin_forecasting live inside backend/)
 # ---------------------------------------------------------------------------
-# from equitwin_integration.bootstrap import EquiTwinConfig, EquiTwinStack, build_equitwin_stack
-# from equitwin_integration.tick_runner import TickRunner, TickRunnerConfig, ControlOutput
-# from equitwin_forecasting.types import ForecastBundle
+from equitwin_integration.bootstrap import EquiTwinConfig, EquiTwinStack, build_equitwin_stack
+from equitwin_integration.tick_runner import TickRunner, TickRunnerConfig, ControlOutput
+from equitwin_forecasting.types import ForecastBundle
 
 logger = logging.getLogger(__name__)
 
