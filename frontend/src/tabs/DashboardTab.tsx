@@ -237,20 +237,33 @@ const DashboardTab = () => {
       });
   }, [refreshKey]);
 
+  // Build a flat list of all timestamps across every data series so time-range
+  // calculations are not accidentally pinned to whichever series has the
+  // narrowest coverage (e.g. temperature data only existing for Jun-Jul while
+  // energy spans the full DB history).
+  const allSeriesPoints = useMemo((): ChartDataPoint[] => [
+    ...sensorData.temperature,
+    ...sensorData.occupancy,
+    ...sensorData.airQuality,
+    ...sensorData.energyByFloor,
+    ...sensorData.weather,
+  ], [sensorData]);
+
   // Slide the selected time window whenever the active range button changes
-  // or when fresh data arrives.  Uses the last timestamp in the data as "now".
+  // or when fresh data arrives.  Uses the latest timestamp across ALL series.
   useEffect(() => {
-    if (sensorData.temperature.length === 0) {
+    if (allSeriesPoints.length === 0) {
       setTimeRange({ start: null, end: null });
       setTimelineViewRange(null);
       return;
     }
-    const pts = sensorData.temperature;
-    const endTime = pts[pts.length - 1].fullTimestamp.getTime();
+    const endTime = allSeriesPoints.reduce(
+      (max, p) => Math.max(max, p.fullTimestamp.getTime()), -Infinity
+    );
     const config = getRangeConfig(activeTimeRange);
     setTimeRange({ start: endTime - config.selectedHours * 3600000, end: endTime });
     setTimelineViewRange(null);
-  }, [sensorData, activeTimeRange]);
+  }, [allSeriesPoints, activeTimeRange]);
 
   const filteredData = useMemo(() => {
     if (!timeRange.start || !timeRange.end) return sensorData;
@@ -272,14 +285,24 @@ const DashboardTab = () => {
   }, [sensorData, timeRange]);
 
   const fullTimeRange = useMemo(() => {
-    if (sensorData.temperature.length === 0) {
+    if (allSeriesPoints.length === 0) {
       return { start: Date.now() - 86400000, end: Date.now() };
     }
+    const times = allSeriesPoints.map(p => p.fullTimestamp.getTime());
     return {
-      start: sensorData.temperature[0].fullTimestamp.getTime(),
-      end: sensorData.temperature[sensorData.temperature.length - 1].fullTimestamp.getTime()
+      start: Math.min(...times),
+      end:   Math.max(...times),
     };
-  }, [sensorData]);
+  }, [allSeriesPoints]);
+
+  // Shared X-axis domain for all chart cards: use the selected time window
+  // (or the full DB range when no window is active). Passing this to every
+  // ChartCard forces identical X-axis spans even when individual series have
+  // data gaps or shorter coverage than the full dataset.
+  const chartXDomain = useMemo((): [number, number] => [
+    timeRange.start  ?? fullTimeRange.start,
+    timeRange.end    ?? fullTimeRange.end,
+  ], [timeRange, fullTimeRange]);
 
   const handleTimelineChange = useCallback((start: number, end: number) => {
     setTimeRange({ start, end });
@@ -336,6 +359,7 @@ const [level3Active, setLevel3Active] = useState(true);
     stackConfig,
     isWide = false,
     domain,
+    xDomain,
     emptyMessage,
   }: {
     title: string;
@@ -347,6 +371,7 @@ const [level3Active, setLevel3Active] = useState(true);
     stackConfig?: Array<{dataKey: string; name: string; color: string}>;
     isWide?: boolean;
     domain?: [number | string, number | string];
+    xDomain?: [number, number];
     emptyMessage?: string;
   }) => {
     // Precision helper: kW → 2dp, °C → 1dp, everything else → 0dp
@@ -369,6 +394,14 @@ const [level3Active, setLevel3Active] = useState(true);
       return fmt(Math.max(...data.map((d: any) => d.value || 0)));
     }, [data, type, unit]);
 
+    // Add numeric timestamp (_tsMs) so XAxis can use type="number" scale="time"
+    // and accept an explicit domain that spans the full selected window — even
+    // when this particular series has data only in a sub-range.
+    const chartData = useMemo(
+      () => data?.map((d: any) => ({ ...d, _tsMs: (d.fullTimestamp as Date).getTime() })) ?? [],
+      [data]
+    );
+
     if (!data || data.length === 0) {
       return (
         <div className={`chart-card ${isWide ? 'wide' : ''}`}>
@@ -385,30 +418,38 @@ const [level3Active, setLevel3Active] = useState(true);
       );
     }
 
-    const formatXAxis = (timestamp: Date) => {
-      if (!timestamp) return '';
-      const date = new Date(timestamp);
-      const duration = timeRange.end && timeRange.start ? timeRange.end - timeRange.start : Infinity;
-      
-      if (duration <= 86400000) {
-        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      } else if (duration <= 604800000) {
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      } else if (duration <= 2592000000) {
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      } else {
+    // XAxis props shared by all chart variants.
+    // When xDomain is provided the axis is pinned to [start, end] in epoch-ms
+    // so all charts share the same time span regardless of data gaps.
+    const xAxisProps = {
+      dataKey: '_tsMs',
+      type: 'number' as const,
+      scale: 'time' as const,
+      domain: xDomain ?? (['dataMin', 'dataMax'] as [string, string]),
+      tickFormatter: (ms: number) => {
+        if (!ms) return '';
+        const date = new Date(ms);
+        const duration = xDomain ? xDomain[1] - xDomain[0]
+          : (timeRange.end && timeRange.start ? timeRange.end - timeRange.start : Infinity);
+        if (duration <= 86400000)
+          return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        if (duration <= 2592000000)
+          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      }
+      },
+      stroke: 'rgba(255,255,255,0.3)' as const,
+      style: { fontSize: '10px' },
+      tickCount: 6,
     };
 
     const formatTooltipTime = (timestamp: Date) => {
       if (!timestamp) return '';
       const date = new Date(timestamp);
-      return date.toLocaleString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        hour: '2-digit', 
-        minute: '2-digit' 
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
       });
     };
 
@@ -425,8 +466,8 @@ const [level3Active, setLevel3Active] = useState(true);
             {payload.map((entry: any, index: number) => (
               <div className="tooltip-row" key={index}>
                 <div className="row-left">
-                  <div 
-                    className="indicator" 
+                  <div
+                    className="indicator"
                     style={{ backgroundColor: entry.color }}
                   />
                   <span>{entry.name || entry.dataKey}</span>
@@ -448,7 +489,7 @@ const [level3Active, setLevel3Active] = useState(true);
       if (!active || !payload || !payload.length) return null;
       const weatherData = payload[0].payload as WeatherDataPoint;
       const conditionColor = WEATHER_COLORS[weatherData.condition];
-      
+
       return (
         <div className="chart-tooltip-glass">
           <div className="tooltip-header">
@@ -457,8 +498,8 @@ const [level3Active, setLevel3Active] = useState(true);
           <div className="tooltip-body">
             <div className="tooltip-row">
               <div className="row-left">
-                <div 
-                  className="indicator" 
+                <div
+                  className="indicator"
                   style={{ backgroundColor: conditionColor }}
                 />
                 <span style={{ textTransform: 'capitalize' }}>
@@ -484,21 +525,15 @@ const [level3Active, setLevel3Active] = useState(true);
           <g>
             {points.map((point: any, index: number) => {
               if (index === points.length - 1) return null;
-              
               const nextPoint = points[index + 1];
-              const currentData = data[index] as WeatherDataPoint;
+              const currentData = chartData[index] as WeatherDataPoint;
               const color = WEATHER_COLORS[currentData.condition as keyof typeof WEATHER_COLORS];
-
               return (
                 <line
                   key={`line-${index}`}
-                  x1={point.x}
-                  y1={point.y}
-                  x2={nextPoint.x}
-                  y2={nextPoint.y}
-                  stroke={color}
-                  strokeWidth={2}
-                  fill="none"
+                  x1={point.x} y1={point.y}
+                  x2={nextPoint.x} y2={nextPoint.y}
+                  stroke={color} strokeWidth={2} fill="none"
                 />
               );
             })}
@@ -508,24 +543,17 @@ const [level3Active, setLevel3Active] = useState(true);
 
       return (
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data}>
+          <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis 
-              dataKey="fullTimestamp" 
-              tickFormatter={formatXAxis}
-              stroke="rgba(255,255,255,0.3)"
-              style={{ fontSize: '10px' }}
-            />
+            <XAxis {...xAxisProps} />
             <YAxis
               stroke="rgba(255,255,255,0.3)"
               style={{ fontSize: '10px' }}
               domain={['dataMin - 2', 'dataMax + 2']}
               tickFormatter={(val: any) => {
                 const n = typeof val === 'number' ? val : Number(val);
-                if (Number.isNaN(n)) return '';
-                return `${n.toFixed(1)}°C`;
+                return Number.isNaN(n) ? '' : `${n.toFixed(1)}°C`;
               }}
-              label={{ value: '°C', angle: -90, position: 'insideLeft', offset: -8, style: { fill: 'rgba(255,255,255,0.6)', fontSize: 11 } }}
             />
             <Tooltip content={<WeatherTooltip />} />
             <Line
@@ -560,10 +588,10 @@ const [level3Active, setLevel3Active] = useState(true);
           </div>
         </div>
         <div className="chart-area">
-          {type === 'weather' ? renderWeatherChart() : 
+          {type === 'weather' ? renderWeatherChart() :
            type === 'area' ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
+              <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={color} stopOpacity={0.3}/>
@@ -571,12 +599,7 @@ const [level3Active, setLevel3Active] = useState(true);
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis 
-                  dataKey="fullTimestamp" 
-                  tickFormatter={formatXAxis}
-                  stroke="rgba(255,255,255,0.3)"
-                  style={{ fontSize: '10px' }}
-                />
+                <XAxis {...xAxisProps} />
                 <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: '10px' }} domain={domain} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area
@@ -592,14 +615,9 @@ const [level3Active, setLevel3Active] = useState(true);
             </ResponsiveContainer>
           ) : type === 'bar' ? (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
+              <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis 
-                  dataKey="fullTimestamp" 
-                  tickFormatter={formatXAxis}
-                  stroke="rgba(255,255,255,0.3)"
-                  style={{ fontSize: '10px' }}
-                />
+                <XAxis {...xAxisProps} />
                 <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: '10px' }} domain={domain} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} name={title} />
@@ -607,7 +625,7 @@ const [level3Active, setLevel3Active] = useState(true);
             </ResponsiveContainer>
           ) : type === 'stacked' && stackConfig ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data}>
+              <AreaChart data={chartData}>
                 <defs>
                   {stackConfig.map(config => (
                     <linearGradient key={config.dataKey} id={`gradient-${config.dataKey}`} x1="0" y1="0" x2="0" y2="1">
@@ -617,12 +635,7 @@ const [level3Active, setLevel3Active] = useState(true);
                   ))}
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis 
-                  dataKey="fullTimestamp" 
-                  tickFormatter={formatXAxis}
-                  stroke="rgba(255,255,255,0.3)"
-                  style={{ fontSize: '10px' }}
-                />
+                <XAxis {...xAxisProps} />
                 <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: '10px' }} domain={domain} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: '11px' }} />
@@ -777,6 +790,7 @@ const [level3Active, setLevel3Active] = useState(true);
               color="#ef4444"
               unit="°C"
               domain={['dataMin - 1', 'dataMax + 1']}
+              xDomain={chartXDomain}
             />
             {filteredData.weather.length > 0 ? (
               <ChartCard
@@ -786,6 +800,7 @@ const [level3Active, setLevel3Active] = useState(true);
                 color="#f59e0b"
                 unit="°C"
                 type="weather"
+                xDomain={chartXDomain}
               />
             ) : (
               <ChartCard
@@ -796,6 +811,7 @@ const [level3Active, setLevel3Active] = useState(true);
                 unit="kW"
                 type="area"
                 domain={[0, 'auto']}
+                xDomain={chartXDomain}
                 emptyMessage="No energy data recorded"
               />
             )}
@@ -807,6 +823,7 @@ const [level3Active, setLevel3Active] = useState(true);
               type="bar"
               unit="Ppl"
               domain={[0, 'dataMax + 1']}
+              xDomain={chartXDomain}
             />
             <ChartCard
               title="Air Quality"
@@ -815,6 +832,7 @@ const [level3Active, setLevel3Active] = useState(true);
               color="#10b981"
               unit="ppm"
               domain={['dataMin - 100', 'dataMax + 100']}
+              xDomain={chartXDomain}
             />
 
             <ChartCard
@@ -829,6 +847,7 @@ const [level3Active, setLevel3Active] = useState(true);
                 { dataKey: 'floor4', name: 'Circuit 1', color: '#8b5cf6' }
               ]}
               domain={[0, 'auto']}
+              xDomain={chartXDomain}
               isWide={true}
             />
           </section>
