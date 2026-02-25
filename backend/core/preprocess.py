@@ -89,10 +89,7 @@ _FFILL_COLS: List[str] = [
     "num_targets", "entries", "exits",
 ]
 
-
-# ---------------------------------------------------------------------------
 # Step 1 – numeric coercion
-# ---------------------------------------------------------------------------
 
 def coerce_numeric(
     df: pd.DataFrame,
@@ -117,9 +114,7 @@ def coerce_numeric(
     return out
 
 
-# ---------------------------------------------------------------------------
 # Step 2 – sensor-ID normalisation
-# ---------------------------------------------------------------------------
 
 def fill_sensor_id(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -165,9 +160,7 @@ def fill_sensor_id(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-# ---------------------------------------------------------------------------
 # Step 3 – occupancy num_targets derivation
-# ---------------------------------------------------------------------------
 
 def compute_occupancy_num_targets(
     df: pd.DataFrame,
@@ -204,14 +197,14 @@ def compute_occupancy_num_targets(
     if not occ_mask.any():
         return out
 
-    # ── Step A: coerce num_targets to float ──────────────────────────────
+    # Step A: coerce num_targets to float
     if "num_targets" not in out.columns:
         out["num_targets"] = np.nan
     out["num_targets"] = pd.to_numeric(out["num_targets"], errors="coerce")
 
     occ_idx = out.index[occ_mask]
 
-    # ── Step B: derive from entries/exits if still all-null ───────────────
+    # Step B: derive from entries/exits if still all-null
     if out.loc[occ_idx, "num_targets"].isna().all():
         for col in ("entries", "exits"):
             if col in out.columns:
@@ -244,7 +237,7 @@ def compute_occupancy_num_targets(
             # Write back in the sorted order
             out.loc[occ_df.index, "num_targets"] = net.values
 
-    # ── Step C: forward-fill within each sensor group ────────────────────
+    # Step C: forward-fill within each sensor group
     out = out.sort_values(ts_col)
 
     if group_col in out.columns and out[group_col].notna().any():
@@ -258,9 +251,7 @@ def compute_occupancy_num_targets(
     return out
 
 
-# ---------------------------------------------------------------------------
 # Step 4 – cross-sensor forward-fill
-# ---------------------------------------------------------------------------
 
 def cross_sensor_ffill(
     df: pd.DataFrame,
@@ -321,9 +312,7 @@ def cross_sensor_ffill(
     return out
 
 
-# ---------------------------------------------------------------------------
 # Main entry point
-# ---------------------------------------------------------------------------
 
 def preprocess_raw_table(
     df: pd.DataFrame,
@@ -364,16 +353,16 @@ def preprocess_raw_table(
     """
     out = df.copy()
 
-    # ── 1. Numeric coercion ───────────────────────────────────────────────
+    # 1. Numeric coercion
     out = coerce_numeric(out)
 
-    # ── 2. Sensor-ID normalisation ────────────────────────────────────────
+    # 2. Sensor-ID normalisation
     out = fill_sensor_id(out)
 
-    # ── 3. Occupancy: derive num_targets when it is all-NULL ──────────────
+    # 3. Occupancy: derive num_targets when it is all-NULL
     out = compute_occupancy_num_targets(out, ts_col=ts_col, group_col=group_col)
 
-    # ── 4. Cross-sensor forward-fill ──────────────────────────────────────
+    # 4. Cross-sensor forward-fill
     if do_cross_sensor_ffill:
         out = cross_sensor_ffill(
             out,

@@ -36,9 +36,7 @@ from urllib.request import urlopen
 import pandas as pd
 
 
-# ---------------------------------------------------------------------------
-# WMO weather code → closed category string
-# ---------------------------------------------------------------------------
+# WMO weather code - closed category string
 
 _WMO_MAP = {
     0:  "sunny",
@@ -67,10 +65,7 @@ def _wmo_to_condition(code: int) -> str:
     """
     return _WMO_MAP.get(int(code), "cloudy")
 
-
-# ---------------------------------------------------------------------------
 # Data container
-# ---------------------------------------------------------------------------
 
 @dataclass
 class WeatherSnapshot:
@@ -90,10 +85,7 @@ def _nan_snapshot(ts: Optional[datetime] = None) -> WeatherSnapshot:
         timestamp=ts or datetime.now(timezone.utc),
     )
 
-
-# ---------------------------------------------------------------------------
 # API URL templates
-# ---------------------------------------------------------------------------
 
 _FORECAST_URL = (
     "https://api.open-meteo.com/v1/forecast"
@@ -115,9 +107,7 @@ _ARCHIVE_URL = (
 _CACHE_TTL_SECONDS = 900   # 15 minutes — one control tick
 
 
-# ---------------------------------------------------------------------------
 # Client
-# ---------------------------------------------------------------------------
 
 class WeatherClient:
     """
@@ -143,9 +133,7 @@ class WeatherClient:
         self._cache_snapshot: Optional[WeatherSnapshot] = None
         self._cache_ts: float = 0.0   # time.monotonic() of last successful fetch
 
-    # ------------------------------------------------------------------
     # Private
-    # ------------------------------------------------------------------
 
     def _fetch_json(self, url: str) -> dict:
         with urlopen(url, timeout=self.timeout) as resp:
@@ -158,9 +146,7 @@ class WeatherClient:
                 return i
         return None
 
-    # ------------------------------------------------------------------
     # Current weather (15-min TTL cache)
-    # ------------------------------------------------------------------
 
     def get_current(self) -> WeatherSnapshot:
         """
@@ -179,7 +165,7 @@ class WeatherClient:
             data = self._fetch_json(url)
 
             cw = data["current_weather"]
-            ts_str: str = cw["time"]                     # "2025-06-01T08:00"
+            ts_str: str = cw["time"]       # "2025-06-01T08:00"
             ts = datetime.fromisoformat(ts_str).replace(tzinfo=timezone.utc)
             temp = float(cw["temperature"])
             code = int(cw["weathercode"])
@@ -203,9 +189,7 @@ class WeatherClient:
         except Exception:
             return self._cache_snapshot if self._cache_snapshot is not None else _nan_snapshot()
 
-    # ------------------------------------------------------------------
     # Hourly forecast
-    # ------------------------------------------------------------------
 
     def get_forecast(self, hours: int = 24) -> List[WeatherSnapshot]:
         """
@@ -244,9 +228,7 @@ class WeatherClient:
         except Exception:
             return []
 
-    # ------------------------------------------------------------------
     # Historical data for training enrichment
-    # ------------------------------------------------------------------
 
     def get_historical_df(self, start_date: str, end_date: str) -> pd.DataFrame:
         """
@@ -301,9 +283,7 @@ class WeatherClient:
         except Exception:
             return _EMPTY
 
-    # ------------------------------------------------------------------
     # Training join utility
-    # ------------------------------------------------------------------
 
     @staticmethod
     def join_weather_to_df(
@@ -353,9 +333,7 @@ class WeatherClient:
         return merged
 
 
-# ---------------------------------------------------------------------------
 # Convenience factory (reads from env vars)
-# ---------------------------------------------------------------------------
 
 def build_weather_client_from_env(timeout: int = 5) -> Optional[WeatherClient]:
     """

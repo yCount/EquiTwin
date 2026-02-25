@@ -47,7 +47,6 @@ from pathlib import Path
 def build_stack(artifacts_root: str = "artifacts"):
     hz = default_horizons()
 
-    # IMPORTANT:
     # This signal list MUST contain all raw columns the trained models expect.
     # Your error showed missing: a_voltage/b_voltage/c_voltage, a_act_power/b_act_power/c_act_power, action,
     # and their lags. Lags come from the buffer, so we must ingest base signals.

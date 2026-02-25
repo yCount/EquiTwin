@@ -46,10 +46,7 @@ from equitwin_mpc.types import InnerAction, OuterPlan
 
 from equitwin_integration.bootstrap import EquiTwinConfig, EquiTwinStack
 
-
-# ---------------------------------------------------------------------------
 # Config
-# ---------------------------------------------------------------------------
 
 @dataclass
 class TickRunnerConfig:
@@ -66,10 +63,7 @@ class TickRunnerConfig:
     temp_target: float = 21.0
     min_warm_rows: int = 64  # 64 × 15m = 16h of history for lt_lags=[1,2,3]
 
-
-# ---------------------------------------------------------------------------
 # Output
-# ---------------------------------------------------------------------------
 
 @dataclass
 class ControlOutput:
@@ -81,9 +75,7 @@ class ControlOutput:
     error: Optional[str] = None
 
 
-# ---------------------------------------------------------------------------
 # Runner
-# ---------------------------------------------------------------------------
 
 class TickRunner:
     """
@@ -108,9 +100,7 @@ class TickRunner:
         self._inner_mpc = InnerMPC(st_steps=hz.st_horizons)
         self._tick_count: int = 0
 
-    # ------------------------------------------------------------------
     # Public API
-    # ------------------------------------------------------------------
 
     def tick(
         self,
@@ -199,9 +189,7 @@ class TickRunner:
         return self._tick_count
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 def _enrich_with_weather(
     sensor_row: Dict[str, Any],
