@@ -59,6 +59,55 @@ interface DeviationDataPoint {
   impact: string;
 }
 
+interface DbResponse {
+  rows: Record<string, any>[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  columns: string[];
+}
+
+const DB_API = "http://localhost:8000";
+
+// Columns shown by default on first load (intersected with what the table has).
+const DB_DEFAULT_COLS = [
+  "id", "timestamp", "event_label", "net_occupancy",
+  "temp", "humidity", "co2", "total_act_power",
+  "num_targets", "entries", "exits",
+];
+
+const formatDbCell = (col: string, val: any): React.ReactNode => {
+  if (val === null || val === undefined) return <span className="cell-null">—</span>;
+  if (col === "timestamp" && typeof val === "string")
+    return val.replace("T", " ").slice(0, 19);
+  if (col === "event_label") {
+    const cls = val === "No Motion"     ? "ev-motion"
+              : val === "Exit Detected" ? "ev-exit"
+              : val === "Energy Meter"  ? "ev-energy"
+              : val === "Air Quality"   ? "ev-aq"
+              : "ev-other";
+    return <span className={`event-badge ${cls}`}>{val}</span>;
+  }
+  if (col === "net_occupancy" && typeof val === "number")
+    return <span className="occ-count">{val}</span>;
+  if (typeof val === "number") {
+    const s = val.toFixed(4);
+    return s.replace(/\.?0+$/, "");
+  }
+  return String(val);
+};
+
+const dbCellClass = (col: string, val: any): string => {
+  if (col === "net_occupancy" && typeof val === "number") {
+    if (val === 0)   return "cell-occ-zero";
+    if (val <= 5)    return "cell-occ-low";
+    if (val <= 15)   return "cell-occ-mid";
+    return "cell-occ-high";
+  }
+  return "";
+};
+
 interface SensorData {
   temperature: ChartDataPoint[];
   occupancy: ChartDataPoint[];
@@ -99,8 +148,62 @@ const getMetricIcon = (metric: string) => {
     case 'Temperature': return <TemperatureIcon />;
     case 'Occupancy':   return <OccupancyIcon />;
     case 'Air Quality': return <AirQualityIcon />;
+    case 'Energy':      return <EnergyIcon />;
     default:            return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>;
   }
+};
+
+// --- Timeseries API types & conversion ----------------------------------------
+
+interface TimeseriesPoint { ts: string; value: number; }
+interface EnergyPoint extends TimeseriesPoint { circuit0: number; circuit1: number; }
+interface TimeseriesApiResponse {
+  temperature: TimeseriesPoint[];
+  airQuality:  TimeseriesPoint[];
+  occupancy:   TimeseriesPoint[];
+  energy:      EnergyPoint[];
+  weather:     TimeseriesPoint[];
+}
+
+const convertApiToSensorData = (api: TimeseriesApiResponse): SensorData => {
+  const toChart = (pts: TimeseriesPoint[]): ChartDataPoint[] =>
+    pts.map(p => ({ timestamp: "", fullTimestamp: new Date(p.ts), value: p.value }));
+
+  const avgOf = (arr: TimeseriesPoint[]) =>
+    arr.length > 0 ? arr.reduce((s, p) => s + p.value, 0) / arr.length : 0;
+
+  const devStatus = (pct: number): DeviationDataPoint["status"] =>
+    Math.abs(pct) > 15 ? "critical" : Math.abs(pct) > 7 ? "warning" : "good";
+
+  const tempAvg   = avgOf(api.temperature);
+  const co2Avg    = avgOf(api.airQuality);
+  const occMax    = api.occupancy.length > 0 ? Math.max(...api.occupancy.map(p => p.value)) : 0;
+  const energyAvg = avgOf(api.energy);
+
+  const pct = (actual: number, ideal: number) =>
+    ideal !== 0 ? +((actual - ideal) / ideal * 100).toFixed(1) : 0;
+
+  return {
+    temperature: toChart(api.temperature),
+    occupancy:   toChart(api.occupancy),
+    airQuality:  toChart(api.airQuality),
+    weather: api.weather.length > 0
+      ? api.weather.map(p => ({
+          timestamp: "", fullTimestamp: new Date(p.ts),
+          value: p.value, condition: "partly-cloudy" as const, temperature: p.value,
+        }))
+      : [],
+    energyByFloor: api.energy.map(p => ({
+      timestamp: "", fullTimestamp: new Date(p.ts),
+      value: p.value, floor3: p.circuit0, floor4: p.circuit1,
+    })),
+    deviations: [
+      { metric: "Temperature", actual: +tempAvg.toFixed(1),   ideal: 22,  deviation: pct(tempAvg, 22),   status: devStatus(pct(tempAvg, 22)),   impact: "Comfort"  },
+      { metric: "Occupancy",   actual: occMax,                 ideal: 20,  deviation: pct(occMax, 20),    status: devStatus(pct(occMax, 20)),    impact: "Capacity" },
+      { metric: "Air Quality", actual: +co2Avg.toFixed(0),    ideal: 600, deviation: pct(co2Avg, 600),   status: co2Avg <= 600 ? "good" : devStatus(pct(co2Avg, 600)), impact: "Health" },
+      { metric: "Energy",      actual: +energyAvg.toFixed(2), ideal: 5.0, deviation: pct(energyAvg, 5.0), status: devStatus(pct(energyAvg, 5.0)), impact: "Cost"     },
+    ],
+  };
 };
 
 const DashboardTab = () => {
@@ -108,224 +211,68 @@ const DashboardTab = () => {
   const [selectedFloors, setSelectedFloors] = useState<string[]>(["Level 3", "Level 4"]);
   const [timeRange, setTimeRange] = useState<TimeRange>({ start: null, end: null });
   const [refreshKey, setRefreshKey] = useState<number>(0);
-  const [sensorData, setSensorData] = useState<SensorData | null>(null);
+  const EMPTY_SENSOR_DATA: SensorData = {
+    temperature: [], occupancy: [], airQuality: [],
+    weather: [], energyByFloor: [], deviations: [],
+  };
+  const [sensorData, setSensorData] = useState<SensorData>(EMPTY_SENSOR_DATA);
+  const [chartsLoading, setChartsLoading] = useState(true);
+  const [chartsError, setChartsError]     = useState<string | null>(null);
   const [timelineViewRange, setTimelineViewRange] = useState<{ start: number; end: number } | null>(null);
 
-  const generateData = useMemo(() => {
-    const config = getRangeConfig(activeTimeRange);
-    const totalPoints = Math.floor((config.hours * 3600000) / config.interval);
-    const nowTime = new Date().getTime();
-
-    const makeSeries = (min: number, max: number): ChartDataPoint[] => {
-        const arr = new Array(totalPoints);
-        let lastVal = (min + max) / 2;
-        
-        for(let i = 0; i < totalPoints; i++) {
-            const t = nowTime - (totalPoints - i) * config.interval;
-            const change = (Math.random() - 0.5) * (max - min) * 0.1;
-            lastVal = Math.max(min, Math.min(max, lastVal + change));
-            
-            const date = new Date(t);
-            const hour = date.getHours();
-            let finalVal = lastVal;
-            if (hour >= 9 && hour <= 17) finalVal += (max - min) * 0.05;
-            
-            arr[i] = {
-                timestamp: "", 
-                fullTimestamp: date,
-                value: finalVal
-            };
-        }
-        return arr;
-    };
-
-    const makeWeatherSeries = (): WeatherDataPoint[] => {
-        const arr = new Array(totalPoints);
-        let lastTemp = 20;
-        const conditions: ('sunny' | 'partly-cloudy' | 'cloudy' | 'rainy' | 'snowy')[] = 
-          ['sunny', 'partly-cloudy', 'cloudy', 'rainy', 'snowy'];
-        let currentCondition = 'partly-cloudy' as typeof conditions[number];
-        let conditionDuration = 0;
-        
-        for(let i = 0; i < totalPoints; i++) {
-            const t = nowTime - (totalPoints - i) * config.interval;
-            const date = new Date(t);
-            const hour = date.getHours();
-            const month = date.getMonth();
-            
-            if (conditionDuration === 0) {
-                const isWinter = month === 11 || month === 0 || month === 1;
-                const isSummer = month >= 5 && month <= 7;
-                
-                if (isWinter) {
-                    const winterWeights = [0.1, 0.2, 0.3, 0.2, 0.2];
-                    const rand = Math.random();
-                    let cumulative = 0;
-                    for (let j = 0; j < winterWeights.length; j++) {
-                        cumulative += winterWeights[j];
-                        if (rand < cumulative) {
-                            currentCondition = conditions[j];
-                            break;
-                        }
-                    }
-                } else if (isSummer) {
-                    const summerWeights = [0.4, 0.3, 0.2, 0.1, 0.0];
-                    const rand = Math.random();
-                    let cumulative = 0;
-                    for (let j = 0; j < summerWeights.length; j++) {
-                        cumulative += summerWeights[j];
-                        if (rand < cumulative) {
-                            currentCondition = conditions[j];
-                            break;
-                        }
-                    }
-                } else {
-                    currentCondition = conditions[Math.floor(Math.random() * 4)];
-                }
-                
-                conditionDuration = Math.floor(Math.random() * 8) + 3;
-            }
-            conditionDuration--;
-            
-            const seasonalBase = (month === 11 || month === 0 || month === 1) ? 5 : 
-                                (month >= 5 && month <= 7) ? 25 : 15;
-            const hourlyVariation = hour >= 12 && hour <= 16 ? 5 : hour >= 0 && hour <= 6 ? -5 : 0;
-            
-            const tempChange = (Math.random() - 0.5) * 2;
-            lastTemp = Math.max(-5, Math.min(35, lastTemp + tempChange));
-            
-            const targetTemp = seasonalBase + hourlyVariation;
-            lastTemp = lastTemp * 0.9 + targetTemp * 0.1;
-            
-            let conditionTempAdjust = 0;
-            if (currentCondition === 'sunny') conditionTempAdjust = 2;
-            if (currentCondition === 'rainy') conditionTempAdjust = -2;
-            if (currentCondition === 'snowy') conditionTempAdjust = -5;
-            
-            arr[i] = {
-                timestamp: "", 
-                fullTimestamp: date,
-                value: lastTemp + conditionTempAdjust,
-                condition: currentCondition,
-                temperature: lastTemp + conditionTempAdjust
-            };
-        }
-        return arr;
-    };
-
-    return {
-      temperature: makeSeries(18, 28),
-      occupancy: makeSeries(20, 200),
-      airQuality: makeSeries(30, 100),
-      weather: makeWeatherSeries(),
-      energyByFloor: makeSeries(1000, 3000).map(d => ({
-         fullTimestamp: d.fullTimestamp,
-         timestamp: "",
-         value: d.value,
-         floor3: d.value * 0.4,
-         floor4: d.value * 0.6
-      })),
-      deviations: [
-        { metric: "Temperature", actual: 23.5, ideal: 22, deviation: 6.8, status: 'warning', impact: "Efficiency" },
-        { metric: "Occupancy", actual: 180, ideal: 150, deviation: 20, status: 'critical', impact: "Crowding" },
-        { metric: "Air Quality", actual: 42, ideal: 50, deviation: -16, status: 'good', impact: "Optimal" },
-        { metric: "Weather", actual: 22, ideal: 20, deviation: 10, status: 'good', impact: "Forecast" },
-      ] as DeviationDataPoint[]
-    };
-  }, [activeTimeRange, refreshKey]);
-
+  // Fetch real sensor data from the backend on mount and on manual refresh.
   useEffect(() => {
-      setSensorData(generateData);
-      
-      if (generateData.temperature.length > 0) {
-        const dataLength = generateData.temperature.length;
-        const endTime = generateData.temperature[dataLength - 1].fullTimestamp.getTime();
-        const config = getRangeConfig(activeTimeRange);
-        const selectedDuration = config.selectedHours * 3600000;
-        const zoomStart = endTime - selectedDuration;
-        setTimeRange({ start: zoomStart, end: endTime });
-        setTimelineViewRange(null);
-      } else {
-        setTimeRange({ start: null, end: null });
-        setTimelineViewRange(null);
-      }
-  }, [generateData, activeTimeRange]);
+    setChartsLoading(true);
+    setChartsError(null);
+    fetch(`${DB_API}/api/db/timeseries`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`); return r.json(); })
+      .then((api: TimeseriesApiResponse) => {
+        setSensorData(convertApiToSensorData(api));
+        setChartsLoading(false);
+      })
+      .catch(err => {
+        console.error("Timeseries fetch failed:", err);
+        setChartsError(err.message);
+        setChartsLoading(false);
+      });
+  }, [refreshKey]);
+
+  // Slide the selected time window whenever the active range button changes
+  // or when fresh data arrives.  Uses the last timestamp in the data as "now".
+  useEffect(() => {
+    if (sensorData.temperature.length === 0) {
+      setTimeRange({ start: null, end: null });
+      setTimelineViewRange(null);
+      return;
+    }
+    const pts = sensorData.temperature;
+    const endTime = pts[pts.length - 1].fullTimestamp.getTime();
+    const config = getRangeConfig(activeTimeRange);
+    setTimeRange({ start: endTime - config.selectedHours * 3600000, end: endTime });
+    setTimelineViewRange(null);
+  }, [sensorData, activeTimeRange]);
 
   const filteredData = useMemo(() => {
-    if (!sensorData) return null;
     if (!timeRange.start || !timeRange.end) return sensorData;
 
-    const selectedDuration = timeRange.end - timeRange.start;
-    const shouldRegenerateData = selectedDuration <= 604800000;
-    
-    if (shouldRegenerateData) {
-      // (Data regeneration logic omitted for brevity in thought process, but included here for completeness)
-      const getIntervalForDuration = (duration: number) => {
-        if (duration <= 86400000) return 900000;
-        if (duration <= 259200000) return 1800000;
-        if (duration <= 604800000) return 3600000;
-        return 3600000;
-      };
-      
-      const interval = getIntervalForDuration(selectedDuration);
-      const numPoints = Math.floor(selectedDuration / interval);
-      
-      const regenerateForRange = (min: number, max: number) => {
-        const arr = new Array(numPoints);
-        let lastVal = (min + max) / 2;
-        
-        for(let i = 0; i < numPoints; i++) {
-          const t = timeRange.start! + (i * interval);
-          const change = (Math.random() - 0.5) * (max - min) * 0.1;
-          lastVal = Math.max(min, Math.min(max, lastVal + change));
-          
-          const date = new Date(t);
-          const hour = date.getHours();
-          let finalVal = lastVal;
-          if (hour >= 9 && hour <= 17) finalVal += (max - min) * 0.05;
-          
-          arr[i] = {
-            timestamp: "",
-            fullTimestamp: date,
-            value: finalVal
-          };
-        }
-        return arr;
-      };
-      
-      // Weather regen logic simplified for display
-       const regenerateWeatherForRange = (): WeatherDataPoint[] => {
-         // Reuse similar logic or simplified for zoom
-         const arr = new Array(numPoints);
-         for(let i=0; i<numPoints; i++) {
-            const t = timeRange.start! + (i * interval);
-            const date = new Date(t);
-            arr[i] = {
-                timestamp: "", fullTimestamp: date, value: 20, condition: 'sunny', temperature: 20
-            }
-         }
-         return arr;
-       };
-    }
-
-    const filter = (arr: ChartDataPoint[]) => 
+    const filter = (arr: ChartDataPoint[]) =>
       arr.filter(d => {
         const t = d.fullTimestamp.getTime();
         return t >= timeRange.start! && t <= timeRange.end!;
       });
 
     return {
-      temperature: filter(sensorData.temperature),
-      occupancy: filter(sensorData.occupancy),
-      airQuality: filter(sensorData.airQuality),
-      weather: filter(sensorData.weather) as WeatherDataPoint[],
+      temperature:   filter(sensorData.temperature),
+      occupancy:     filter(sensorData.occupancy),
+      airQuality:    filter(sensorData.airQuality),
+      weather:       filter(sensorData.weather) as WeatherDataPoint[],
       energyByFloor: filter(sensorData.energyByFloor) as EnergyFloorData[],
-      deviations: sensorData.deviations
+      deviations:    sensorData.deviations,
     };
   }, [sensorData, timeRange]);
 
   const fullTimeRange = useMemo(() => {
-    if (!sensorData || sensorData.temperature.length === 0) {
+    if (sensorData.temperature.length === 0) {
       return { start: Date.now() - 86400000, end: Date.now() };
     }
     return {
@@ -347,42 +294,96 @@ const DashboardTab = () => {
 const [level4Active, setLevel4Active] = useState(true);
 const [level3Active, setLevel3Active] = useState(true);
 
-  const ChartCard = React.memo(({ 
-    title, 
-    subtitle, 
-    data, 
-    color, 
-    unit, 
+  // ---- Database viewer state ------------------------------------------------
+  const [dbPage, setDbPage]               = useState(1);
+  const [dbPageSize, setDbPageSize]       = useState(50);
+  const [dbData, setDbData]               = useState<DbResponse | null>(null);
+  const [dbLoading, setDbLoading]         = useState(false);
+  const [dbError, setDbError]             = useState<string | null>(null);
+  const [dbVisibleCols, setDbVisibleCols] = useState<string[]>([]);
+  const [dbColPickerOpen, setDbColPickerOpen] = useState(false);
+
+  useEffect(() => {
+    setDbLoading(true);
+    setDbError(null);
+    fetch(`${DB_API}/api/db/rows?page=${dbPage}&page_size=${dbPageSize}`)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+        return r.json() as Promise<DbResponse>;
+      })
+      .then(data => {
+        setDbData(data);
+        setDbVisibleCols(prev =>
+          prev.length === 0
+            ? data.columns.filter(c => DB_DEFAULT_COLS.includes(c))
+            : prev
+        );
+        setDbLoading(false);
+      })
+      .catch(err => {
+        setDbError(err.message);
+        setDbLoading(false);
+      });
+  }, [dbPage, dbPageSize]);
+
+  const ChartCard = React.memo(({
+    title,
+    subtitle,
+    data,
+    color,
+    unit,
     type = 'area',
     stackConfig,
-    isWide = false 
-  }: { 
-    title: string; 
-    subtitle: string; 
-    data: any; 
-    color: string; 
-    unit: string; 
+    isWide = false,
+    domain,
+    emptyMessage,
+  }: {
+    title: string;
+    subtitle: string;
+    data: any;
+    color: string;
+    unit: string;
     type?: 'area' | 'bar' | 'stacked' | 'weather';
     stackConfig?: Array<{dataKey: string; name: string; color: string}>;
     isWide?: boolean;
+    domain?: [number | string, number | string];
+    emptyMessage?: string;
   }) => {
+    // Precision helper: kW → 2dp, °C → 1dp, everything else → 0dp
+    const fmt = (v: number) =>
+      unit === 'kW' ? v.toFixed(2) : unit === '°C' ? v.toFixed(1) : v.toFixed(0);
+
     const avg = useMemo(() => {
-      if (!data || data.length === 0) return '0';
+      if (!data || data.length === 0) return '—';
       if (type === 'weather') {
         return (data.reduce((a: number, b: WeatherDataPoint) => a + b.temperature, 0) / data.length).toFixed(1);
       }
-      return (data.reduce((a: number, b: any) => a + (b.value || 0), 0) / data.length).toFixed(0);
-    }, [data, type]);
+      return fmt(data.reduce((a: number, b: any) => a + (b.value || 0), 0) / data.length);
+    }, [data, type, unit]);
 
     const max = useMemo(() => {
-      if (!data || data.length === 0) return '0';
+      if (!data || data.length === 0) return '—';
       if (type === 'weather') {
         return Math.max(...data.map((d: WeatherDataPoint) => d.temperature)).toFixed(1);
       }
-      return Math.max(...data.map((d: any) => d.value || 0)).toFixed(0);
-    }, [data, type]);
+      return fmt(Math.max(...data.map((d: any) => d.value || 0)));
+    }, [data, type, unit]);
 
-    if (!data || data.length === 0) return null;
+    if (!data || data.length === 0) {
+      return (
+        <div className={`chart-card ${isWide ? 'wide' : ''}`}>
+          <div className="card-header">
+            <div className="title-group">
+              <h3>{title}</h3>
+              <div className="subtitle">{subtitle}</div>
+            </div>
+          </div>
+          <div className="chart-area chart-area-empty">
+            <span className="chart-empty-msg">{emptyMessage ?? 'No data available'}</span>
+          </div>
+        </div>
+      );
+    }
 
     const formatXAxis = (timestamp: Date) => {
       if (!timestamp) return '';
@@ -431,7 +432,9 @@ const [level3Active, setLevel3Active] = useState(true);
                   <span>{entry.name || entry.dataKey}</span>
                 </div>
                 <div className="row-value">
-                  {typeof entry.value === 'number' ? entry.value.toFixed(1) : entry.value}
+                  {typeof entry.value === 'number'
+                    ? (unit === 'kW' ? entry.value.toFixed(3) : unit === '°C' ? entry.value.toFixed(1) : entry.value.toFixed(0))
+                    : entry.value}
                   <span className="unit">{unit}</span>
                 </div>
               </div>
@@ -574,14 +577,14 @@ const [level3Active, setLevel3Active] = useState(true);
                   stroke="rgba(255,255,255,0.3)"
                   style={{ fontSize: '10px' }}
                 />
-                <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: '10px' }} />
+                <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: '10px' }} domain={domain} />
                 <Tooltip content={<CustomTooltip />} />
-                <Area 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke={color} 
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke={color}
                   strokeWidth={2}
-                  fillOpacity={1} 
+                  fillOpacity={1}
                   fill={`url(#gradient-${title})`}
                   name={title}
                 />
@@ -597,7 +600,7 @@ const [level3Active, setLevel3Active] = useState(true);
                   stroke="rgba(255,255,255,0.3)"
                   style={{ fontSize: '10px' }}
                 />
-                <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: '10px' }} />
+                <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: '10px' }} domain={domain} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} name={title} />
               </BarChart>
@@ -620,7 +623,7 @@ const [level3Active, setLevel3Active] = useState(true);
                   stroke="rgba(255,255,255,0.3)"
                   style={{ fontSize: '10px' }}
                 />
-                <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: '10px' }} />
+                <YAxis stroke="rgba(255,255,255,0.3)" style={{ fontSize: '10px' }} domain={domain} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: '11px' }} />
                 {stackConfig.map(config => (
@@ -643,18 +646,20 @@ const [level3Active, setLevel3Active] = useState(true);
     );
   });
 
-  if (!filteredData) return <div>Loading...</div>;
-
   return (
     <div className="dashboard-container">
-      <Topbar 
+      <Topbar
         title="Historical Analytics"
         subtitle="Past sensor logs and weather data"
         rightContent={
           <>
             <div className="topbar-status">
-              <span className="status-dot online" />
-              <span>Data Streaming</span>
+              {chartsLoading
+                ? <><span className="status-dot" style={{background:"#f59e0b"}}/><span>Loading…</span></>
+                : chartsError
+                  ? <><span className="status-dot" style={{background:"#ef4444"}}/><span>Backend unreachable</span></>
+                  : <><span className="status-dot online" /><span>Live Data</span></>
+              }
             </div>
             <button className="topbar-btn" onClick={() => console.log('Export data')}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -755,30 +760,75 @@ const [level3Active, setLevel3Active] = useState(true);
         sidebarWidth="360px"
       >
         <ContentArea padding="compact" gap="12px">
+          {chartsError && (
+            <div className="charts-error-banner">
+              <span>⚠ Could not load sensor data: {chartsError}</span>
+              <span className="charts-error-hint">
+                Make sure the backend is running and DATABASE_URL is set:&nbsp;
+                <code>$env:DATABASE_URL = "postgresql+psycopg2://postgres:6196@localhost:5432/eco_init"</code>
+              </span>
+            </div>
+          )}
           <section className="analytics-grid">
-            <ChartCard title="Temperature" subtitle="Avg" data={filteredData.temperature} color="#ef4444" unit="°C" />
-            <ChartCard 
-              title="External Weather" 
-              subtitle="Temp" 
-              data={filteredData.weather} 
-              color="#f59e0b" 
-              unit="°C" 
-              type="weather"
+            <ChartCard
+              title="Temperature"
+              subtitle="Indoor °C"
+              data={filteredData.temperature}
+              color="#ef4444"
+              unit="°C"
+              domain={['dataMin - 1', 'dataMax + 1']}
             />
-            <ChartCard title="Occupancy" subtitle="Ppl" data={filteredData.occupancy} color="#f97316" type="bar" unit="Ppl" />
-            <ChartCard title="Air Quality" subtitle="AQI" data={filteredData.airQuality} color="#10b981" unit="AQI" />
-            
-            <ChartCard 
-              title="Floor Distribution" 
-              subtitle="Energy" 
-              data={filteredData.energyByFloor} 
-              color="#3b82f6" 
-              unit="kWh"
+            {filteredData.weather.length > 0 ? (
+              <ChartCard
+                title="External Weather"
+                subtitle="Outdoor °C"
+                data={filteredData.weather}
+                color="#f59e0b"
+                unit="°C"
+                type="weather"
+              />
+            ) : (
+              <ChartCard
+                title="Energy Overview"
+                subtitle="Avg Power"
+                data={filteredData.energyByFloor}
+                color="#f59e0b"
+                unit="kW"
+                type="area"
+                domain={[0, 'auto']}
+                emptyMessage="No energy data recorded"
+              />
+            )}
+            <ChartCard
+              title="Occupancy"
+              subtitle="People"
+              data={filteredData.occupancy}
+              color="#f97316"
+              type="bar"
+              unit="Ppl"
+              domain={[0, 'dataMax + 1']}
+            />
+            <ChartCard
+              title="Air Quality"
+              subtitle="CO₂"
+              data={filteredData.airQuality}
+              color="#10b981"
+              unit="ppm"
+              domain={['dataMin - 100', 'dataMax + 100']}
+            />
+
+            <ChartCard
+              title="Floor Distribution"
+              subtitle="Energy by Circuit"
+              data={filteredData.energyByFloor}
+              color="#3b82f6"
+              unit="kW"
               type="stacked"
               stackConfig={[
-                { dataKey: 'floor3', name: 'Level 3', color: '#3b82f6' },
-                { dataKey: 'floor4', name: 'Level 4', color: '#8b5cf6' }
+                { dataKey: 'floor3', name: 'Circuit 0', color: '#3b82f6' },
+                { dataKey: 'floor4', name: 'Circuit 1', color: '#8b5cf6' }
               ]}
+              domain={[0, 'auto']}
               isWide={true}
             />
           </section>
@@ -863,6 +913,141 @@ const [level3Active, setLevel3Active] = useState(true);
                  }
                  dataKey="temperature"
                />
+            </div>
+          </Section>
+          <Section
+            className="glass-panel"
+            title="Database Viewer"
+            headerActions={
+              <span className="db-total-badge">
+                {dbData ? `${dbData.total.toLocaleString()} rows` : "—"}
+              </span>
+            }
+          >
+            <div className="db-viewer">
+              {/* ---- Controls bar ---- */}
+              <div className="db-controls">
+                <div className="db-controls-left">
+                  <select
+                    className="db-page-size-select"
+                    value={dbPageSize}
+                    onChange={e => { setDbPageSize(Number(e.target.value)); setDbPage(1); }}
+                  >
+                    {[25, 50, 100].map(n => <option key={n} value={n}>{n} rows</option>)}
+                  </select>
+
+                  <div className="db-col-picker-wrap">
+                    <button
+                      className="db-col-picker-btn"
+                      onClick={() => setDbColPickerOpen(p => !p)}
+                    >
+                      Columns&nbsp;
+                      <span className="col-count">
+                        {dbVisibleCols.length}/{dbData?.columns.length ?? 0}
+                      </span>
+                      &nbsp;▾
+                    </button>
+                    {dbColPickerOpen && dbData && (
+                      <div className="db-col-picker-dropdown">
+                        <div className="col-picker-actions">
+                          <button onClick={() => setDbVisibleCols(dbData.columns)}>All</button>
+                          <button onClick={() => setDbVisibleCols(dbData.columns.filter(c => DB_DEFAULT_COLS.includes(c)))}>Default</button>
+                          <button onClick={() => setDbVisibleCols([])}>None</button>
+                        </div>
+                        {dbData.columns.map(col => (
+                          <label key={col} className="db-col-option">
+                            <input
+                              type="checkbox"
+                              checked={dbVisibleCols.includes(col)}
+                              onChange={() =>
+                                setDbVisibleCols(prev =>
+                                  prev.includes(col)
+                                    ? prev.filter(c => c !== col)
+                                    : [...prev, col]
+                                )
+                              }
+                            />
+                            {col}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="db-pagination">
+                  <span className="db-page-info">
+                    {dbData
+                      ? `${((dbPage - 1) * dbPageSize + 1).toLocaleString()}–${Math.min(dbPage * dbPageSize, dbData.total).toLocaleString()} of ${dbData.total.toLocaleString()}`
+                      : "—"}
+                  </span>
+                  <button
+                    className="db-page-btn"
+                    disabled={dbPage <= 1 || dbLoading}
+                    onClick={() => setDbPage(p => p - 1)}
+                  >‹</button>
+                  <span className="db-page-current">{dbPage}</span>
+                  <button
+                    className="db-page-btn"
+                    disabled={!dbData || dbPage >= dbData.total_pages || dbLoading}
+                    onClick={() => setDbPage(p => p + 1)}
+                  >›</button>
+                </div>
+              </div>
+
+              {/* ---- Error state ---- */}
+              {dbError && (
+                <div className="db-error">
+                  <span>⚠ Could not reach database: {dbError}</span>
+                  <span className="db-error-hint">
+                    Start the backend and set DATABASE_URL env var, e.g.:<br />
+                    <code>export DATABASE_URL="postgresql+psycopg2://user:pass@host/db"</code>
+                  </span>
+                </div>
+              )}
+
+              {/* ---- Table ---- */}
+              {!dbError && (
+                <div className="db-table-wrap">
+                  {dbLoading && (
+                    <div className="db-loading-overlay"><span>Loading…</span></div>
+                  )}
+                  <table className="db-table">
+                    <thead>
+                      <tr>
+                        {dbVisibleCols.map(col => <th key={col}>{col}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dbData?.rows.map((row, i) => {
+                        const et: string = row.event_type ?? "";
+                        const rowCls =
+                          et.includes("NORMAL_EM")  ? "db-row-energy"
+                        : et.includes("NORMAL_AQ")  ? "db-row-aq"
+                        : et.includes("MOVEMENT") || et.includes("EXIT") || et.includes("HVAC")
+                          ? "db-row-occ"
+                        : "";
+                        return (
+                          <tr key={row.id ?? i} className={rowCls}>
+                            {dbVisibleCols.map(col => (
+                              <td key={col} className={dbCellClass(col, row[col])}>
+                                {formatDbCell(col, row[col])}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                      {(!dbData || dbData.rows.length === 0) && !dbLoading && (
+                        <tr>
+                          <td colSpan={dbVisibleCols.length} className="db-empty">
+                            No data
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </Section>
         </ContentArea>
