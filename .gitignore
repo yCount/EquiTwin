@@ -146,3 +146,6 @@ vite.config.ts.timestamp-*
 
 # pycache
 __pycache__/
+
+# artifacts (trained models)
+artifacts/
