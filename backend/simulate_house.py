@@ -416,13 +416,13 @@ def _print_tick(
             fc_e = f"{'n/a':>8}"
         refs = output.outer_plan.refs
         parts = []
-        if "energy_budget_lt" in refs:
+        if refs.get("energy_budget_lt"):
             first_step = min(refs["energy_budget_lt"])
             parts.append(f"E_budget={refs['energy_budget_lt'][first_step]:.0f}W")
-        if "temp_ref_lt" in refs:
+        if refs.get("temp_ref_lt"):
             first_step = min(refs["temp_ref_lt"])
             parts.append(f"T_ref={refs['temp_ref_lt'][first_step]:.1f}C")
-        if "outdoor_temp_ref_lt" in refs:
+        if refs.get("outdoor_temp_ref_lt"):
             first_step = min(refs["outdoor_temp_ref_lt"])
             parts.append(f"T_out_ref={refs['outdoor_temp_ref_lt'][first_step]:.1f}C")
         refs_str = "  ".join(parts)

@@ -18,29 +18,95 @@
       .system-status-pill {
           display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: $text-dim;
           .dot { width: 8px; height: 8px; background: $text-dim; border-radius: 50%; }
-          &.active { color: $success; .dot { background: $success; box-shadow: 0 0 8px $success; }}
-          &.paused { color: $warning; .dot { background: $warning; }}
+          &.active   { color: $success; .dot { background: $success; box-shadow: 0 0 8px $success; }}
+          &.paused   { color: $warning; .dot { background: $warning; }}
+          &.complete { color: $primary; .dot { background: $primary; box-shadow: 0 0 8px $primary; }}
+          &.error    { color: $danger;  .dot { background: $danger;  box-shadow: 0 0 8px $danger;  }}
       }
   }
 
   // === 1. KPI Hero Row ===
   .kpi-hero-row {
       display: grid; grid-template-columns: repeat(4, 1fr); gap: $spacing-lg;
-      
+
       .kpi-hero-card {
           @include glass-panel; padding: $spacing-lg; display: flex; flex-direction: column; justify-content: center; height: 100px; position: relative;
           .kpi-label { font-size: 10px; text-transform: uppercase; color: $text-dim; margin-bottom: 4px; font-weight: 600; }
           .kpi-val { font-size: 28px; font-weight: 700; color: $text-main; font-family: $font-family-mono;
              .unit { font-size: 14px; color: $text-dim; margin-left: 2px; font-weight: 400; }
           }
-          .kpi-trend { position: absolute; top: 16px; right: 16px; font-size: 11px; font-weight: 600; 
+          .kpi-trend { position: absolute; top: 16px; right: 16px; font-size: 11px; font-weight: 600;
               &.up { color: $success; } &.down { color: $danger; } &.flat { color: $text-dim; }
           }
+          .kpi-sub { font-size: 10px; color: $text-dim; margin-top: 4px; font-family: $font-family-mono; }
           &.highlight { border-color: rgba($primary, 0.3); background: linear-gradient(135deg, rgba($primary,0.1), transparent); }
       }
   }
 
-  // === 2. Model Health Row (Restored) ===
+  // === 2. Simulation Status / Progress Row ===
+  .sim-status-row {
+      display: flex; flex-direction: column; gap: 6px;
+  }
+
+  .sim-msg {
+      padding: 10px 16px; border-radius: $radius-sm; font-size: 12px; font-weight: 500;
+      &.idle     { background: rgba(255,255,255,0.04); color: $text-dim; border: 1px solid rgba(255,255,255,0.07); }
+      &.error    { background: rgba($danger, 0.12); color: $danger; border: 1px solid rgba($danger, 0.25); }
+      &.complete { background: rgba($success, 0.1); color: $success; border: 1px solid rgba($success, 0.2); }
+      &.stopped  { background: rgba($text-dim, 0.08); color: $text-dim; border: 1px solid rgba(255,255,255,0.07); }
+  }
+
+  .sim-progress-wrap {
+      height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden;
+      .sim-progress-bar {
+          height: 100%; background: linear-gradient(90deg, $primary, $success); border-radius: 2px;
+          transition: width 0.25s ease;
+      }
+  }
+
+  .sim-progress-labels {
+      display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: $text-dim;
+      .mono { font-family: $font-family-mono; font-weight: 600; }
+  }
+
+  .mpc-on      { font-size: 11px; font-weight: 600; color: $success; }
+  .mpc-warming { font-size: 11px; font-weight: 600; color: $warning; }
+  .mpc-standby { font-size: 11px; font-weight: 500; color: $text-dim; }
+
+  .sim-time-label {
+      font-family: $font-family-mono; font-size: 11px; color: $text-dim;
+      .mode-inline { font-weight: 700; }
+  }
+
+  // === 2a. MPC Controller Status Sidebar ===
+  .mpc-status-box {
+      display: flex; flex-direction: column; gap: 8px;
+      .status-idle { font-size: 12px; color: $text-dim; line-height: 1.5; }
+  }
+
+  .status-row {
+      display: flex; justify-content: space-between; align-items: center; font-size: 11px;
+      .label { color: $text-dim; }
+  }
+
+  .mode-badge {
+      display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; color: #fff; letter-spacing: 0.05em;
+      .mode-sub { font-weight: 400; opacity: 0.8; font-size: 9px; text-transform: none; }
+  }
+
+  .status-chip {
+      padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600;
+      &.active  { background: rgba($success, 0.15); color: $success; border: 1px solid rgba($success, 0.3); }
+      &.warming { background: rgba($warning, 0.12); color: $warning; border: 1px solid rgba($warning, 0.25); }
+      &.standby { background: rgba(255,255,255,0.06); color: $text-dim; border: 1px solid rgba(255,255,255,0.1); }
+  }
+
+  .mono-val {
+      font-family: $font-family-mono; font-size: 11px; color: $text-main; font-weight: 600;
+  }
+
+  // === 2b. Model Health Row (Restored) ===
   .model-health-row {
       display: flex; gap: 12px; align-items: center;
       .health-label { font-size: 11px; font-weight: 600; color: $text-dim; text-transform: uppercase; margin-right: 8px; }
@@ -59,14 +125,24 @@
       .cw-header {
           @include flex-between; margin-bottom: 16px;
           h3 { font-size: 14px; font-weight: 600; color: $text-main; margin: 0; }
-          .cw-legend { 
+          .cw-legend {
               display: flex; gap: 16px; font-size: 11px; color: $text-dim;
               span { display: flex; align-items: center; gap: 6px; }
-              .line { width: 12px; height: 2px; &.temp { background: $primary; } &.set { border-top: 2px dashed $success; background: transparent; } }
+              .line {
+                  width: 12px; height: 2px;
+                  &.temp    { background: $primary; }
+                  &.outdoor { border-top: 2px dashed #94a3b8; background: transparent; height: 0; }
+                  &.set     { border-top: 2px dashed $success; background: transparent; height: 0; }
+              }
               .area { width: 12px; height: 12px; border-radius: 2px; &.energy { background: rgba($warning, 0.5); } }
           }
       }
       .cw-body { flex: 1; min-height: 0; }
+
+      .chart-empty {
+          height: 100%; min-height: 240px; display: flex; align-items: center; justify-content: center;
+          span { font-size: 13px; color: $text-dim; opacity: 0.6; }
+      }
       
       .horizon-track {
           display: flex; margin-top: 12px; height: 20px; border-radius: 4px; overflow: hidden; font-size: 9px; font-weight: 700; text-transform: uppercase; line-height: 20px; text-align: center;
@@ -82,12 +158,28 @@
       .scenario-card {
           @include glass-panel; padding: 16px; border: 1px solid rgba(255,255,255,0.05);
           &.active { border-color: $primary; background: rgba($primary, 0.05); }
+          &.alt    { border-color: rgba(255,255,255,0.07); }
           .sc-header { font-size: 12px; font-weight: 700; color: $text-main; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
           .sc-stat { @include flex-between; font-size: 11px; margin-bottom: 6px; span { color: $text-dim; } strong { font-family: $font-family-mono; } }
           .warn { color: $danger; } .good { color: $success; }
           .full-width { width: 100%; }
       }
   }
+
+  // === 5. Post-run Summary Grid ===
+  .sim-summary-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+      .summary-card {
+          @include glass-panel; padding: 16px; border: 1px solid rgba(255,255,255,0.07);
+          .sc-header { font-size: 12px; font-weight: 700; color: $text-main; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+          .sc-stat { @include flex-between; font-size: 11px; margin-bottom: 6px; span { color: $text-dim; } strong { font-family: $font-family-mono; } }
+          .warn { color: $danger; } .good { color: $success; }
+          .full-width { width: 100%; }
+      }
+  }
+
+  // === Utility ===
+  .mt-sm { margin-top: 8px; }
 
   // === Sidebar Components ===
   .hvac-schematic-box {

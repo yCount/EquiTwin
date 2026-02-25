@@ -522,6 +522,210 @@ def get_forecast(request: Request):
     }
 
 
+# ---- Building simulation WebSocket -----------------------------------------
+
+@app.websocket("/simulation/ws")
+async def simulation_ws(ws: WebSocket):
+    """
+    Stream a closed-loop digital-twin simulation tick-by-tick.
+
+    Protocol
+    --------
+    Client → server:
+        {"type": "start", "config": {setpoint, nightSetpoint, nOccupants,
+                                      ticks, initTemp, speed, startHour}}
+        {"type": "stop"}
+
+    Server → client:
+        {"type": "started",  "ticks": int, "has_mpc": bool}
+        {"type": "tick",     ...per-tick data...}
+        {"type": "complete", ...summary...}
+        {"type": "stopped"}
+        {"type": "error",    "message": str}
+    """
+    await ws.accept()
+
+    try:
+        # --- Phase 1: wait for "start" (exclusive receive, no background task yet)
+        start_msg = await ws.receive_json()
+        if start_msg.get("type") != "start":
+            await ws.close()
+            return
+
+        cfg         = start_msg.get("config", {})
+        ticks       = int(cfg.get("ticks",        96))
+        speed       = float(cfg.get("speed",       0.1))
+        setpoint    = float(cfg.get("setpoint",    21.0))
+        night_sp    = float(cfg.get("nightSetpoint", 15.0))
+        n_occ       = int(cfg.get("nOccupants",    10))
+        init_temp   = float(cfg.get("initTemp",    14.0))
+        start_hour  = float(cfg.get("startHour",   0.0))
+
+        # --- Import simulation helpers (inside the handler to avoid module-level cost)
+        from simulate_house import (
+            HouseState, ScheduleConfig, get_building_mode,
+            commercial_occupancy_at, synthetic_weather, mode_hvac,
+            BASE_LOAD_W, _BMODE_LABEL,
+        )
+        import pandas as pd
+
+        schedule = ScheduleConfig(
+            work_setpoint=setpoint,
+            night_setpoint=night_sp,
+            n_occupants=n_occ,
+        )
+        house    = HouseState(indoor_temp=init_temp, co2=450.0, humidity=40.0)
+        sim_start = pd.Timestamp("2025-06-01", tz="UTC") + pd.Timedelta(hours=start_hour)
+
+        # --- Try building the EquiTwin ML stack (graceful fallback if no artifacts)
+        runner   = None
+        has_mpc  = False
+        try:
+            from equitwin_integration.bootstrap import EquiTwinConfig, build_equitwin_stack
+            from equitwin_integration.tick_runner import TickRunner, TickRunnerConfig
+            _arts = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts")
+            _stack = build_equitwin_stack(EquiTwinConfig(artifacts_root=_arts))
+            if _stack.predictors:          # only wire MPC if models are loaded
+                runner  = TickRunner(
+                    _stack,
+                    TickRunnerConfig(group_id="1", temp_target=setpoint, min_warm_rows=70),
+                    weather_client=_stack.weather_client,
+                )
+                has_mpc = True
+        except FileNotFoundError:
+            pass   # no artifacts — simulation runs as a pure proportional thermostat
+
+        await ws.send_json({"type": "started", "ticks": ticks, "has_mpc": has_mpc})
+
+        # --- Phase 2: background task listens for "stop"; main loop runs the sim
+        stop_event = asyncio.Event()
+
+        async def _recv_loop():
+            try:
+                while True:
+                    msg = await ws.receive_json()
+                    if msg.get("type") == "stop":
+                        stop_event.set()
+                        break
+            except Exception:
+                stop_event.set()
+
+        recv_task = asyncio.create_task(_recv_loop())
+        mpc_tick_count = 0
+
+        try:
+            for tick in range(ticks):
+                if stop_event.is_set():
+                    await ws.send_json({"type": "stopped"})
+                    return
+
+                sim_ts = sim_start + pd.Timedelta(minutes=15 * tick)
+
+                b_mode, sp, band, max_hvac_w, heating_only = get_building_mode(
+                    tick, start_hour, schedule)
+                n_people, entries, exits = commercial_occupancy_at(
+                    tick, start_hour, schedule)
+                t_out, weather_cond, sunlight = synthetic_weather(tick)
+
+                sensor_row = house.to_sensor_row(
+                    timestamp=sim_ts,
+                    sensor_id="1",
+                    outdoor_temp=t_out,
+                    weather_condition=weather_cond,
+                    sunlight=sunlight,
+                    n_people=n_people,
+                    entries=entries,
+                    exits=exits,
+                )
+
+                output = None
+                if runner is not None:
+                    output = runner.tick(
+                        sensor_row=sensor_row,
+                        state={
+                            "temp_target":     sp,
+                            "temp":            house.indoor_temp,
+                            "total_act_power": house.hvac_power_w + BASE_LOAD_W,
+                        },
+                    )
+
+                hvac_w     = mode_hvac(house.indoor_temp, sp, band, max_hvac_w, heating_only)
+                mpc_active = output is not None and output.warmed_up and output.error is None
+                if mpc_active:
+                    mpc_tick_count += 1
+
+                tick_data: dict = {
+                    "type":               "tick",
+                    "tick":               tick,
+                    "total_ticks":        ticks,
+                    "sim_time":           sim_ts.isoformat(),
+                    "mode":               _BMODE_LABEL.get(b_mode, str(b_mode)).strip(),
+                    "mpc_active":         mpc_active,
+                    "warming_up":         output is not None and not output.warmed_up,
+                    "indoor_temp":        round(house.indoor_temp, 1),
+                    "outdoor_temp":       round(t_out, 1),
+                    "setpoint":           round(sp, 1),
+                    "co2":                round(house.co2),
+                    "humidity":           round(house.humidity, 1),
+                    "n_people":           int(n_people),
+                    "hvac_w":             round(hvac_w),
+                    "cumulative_kwh":     round(house.cumulative_kwh, 2),
+                    "forecast_energy_st1": None,
+                    "energy_budget_lt":   None,
+                    "temp_ref_lt":        None,
+                    "error":              output.error if output else None,
+                }
+
+                if mpc_active and output:
+                    eb = output.bundle.by_feature.get("energy") if output.bundle else None
+                    if eb and 1 in eb.st:
+                        tick_data["forecast_energy_st1"] = round(float(eb.st[1][0]))
+                    refs = output.outer_plan.refs if output.outer_plan else {}
+                    if refs.get("energy_budget_lt"):
+                        tick_data["energy_budget_lt"] = {
+                            str(k): round(float(v)) for k, v in refs["energy_budget_lt"].items()
+                        }
+                    if refs.get("temp_ref_lt"):
+                        tick_data["temp_ref_lt"] = {
+                            str(k): round(float(v), 1) for k, v in refs["temp_ref_lt"].items()
+                        }
+
+                await ws.send_json(tick_data)
+
+                # Advance physics AFTER sending so tick 0 shows the initial state
+                house.step(
+                    hvac_w=hvac_w, outdoor_temp=t_out,
+                    n_people=n_people, temp_target=sp,
+                )
+
+                if speed > 0:
+                    await asyncio.sleep(speed)
+
+            # Simulation completed normally
+            await ws.send_json({
+                "type":          "complete",
+                "final_temp":    round(house.indoor_temp, 1),
+                "final_co2":     round(house.co2),
+                "final_humidity": round(house.humidity, 1),
+                "total_kwh":     round(house.cumulative_kwh, 2),
+                "mpc_ticks":     mpc_tick_count,
+                "total_ticks":   ticks,
+            })
+
+        finally:
+            recv_task.cancel()
+            try:
+                await recv_task
+            except asyncio.CancelledError:
+                pass
+
+    except Exception as exc:
+        try:
+            await ws.send_json({"type": "error", "message": str(exc)})
+        except Exception:
+            pass
+
+
 # ---- WebSocket for live telemetry push --------------------------------------
 @app.websocket("/telemetry/ws")
 async def telemetry_ws(ws: WebSocket):
