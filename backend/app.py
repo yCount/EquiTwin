@@ -186,7 +186,31 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
     if table not in _ALLOWED_TABLES:
         raise HTTPException(status_code=400, detail=f"Table '{table}' not allowed.")
 
-    bucket_secs = max(60, min(bucket_minutes * 60, 86400))
+    _fallback_secs = max(60, min(bucket_minutes * 60, 86400))
+
+    # Discover available columns and auto-detect bucket size from data span.
+    with engine.connect() as conn:
+        schema = {
+            r[0]
+            for r in conn.execute(
+                text("SELECT column_name FROM information_schema.columns"
+                     " WHERE table_name = :t"),
+                {"t": table},
+            )
+        }
+        ts_range = conn.execute(
+            text(f"SELECT MIN(timestamp), MAX(timestamp) FROM {table}")
+        ).fetchone()
+
+    span_secs: float = 0.0
+    if ts_range and ts_range[0] and ts_range[1]:
+        span_secs = (ts_range[1] - ts_range[0]).total_seconds()
+
+    if span_secs <= 7_200:        bucket_secs = 60       # ≤ 2 h  → 1-min
+    elif span_secs <= 43_200:     bucket_secs = 300      # ≤ 12 h → 5-min
+    elif span_secs <= 172_800:    bucket_secs = 900      # ≤ 48 h → 15-min
+    elif span_secs <= 604_800:    bucket_secs = 3_600    # ≤ 7 d  → 1-hr
+    else:                         bucket_secs = _fallback_secs
 
     def bkt(col: str = "timestamp") -> str:
         return (
@@ -197,29 +221,20 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
     def grp(col: str = "timestamp") -> str:
         return f"FLOOR(EXTRACT(EPOCH FROM {col}) / {bucket_secs})"
 
-    # Discover available columns once.
-    with engine.connect() as conn:
-        schema = {
-            r[0]
-            for r in conn.execute(
-                text("SELECT column_name FROM information_schema.columns"
-                     " WHERE table_name = :t"),
-                {"t": table},
-            )
-        }
-
     def run(sql: str) -> list:
         with engine.connect() as conn:
             return conn.execute(text(sql)).fetchall()
 
     result: dict = {}
+    has_et = "event_type" in schema  # some schemas omit this column
 
     # --- Temperature (indoor, from AQ sensor) --------------------------------
     if "temp" in schema:
+        et_filter = "event_type = 'NORMAL_AQ' AND " if has_et else ""
         rows = run(f"""
             SELECT {bkt()} AS ts, AVG(temp) AS v
             FROM {table}
-            WHERE event_type = 'NORMAL_AQ' AND temp IS NOT NULL
+            WHERE {et_filter}temp IS NOT NULL
             GROUP BY {grp()} ORDER BY ts
         """)
         result["temperature"] = [
@@ -231,10 +246,11 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
 
     # --- Air quality (CO2 from AQ sensor) ------------------------------------
     if "co2" in schema:
+        et_filter = "event_type = 'NORMAL_AQ' AND " if has_et else ""
         rows = run(f"""
             SELECT {bkt()} AS ts, AVG(co2) AS v
             FROM {table}
-            WHERE event_type = 'NORMAL_AQ' AND co2 IS NOT NULL
+            WHERE {et_filter}co2 IS NOT NULL
             GROUP BY {grp()} ORDER BY ts
         """)
         result["airQuality"] = [
@@ -270,41 +286,46 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
     else:
         result["occupancy"] = []
 
-    # --- Energy (total active power, split by circuit) -----------------------
+    # --- Energy (average active power in kW, split by circuit) ---------------
+    # Use AVG (not SUM) so the chart shows power level, not energy total.
+    # Divide by 1000 to convert W → kW.
     if "total_act_power" in schema:
+        et_filter = "event_type = 'NORMAL_EM' AND " if has_et else ""
         has_circuit = "circuit_id" in schema
         if has_circuit:
             rows = run(f"""
                 SELECT
                     {bkt()} AS ts,
-                    SUM(COALESCE(total_act_power,0)) AS total,
-                    SUM(CASE WHEN circuit_id = '0'
-                        THEN COALESCE(total_act_power,0) ELSE 0 END) AS c0,
-                    SUM(CASE WHEN circuit_id = '1'
-                        THEN COALESCE(total_act_power,0) ELSE 0 END) AS c1
+                    AVG(total_act_power) / 1000.0 AS total,
+                    AVG(CASE WHEN circuit_id = '0'
+                        THEN total_act_power END) / 1000.0 AS c0,
+                    AVG(CASE WHEN circuit_id = '1'
+                        THEN total_act_power END) / 1000.0 AS c1
                 FROM {table}
-                WHERE event_type = 'NORMAL_EM' AND total_act_power IS NOT NULL
+                WHERE {et_filter}total_act_power IS NOT NULL
                 GROUP BY {grp()} ORDER BY ts
             """)
             result["energy"] = [
                 {
                     "ts": r[0].isoformat(),
-                    "value":    round(float(r[1]), 2),
-                    "circuit0": round(float(r[2]), 2),
-                    "circuit1": round(float(r[3]), 2),
+                    "value":    round(float(r[1]), 3) if r[1] is not None else 0.0,
+                    "circuit0": round(float(r[2]), 3) if r[2] is not None else 0.0,
+                    "circuit1": round(float(r[3]), 3) if r[3] is not None else 0.0,
                 }
                 for r in rows if r[0] and r[1] is not None
             ]
         else:
             rows = run(f"""
-                SELECT {bkt()} AS ts, SUM(COALESCE(total_act_power,0)) AS total
+                SELECT {bkt()} AS ts, AVG(total_act_power) / 1000.0 AS total
                 FROM {table}
-                WHERE event_type = 'NORMAL_EM' AND total_act_power IS NOT NULL
+                WHERE {et_filter}total_act_power IS NOT NULL
                 GROUP BY {grp()} ORDER BY ts
             """)
             result["energy"] = [
-                {"ts": r[0].isoformat(), "value": round(float(r[1]), 2),
-                 "circuit0": round(float(r[1]), 2), "circuit1": 0.0}
+                {"ts": r[0].isoformat(),
+                 "value":    round(float(r[1]), 3) if r[1] is not None else 0.0,
+                 "circuit0": round(float(r[1]), 3) if r[1] is not None else 0.0,
+                 "circuit1": 0.0}
                 for r in rows if r[0] and r[1] is not None
             ]
     else:
