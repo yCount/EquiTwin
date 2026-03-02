@@ -63,7 +63,7 @@ _AQ_EVENTS:     frozenset = frozenset({"NORMAL_AQ"})
 
 #: Columns that should be numeric but may arrive as object/varchar.
 _NUMERIC_COLS: List[str] = [
-    # ── Energy meter ──────────────────────────────────────────────────────
+    # Energy meter
     "total_act_power", "total_current", "total_aprt_power",
     "a_act_power",     "b_act_power",   "c_act_power",
     "a_current",       "b_current",     "c_current",
@@ -71,12 +71,12 @@ _NUMERIC_COLS: List[str] = [
     "a_aprt_power",    "b_aprt_power",  "c_aprt_power",
     "a_pf",            "b_pf",          "c_pf",
     "a_freq",          "b_freq",        "c_freq",
-    # ── Air quality ───────────────────────────────────────────────────────
+    # Air quality
     "co2", "temp", "humidity", "voc",
     "pm1", "pm2p5", "pm4", "pm10",
-    # ── Occupancy ─────────────────────────────────────────────────────────
+    # Occupancy
     "num_targets", "entries", "exits",
-    # ── Misc ──────────────────────────────────────────────────────────────
+    # Misc
     "quality_score", "battery_v",
 ]
 
@@ -171,18 +171,18 @@ def compute_occupancy_num_targets(
     """
     Populate ``num_targets`` for occupancy sensor rows using a three-step strategy.
 
-    Step A – VARCHAR coerce
+    Step A: VARCHAR coerce
         If ``num_targets`` is stored as a text column (e.g. the string "18"),
         ``pd.to_numeric`` converts it to 18.0.  This is the most common case
         when the occupancy sensor embeds the person count in a varchar field.
 
-    Step B – cumulative entries / exits
+    Step B: cumulative entries / exits
         If ``num_targets`` is still all-NULL for occupancy rows after step A,
         compute a running occupancy count per sensor group:
             num_targets = cumsum(entries) - cumsum(exits), clipped ≥ 0.
         ``entries`` and ``exits`` are also coerced to numeric first.
 
-    Step C – forward-fill
+    Step C: forward-fill
         Any remaining NaN values in ``num_targets`` (within occupancy rows)
         are forward-filled so that lag features can be computed.
     """
@@ -251,7 +251,7 @@ def compute_occupancy_num_targets(
     return out
 
 
-# Step 4 – cross-sensor forward-fill
+# Step 4 cross-sensor forward-fill
 
 def cross_sensor_ffill(
     df: pd.DataFrame,

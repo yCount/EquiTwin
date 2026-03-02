@@ -294,8 +294,7 @@ class WeatherClient:
         """
         Merge hourly weather data into a sensor DataFrame.
 
-        Algorithm
-        ---------
+        Algorithm:
         1. Floor each sensor timestamp to the hour boundary.
         2. Left-merge on the floored key against weather_df["timestamp"].
         3. Drop the temporary key column.
@@ -303,8 +302,7 @@ class WeatherClient:
         This avoids merge_asof (requires sorted frames) in favour of a simple
         key merge that works even on unsorted data.
 
-        NaN handling
-        ------------
+        NaN handling:
         Rows without a matching weather hour get NaN for all three weather cols.
         The ColumnTransformer's SimpleImputer / OHE(handle_unknown="ignore")
         absorb those NaNs safely during both training and inference.

@@ -114,7 +114,7 @@ def build_features_longterm(
     Build features at a long-term cadence by aggregating the raw (typically 15m) data
     into fixed blocks (default: 4 hours = 240 minutes).
 
-    Output schema intentionally matches `FeatureBuffer4h`:
+    Output schema matches `FeatureBuffer4h`:
     - aggregated base columns (same names)
     - lagged long-term columns: <col>_ltlag<L>
     - time features from the block end timestamp

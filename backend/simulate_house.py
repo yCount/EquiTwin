@@ -54,9 +54,7 @@ from typing import Any, Dict, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-# ---------------------------------------------------------------------------
 # House physics constants
-# ---------------------------------------------------------------------------
 
 HVAC_MAX_W       = 2500.0   # max HVAC electrical power [W]
 HVAC_STANDBY_W   = 80.0     # fan-only draw when HVAC 'off' [W]
@@ -78,10 +76,7 @@ HUM_DECAY_FRAC   = 1 - math.exp(-15 / 180)  # humidity decay per tick (tau=3 h)
 
 DT_S             = 900.0    # seconds per tick (15 min)
 
-
-# ---------------------------------------------------------------------------
 # Building operation modes
-# ---------------------------------------------------------------------------
 
 class BuildingMode:
     PRE       = "PRE"
@@ -196,10 +191,7 @@ def commercial_occupancy_at(
     exits   = max(0, n_prev - n_now)
     return n_now, entries, exits
 
-
-# ---------------------------------------------------------------------------
 # Synthetic weather  (used when WeatherClient not available)
-# ---------------------------------------------------------------------------
 
 def synthetic_weather(tick: int) -> Tuple[float, str, float]:
     """
@@ -227,9 +219,7 @@ def synthetic_weather(tick: int) -> Tuple[float, str, float]:
     return round(temp, 1), cond, round(sun, 1)
 
 
-# ---------------------------------------------------------------------------
 # House state + physics step
-# ---------------------------------------------------------------------------
 
 @dataclass
 class HouseState:
@@ -252,7 +242,7 @@ class HouseState:
         self.n_people    = n_people
         self.hvac_power_w = hvac_w
 
-        # ── Thermal ──────────────────────────────────────────────────────
+        # Thermal
         # Q_hvac: positive = heating, negative = cooling  [W]
         if self.indoor_temp < temp_target:
             q_hvac = hvac_w * COP_HEAT
@@ -265,19 +255,19 @@ class HouseState:
         )
         self.indoor_temp = round(self.indoor_temp + dT, 2)
 
-        # ── CO2 ──────────────────────────────────────────────────────────
+        # CO2
         self.co2 += n_people * CO2_PER_PPL_TICK
         self.co2 -= CO2_VENT_FRAC * (self.co2 - CO2_OUTDOOR_PPM)
         self.co2  = max(CO2_OUTDOOR_PPM, round(self.co2, 1))
 
-        # ── Humidity ─────────────────────────────────────────────────────
+        # Humidity
         self.humidity += n_people * HUM_PER_PPL_TICK
         if hvac_w > 500 and self.indoor_temp >= temp_target:
             self.humidity -= 0.5           # dehumidify during cooling
         self.humidity -= HUM_DECAY_FRAC * (self.humidity - HUM_BASE_PCT)
         self.humidity  = max(20.0, min(95.0, round(self.humidity, 1)))
 
-        # ── Energy ───────────────────────────────────────────────────────
+        # Energy
         total_w = hvac_w + BASE_LOAD_W
         self.cumulative_kwh += total_w * DT_S / 3_600_000.0
 
@@ -343,10 +333,7 @@ class HouseState:
             "sunlight":         sunlight,
         }
 
-
-# ---------------------------------------------------------------------------
 # Mode-aware HVAC controller
-# ---------------------------------------------------------------------------
 
 def mode_hvac(
     indoor_temp:  float,
@@ -372,10 +359,7 @@ def mode_hvac(
     fraction = min(1.0, error / band)
     return HVAC_STANDBY_W + fraction * (max_w - HVAC_STANDBY_W)
 
-
-# ---------------------------------------------------------------------------
 # Display helpers
-# ---------------------------------------------------------------------------
 
 _HDR = (
     f"{'Tick':>4}  {'Time':>5}  {'Mode':>6}  "
@@ -447,10 +431,7 @@ def _print_tick(
         f"{refs_str}"
     )
 
-
-# ---------------------------------------------------------------------------
 # Main simulation
-# ---------------------------------------------------------------------------
 
 SIGNAL_COLS = [
     "total_current", "total_act_power", "total_aprt_power",
@@ -503,7 +484,7 @@ def main() -> None:
 
     GROUP_ID = args.group
 
-    # ── Build schedule config ─────────────────────────────────────────────
+    # Build schedule config
     schedule = ScheduleConfig(
         pre_start=args.pre_start,
         work_start=args.work_start,
@@ -514,7 +495,7 @@ def main() -> None:
         n_occupants=args.occupants,
     )
 
-    # ── Print banner ─────────────────────────────────────────────────────
+    # Print banner
     lat = os.environ.get("WEATHER_LAT", "?")
     lon = os.environ.get("WEATHER_LON", "?")
     weather_src = f"Open-Meteo ({lat},{lon})" if lat != "?" else "synthetic (set WEATHER_LAT/LON)"
@@ -537,7 +518,7 @@ def main() -> None:
           f"Occupants={schedule.n_occupants}")
     print("=" * 80)
 
-    # ── Build EquiTwin stack ──────────────────────────────────────────────
+    # Build EquiTwin stack
     print("\n[+] Building EquiTwin stack...")
     from equitwin_integration.bootstrap import EquiTwinConfig, build_equitwin_stack
     from equitwin_integration.tick_runner import TickRunner, TickRunnerConfig
@@ -559,14 +540,14 @@ def main() -> None:
     print(f"    Predictors loaded : {list(stack.predictors.keys())}")
     print(f"    Weather client    : {'active' if stack.weather_client else 'none (NaN)'}")
 
-    # ── Initialise house state ────────────────────────────────────────────
+    # Initialise house state
     house = HouseState(
         indoor_temp=args.init_temp,
         co2=450.0,
         humidity=40.0,
     )
 
-    # ── Simulation time base ─────────────────────────────────────────────
+    # Simulation time base
     sim_start = pd.Timestamp("2025-06-01", tz="UTC") + pd.Timedelta(hours=args.start_hour)
 
     print(f"\n[+] Simulation starts at {sim_start.strftime('%Y-%m-%d %H:%M UTC')}")
@@ -574,13 +555,12 @@ def main() -> None:
           f"HVAC max: {HVAC_MAX_W:.0f} W  |  "
           f"COP heat/cool: {COP_HEAT}/{COP_COOL}")
 
-    # ── Table header ─────────────────────────────────────────────────────
     print()
     print("  [Mode+]  time  T_in  T_out  T_set  CO2  Hum  Occ  HVAC_W  E_kWh  FC_E_ST1  MPC_refs")
     print("  Mode: NGHT=Night  PRE=Pre-shift  WORK=Workshift  POST=Post-shift  +=MPC active")
     _print_header()
 
-    # ── Main loop ─────────────────────────────────────────────────────────
+    # Main loop
     mpc_tick_count = 0
 
     for tick in range(args.ticks):
@@ -646,7 +626,7 @@ def main() -> None:
         if args.speed > 0:
             time.sleep(args.speed)
 
-    # ── End-of-simulation summary ─────────────────────────────────────────
+    # Summary
     print(_SEP)
     print()
     b_mode_final, setpoint_final, *_ = get_building_mode(

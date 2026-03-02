@@ -6,7 +6,10 @@ Glues: services/* + adapters/* + security
 """
 
 import asyncio
+import json
+import math
 import os
+import sys
 from contextlib import asynccontextmanager
 from decimal import Decimal
 from fastapi import FastAPI, HTTPException, Request, WebSocket, Depends
@@ -713,6 +716,195 @@ async def simulation_ws(ws: WebSocket):
             })
 
         finally:
+            recv_task.cancel()
+            try:
+                await recv_task
+            except asyncio.CancelledError:
+                pass
+
+    except Exception as exc:
+        try:
+            await ws.send_json({"type": "error", "message": str(exc)})
+        except Exception:
+            pass
+
+
+# ---- Artifacts status --------------------------------------------------------
+
+_KNOWN_FEATURES = ["energy", "temperature", "airquality", "occupancy"]
+
+
+@app.get("/api/artifacts/status")
+def artifacts_status():
+    """
+    Walk the artifacts directory and return per-feature / per-horizon metadata.
+    Reads the metadata.json stored alongside each model.joblib by training.service.
+    NaN values (R²) are normalised to null for safe JSON serialisation.
+    """
+    arts_root = os.environ.get(
+        "ARTIFACTS_ROOT",
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts"),
+    )
+
+    def _safe(v):
+        """Return None instead of NaN / Inf so the response is valid JSON."""
+        if v is None:
+            return None
+        try:
+            if math.isnan(v) or math.isinf(v):
+                return None
+        except TypeError:
+            pass
+        return v
+
+    result: Dict[str, Any] = {}
+    for feature in _KNOWN_FEATURES:
+        best_dir = os.path.join(arts_root, feature, "best")
+        feature_data: Dict[str, Dict] = {"st": {}, "lt": {}}
+
+        if os.path.isdir(best_dir):
+            for entry in os.listdir(best_dir):
+                # Expect names like  st_h1  lt_h3  etc.
+                if "_h" not in entry:
+                    continue
+                level, h_str = entry.split("_h", 1)
+                if level not in ("st", "lt"):
+                    continue
+                meta_path = os.path.join(best_dir, entry, "metadata.json")
+                if not os.path.exists(meta_path):
+                    continue
+                try:
+                    with open(meta_path, "r") as fh:
+                        raw = json.load(fh)
+                    feature_data[level][h_str] = {
+                        "model":  raw.get("model"),
+                        "mae":    _safe(raw.get("mae")),
+                        "rmse":   _safe(raw.get("rmse")),
+                        "r2":     _safe(raw.get("r2")),
+                        "n_rows": raw.get("n_rows"),
+                    }
+                except Exception:
+                    pass  # corrupt metadata — skip silently
+
+        result[feature] = feature_data
+
+    return result
+
+
+# ---- Training WebSocket ------------------------------------------------------
+
+@app.websocket("/training/ws")
+async def training_ws(ws: WebSocket):
+    """
+    Stream a training run (equitwin_integration.train_all) tick-by-tick.
+
+    Protocol
+    --------
+    Client → server:
+        {"type": "start", "mode": "fast"|"normal"|"full",
+         "features": [...], "table": "matches"}
+        {"type": "stop"}
+
+    Server → client:
+        {"type": "started",       "mode": str, "features": [...]}
+        {"type": "log",           "line": str,
+         "feature_start": str|null, "feature_done": str|null}
+        {"type": "complete",      "success": bool, "returncode": int}
+        {"type": "stopped"}
+        {"type": "error",         "message": str}
+    """
+    await ws.accept()
+
+    try:
+        # Phase 1: wait for "start"
+        start_msg = await ws.receive_json()
+        if start_msg.get("type") != "start":
+            await ws.close()
+            return
+
+        mode     = start_msg.get("mode", "fast")
+        features = start_msg.get("features") or _KNOWN_FEATURES
+        table    = start_msg.get("table", "matches")
+
+        db_url = os.environ.get("DATABASE_URL")
+        if not db_url:
+            await ws.send_json({
+                "type":    "error",
+                "message": "DATABASE_URL env var not set — cannot run training.",
+            })
+            return
+
+        backend_dir = os.path.dirname(os.path.abspath(__file__))
+
+        cmd: List[str] = [
+            sys.executable, "-m", "equitwin_integration.train_all",
+            "--db-url", db_url,
+            "--table", table,
+            "--mode",  mode,
+            "--features", *features,
+        ]
+
+        await ws.send_json({"type": "started", "mode": mode, "features": features})
+
+        # Phase 2: subprocess + background stop listener
+        stop_event = asyncio.Event()
+
+        async def _recv_loop():
+            try:
+                while True:
+                    msg = await ws.receive_json()
+                    if msg.get("type") == "stop":
+                        stop_event.set()
+                        break
+            except Exception:
+                stop_event.set()
+
+        recv_task = asyncio.create_task(_recv_loop())
+        proc: asyncio.subprocess.Process | None = None
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+                cwd=backend_dir,
+            )
+
+            async for raw_line in proc.stdout:          # type: ignore[union-attr]
+                if stop_event.is_set():
+                    proc.kill()
+                    await ws.send_json({"type": "stopped"})
+                    return
+
+                line = raw_line.decode("utf-8", errors="replace").rstrip()
+
+                msg_out: Dict[str, Any] = {"type": "log", "line": line,
+                                            "feature_start": None, "feature_done": None}
+
+                stripped = line.strip()
+                # Detect feature boundaries from train_all.py print statements
+                for fname in _KNOWN_FEATURES:
+                    if stripped == f"--- {fname.upper()} ---":
+                        msg_out["feature_start"] = fname
+                    if stripped in (f"✓ {fname} done.", f"v {fname} done."):
+                        msg_out["feature_done"] = fname
+
+                await ws.send_json(msg_out)
+
+            await proc.wait()
+            success = (proc.returncode == 0)
+            await ws.send_json({
+                "type":       "complete",
+                "success":    success,
+                "returncode": proc.returncode,
+            })
+
+        finally:
+            if proc and proc.returncode is None:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
             recv_task.cancel()
             try:
                 await recv_task
