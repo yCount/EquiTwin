@@ -10,7 +10,7 @@ import pandas as pd
 from core.data import DataSpec, load_table
 from core.featurize import FeatureSpec, build_features, build_features_longterm
 from core.persist import save_model, load_model, save_metrics_csv
-from core.preprocess import preprocess_raw_table
+from core.preprocess import preprocess_raw_table, resample_to_15min
 from core.split import SplitSpec
 from training.search import SearchSpec, evaluate_models, fit_best_model
 
@@ -160,6 +160,13 @@ def train_feature_best_models(
     raw = preprocess_raw_table(
         raw,
         feature_name=feature.name,
+        ts_col=feature.ts_col,
+        group_col=feature.group_col or "sensor_id",
+    )
+
+    # Downsample to 15-minute cadence
+    raw = resample_to_15min(
+        raw,
         ts_col=feature.ts_col,
         group_col=feature.group_col or "sensor_id",
     )

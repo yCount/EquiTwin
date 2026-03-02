@@ -325,6 +325,102 @@ def cross_sensor_ffill(
     return out
 
 
+# Step 5 – 15-minute downsampling
+
+# Columns that represent event counts - sum within the window.
+_SUM_COLS: frozenset = frozenset({"entries", "exits"})
+
+# Point-in-time columns → take the last observed value in the window.
+_LAST_COLS: frozenset = frozenset({
+    "num_targets",
+    "weather_condition", "action", "quality", "version",
+})
+
+
+def resample_to_15min(
+    df: pd.DataFrame,
+    *,
+    ts_col: str = "timestamp",
+    group_col: str = "sensor_id",
+    freq: str = "15min",
+) -> pd.DataFrame:
+    """
+    Downsample high-frequency sensor data to 15-minute (or other) buckets.
+
+    - Aggregation rules:
+        - ``entries``, ``exits`` : **sum**  - event counts accumulate in the window.
+        - ``num_targets``        : **last** - point-in-time occupancy at window end.
+        - categorical / object   : **last** - keep most recent string value.
+        - all other numeric      : **mean** - average reading over the window.
+
+    Empty 15-minute buckets (no sensor rows in that window) are dropped so
+    that downstream lag computation is not distorted by artificial NaN rows.
+
+    - Parameters:
+    df        : Preprocessed DataFrame (output of ``preprocess_raw_table()``).
+    ts_col    : Timestamp column name.
+    group_col : Sensor-group column; resampling is done per-group so that
+                different sensor groups don't bleed into each other.
+    freq      : pandas offset alias for the target cadence (default ``"15min"``).
+
+    - Returns:
+    pd.DataFrame
+        One row per (group, 15-min bucket) containing aggregated readings.
+        The timestamp column holds the *left edge* of each bucket (pandas
+        resample default).
+    """
+    df = df.copy()
+    df[ts_col] = pd.to_datetime(df[ts_col], utc=True, errors="coerce")
+    df = df.dropna(subset=[ts_col]).copy()
+    df = df.sort_values(ts_col)
+
+    num_cols = df.select_dtypes(include="number").columns.tolist()
+    obj_cols = [
+        c for c in df.select_dtypes(exclude="number").columns
+        if c != ts_col
+    ]
+
+    def _agg_group(gdf: pd.DataFrame) -> pd.DataFrame:
+        gdf = gdf.set_index(ts_col)
+        agg: dict = {}
+        for c in num_cols:
+            if c not in gdf.columns:
+                continue
+            if c in _SUM_COLS:
+                agg[c] = "sum"
+            elif c in _LAST_COLS:
+                agg[c] = "last"
+            else:
+                agg[c] = "mean"
+        for c in obj_cols:
+            if c in gdf.columns:
+                agg[c] = "last"
+        if not agg:
+            return pd.DataFrame()
+        resampled = gdf.resample(freq, label="left", closed="left").agg(agg)
+        return resampled.dropna(how="all").reset_index()
+
+    has_group = (
+        group_col in df.columns
+        and df[group_col].notna().any()
+    )
+
+    if has_group:
+        parts = []
+        for gid, gdf in df.groupby(group_col, sort=False):
+            part = _agg_group(gdf.drop(columns=[group_col], errors="ignore"))
+            if not part.empty:
+                part[group_col] = gid
+                parts.append(part)
+        if not parts:
+            return df.iloc[:0].copy()
+        result = pd.concat(parts, ignore_index=True).sort_values(ts_col)
+    else:
+        result = _agg_group(df)
+
+    return result
+
+
 # Main entry point
 
 def preprocess_raw_table(
