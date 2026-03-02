@@ -157,13 +157,19 @@ def get_db_rows(page: int = 1, page_size: int = 50, table: str = "matches"):
 
         if has_entries and has_exits:
             # Running net occupancy: cumulative entries minus exits, never < 0.
+            # PARTITION BY day resets the count at midnight each calendar day so
+            # that undetected exits don't cause the total to drift across days.
             # Window function runs over all rows before LIMIT/OFFSET, so the
-            # value on page 3 correctly reflects everything that happened before it.
+            # value on page 3 correctly reflects the full day's running total.
             extra_select += (
                 ",\n  GREATEST(0,\n"
-                "    SUM(COALESCE(entries,0)) OVER (ORDER BY timestamp, id\n"
+                "    SUM(COALESCE(entries,0)) OVER (\n"
+                "      PARTITION BY DATE_TRUNC('day', timestamp)\n"
+                "      ORDER BY timestamp, id\n"
                 "      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) -\n"
-                "    SUM(COALESCE(exits,0))   OVER (ORDER BY timestamp, id\n"
+                "    SUM(COALESCE(exits,0))   OVER (\n"
+                "      PARTITION BY DATE_TRUNC('day', timestamp)\n"
+                "      ORDER BY timestamp, id\n"
                 "      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)\n"
                 "  ) AS net_occupancy"
             )
@@ -313,20 +319,27 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
     else:
         result["airQuality"] = []
 
-    # --- Occupancy (running net entries − exits) ------------------------------
+    # Occupancy (running net entries − exits, reset each calendar day)
     if "entries" in schema and "exits" in schema:
+        _occ_ev = (
+            "event_type IN ('NO_MOVEMENT','EXIT_DETECTED','ENTRY_DETECTED','MOVEMENT_DETECTED') AND "
+            if has_et else ""
+        )
         rows = run(f"""
             WITH running AS (
                 SELECT timestamp,
                     GREATEST(0,
                         SUM(COALESCE(entries,0)) OVER (
+                            PARTITION BY DATE_TRUNC('day', timestamp)
                             ORDER BY timestamp, id
                             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) -
                         SUM(COALESCE(exits,0)) OVER (
+                            PARTITION BY DATE_TRUNC('day', timestamp)
                             ORDER BY timestamp, id
                             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
                     ) AS net_occ
                 FROM {table}
+                WHERE {_occ_ev}(entries IS NOT NULL OR exits IS NOT NULL)
             )
             SELECT {bkt('timestamp')} AS ts, MAX(net_occ) AS v
             FROM running

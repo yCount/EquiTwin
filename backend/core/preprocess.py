@@ -176,10 +176,15 @@ def compute_occupancy_num_targets(
         ``pd.to_numeric`` converts it to 18.0.  This is the most common case
         when the occupancy sensor embeds the person count in a varchar field.
 
-    Step B: cumulative entries / exits
+    Step B: cumulative entries / exits (daily reset)
         If ``num_targets`` is still all-NULL for occupancy rows after step A,
-        compute a running occupancy count per sensor group:
+        compute a running occupancy count per sensor group **per calendar day**:
             num_targets = cumsum(entries) - cumsum(exits), clipped ≥ 0.
+        The cumulation resets to zero at the start of each UTC calendar day so
+        that undetected exits (e.g. people leaving through emergency exits or
+        tail-gating) do not cause the count to drift upward indefinitely across
+        multiple days.  By midnight the building is empty, so starting each day
+        from zero is the correct prior.
         ``entries`` and ``exits`` are also coerced to numeric first.
 
     Step C: forward-fill
@@ -219,20 +224,28 @@ def compute_occupancy_num_targets(
         if has_entries and has_exits:
             occ_df = out.loc[occ_idx].sort_values(ts_col).copy()
 
+            # Calendar-day key: truncate timestamp to UTC midnight so the
+            # cumulative count resets to 0 at the start of each day.
+            occ_df["_occ_day"] = (
+                pd.to_datetime(occ_df[ts_col], utc=True, errors="coerce")
+                .dt.normalize()
+            )
+
             grp_available = (
                 group_col in out.columns
                 and out.loc[occ_idx, group_col].notna().any()
             )
 
             if grp_available:
-                g = occ_df.groupby(group_col, sort=False)
-                net = (
-                    g["entries"].cumsum() - g["exits"].cumsum()
-                ).clip(lower=0)
+                # Group by (sensor, day) → cumsum resets every day per sensor
+                g = occ_df.groupby([group_col, "_occ_day"], sort=False)
             else:
-                net = (
-                    occ_df["entries"].cumsum() - occ_df["exits"].cumsum()
-                ).clip(lower=0)
+                # Group by day only → still resets daily even without sensor grouping
+                g = occ_df.groupby("_occ_day", sort=False)
+
+            net = (
+                g["entries"].cumsum() - g["exits"].cumsum()
+            ).clip(lower=0)
 
             # Write back in the sorted order
             out.loc[occ_df.index, "num_targets"] = net.values
