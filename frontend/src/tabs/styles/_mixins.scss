@@ -6,19 +6,18 @@
 
 // === GLASS PANEL ===
 @mixin glass-panel {
-  // Subtle diagonal gradient: slightly brighter top-left, darker bottom-right
+  // Diagonal gradient: lifted from near-black bg enough to be clearly distinct
   background: linear-gradient(
     155deg,
-    rgba(255, 255, 255, 0.055) 0%,
-    rgba(255, 255, 255, 0.020) 100%
+    rgba(255, 255, 255, 0.09) 0%,
+    rgba(255, 255, 255, 0.04) 100%
   );
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: $radius-lg;
-  // inset top shine creates a subtle "raised ledge" highlight
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
     0 8px 32px rgba(0, 0, 0, 0.30);
 }
 

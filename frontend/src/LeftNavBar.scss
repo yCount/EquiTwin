@@ -328,3 +328,104 @@ $active-bar-height: 32px;
   margin: 0.5rem 0;
   width: calc(100% - 0.4rem);
 }
+
+// ── Settings overlay (closes popup on outside click) ─────
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: transparent;
+}
+
+// ── Settings popup panel ─────────────────────────────────
+.settings-popup {
+  position: fixed;
+  left: 95px;
+  bottom: 130px;
+  width: 220px;
+  background: #1a1d22;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  z-index: 10000;
+  padding: 16px;
+  font-family: 'Inter', sans-serif;
+
+  // Light mode variant
+  &.light-theme {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.10);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
+
+    .settings-popup-header { color: #94a3b8; }
+    .settings-label { color: #94a3b8; }
+    .theme-option { color: #94a3b8; &.active { color: #0f172a; } }
+  }
+
+  .settings-popup-header {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.35);
+    margin-bottom: 16px;
+  }
+
+  .settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .settings-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: rgba(255, 255, 255, 0.40);
+  }
+
+  .theme-switcher {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .theme-option {
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.35);
+    white-space: nowrap;
+    transition: color 0.2s;
+
+    &.active { color: rgba(255, 255, 255, 0.90); }
+  }
+
+  .theme-pill {
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.25s ease;
+    flex-shrink: 0;
+
+    &.dark  { background: #3b82f6; }
+    &.light { background: #f59e0b; }
+  }
+
+  .pill-thumb {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    top: 3px;
+    transition: left 0.25s ease;
+    pointer-events: none;
+
+    .theme-pill.dark  & { left: 3px; }
+    .theme-pill.light & { left: 23px; }
+  }
+}

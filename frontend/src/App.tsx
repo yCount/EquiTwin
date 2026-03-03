@@ -27,10 +27,12 @@ import {
 } from "@itwin/web-viewer-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Auth } from "./Auth";
+import { useTheme } from "./ThemeContext";
 import { history } from "./history";
 import { unifiedSelectionStorage } from "./selectionStorage";
 
 const App: React.FC = () => {
+  const { theme } = useTheme();
   const [iModelId, setIModelId] = useState(process.env.IMJS_IMODEL_ID);
   const [iTwinId, setITwinId] = useState(process.env.IMJS_ITWIN_ID);
   const [changesetId, setChangesetId] = useState(
@@ -144,7 +146,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="app-root">
+    <div className={`app-root${theme === 'light' ? ' light-theme' : ''}`}>
       {!accessToken && (
         <Flex justifyContent="center" style={{ height: "100%" }}>
           <div className="signin-content">

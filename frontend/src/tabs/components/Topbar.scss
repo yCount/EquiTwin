@@ -25,7 +25,7 @@ $success:       #3fb950;
 
   // Default: plain dark bar, identical shade to right sidebar
   background: $bg-topbar;
-  border-bottom: 1px solid $panel-border;
+  border-bottom: none;
 
   // Background image layer — activated per variant
   &::before {
@@ -39,20 +39,20 @@ $success:       #3fb950;
     pointer-events: none;
   }
 
-  // Repeating icon-pattern watermark — right-side only, activated per variant.
-  // Uses the same icon shape as the tab's nav button, drawn as a stroke outline.
+  // Single large PlayStation-style geometric artwork — right-side only.
+  // Each variant has its own shape tuned to the tab's accent colour.
   &::after {
     content: '';
     position: absolute;
-    top: 0; right: 0; bottom: 0; left: 30%;
+    top: 0; right: 0; bottom: 0; left: 0;
     z-index: 1;
     pointer-events: none;
     opacity: 0;
-    background-repeat: repeat;
-    background-size: 38px 38px;
-    background-position: right 4px top 0;
-    -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.18) 55%, transparent 100%);
-    mask-image:         linear-gradient(to left, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.18) 55%, transparent 100%);
+    background-repeat: no-repeat;
+    background-size: auto 100%;
+    background-position: right center;
+    -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.45) 30%, rgba(0,0,0,0.15) 58%, transparent 78%);
+    mask-image:         linear-gradient(to left, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.45) 30%, rgba(0,0,0,0.15) 58%, transparent 78%);
   }
 }
 
@@ -273,16 +273,6 @@ $success:       #3fb950;
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// ─── VARIANTS ──────────────────────────────────────────────────────────────
-//   Dark base (#111316), colour at the edges only:
-//     • 4px left accent bar with vertical gradient + glow
-//     • 1px bottom gradient line fading right
-//     • Whisper of a radial tint from the left edge into the background
-//     • Faint inset top shadow echoing the accent colour
-//   Background images shown at ≈4.5% opacity on the right half only.
-// ═══════════════════════════════════════════════════════════════════════════
-
 .topbar--home,
 .topbar--dashboard,
 .topbar--forecast,
@@ -302,9 +292,9 @@ $success:       #3fb950;
 
   &::before {
     background-image: url('/public/images/home_bg.webp');
-    opacity: 0.045;
-    -webkit-mask-image: linear-gradient(to left, black 20%, transparent 75%);
-    mask-image: linear-gradient(to left, black 20%, transparent 75%);
+    opacity: 0.40;
+    -webkit-mask-image: linear-gradient(to left, $bg-topbar 80%, transparent 90%);
+    mask-image: linear-gradient(to left, $bg-topbar 80%, transparent 90%);
   }
 
   .topbar-accent {
@@ -335,12 +325,6 @@ $success:       #3fb950;
       &:hover { background: #2563eb; box-shadow: 0 0 10px rgba(59, 130, 246, 0.25); }
     }
   }
-
-  // House outline watermark
-  &::after {
-    opacity: 0.08;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 10l9-7 9 7v11c0 .6-.4 1-1 1H4c-.6 0-1-.4-1-1V10Z'/%3E%3Crect x='10' y='14' width='4' height='7' rx='.5'/%3E%3C/svg%3E");
-  }
 }
 
 // ─── DASHBOARD — Cyan / Sky  (#0ea5e9) ──────────────────────────────────────
@@ -352,9 +336,9 @@ $success:       #3fb950;
 
   &::before {
     background-image: url('/public/images/dashboard_bg.webp');
-    opacity: 0.045;
-    -webkit-mask-image: linear-gradient(to left, black 20%, transparent 75%);
-    mask-image: linear-gradient(to left, black 20%, transparent 75%);
+    opacity: 0.25;
+    -webkit-mask-image: linear-gradient(to left, $bg-topbar 80%, transparent 90%);
+    mask-image: linear-gradient(to left, $bg-topbar 80%, transparent 90%);
   }
 
   .topbar-accent {
@@ -388,12 +372,6 @@ $success:       #3fb950;
       box-shadow: 0 0 7px rgba(14, 165, 233, 0.5);
     }
   }
-
-  // Gauge / speedometer watermark
-  &::after {
-    opacity: 0.08;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230ea5e9' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Cpath d='M7 15a5 5 0 0 1 10 0'/%3E%3Cline x1='12' y1='10' x2='14.5' y2='13.5'/%3E%3C/svg%3E");
-  }
 }
 
 // ─── FORECAST — Red / Rose  (#ef4444) ───────────────────────────────────────
@@ -405,9 +383,9 @@ $success:       #3fb950;
 
   &::before {
     background-image: url('/public/images/prediction_bg.webp');
-    opacity: 0.045;
-    -webkit-mask-image: linear-gradient(to left, black 20%, transparent 75%);
-    mask-image: linear-gradient(to left, black 20%, transparent 75%);
+    opacity: 0.30;
+    -webkit-mask-image: linear-gradient(to left, $bg-topbar 70%, transparent 90%);
+    mask-image: linear-gradient(to left, $bg-topbar 70%, transparent 90%);
   }
 
   .topbar-accent {
@@ -438,12 +416,6 @@ $success:       #3fb950;
       &:hover { background: #b91c1c; box-shadow: 0 0 10px rgba(239, 68, 68, 0.25); }
     }
   }
-
-  // Line-chart / trend watermark
-  &::after {
-    opacity: 0.08;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Cpolyline points='6,16 10,13 14,15 18,9'/%3E%3C/svg%3E");
-  }
 }
 
 // ─── CONTROLLER — Orange  (#f97316) ─────────────────────────────────────────
@@ -455,9 +427,9 @@ $success:       #3fb950;
 
   &::before {
     background-image: url('/public/images/controller_bg.webp');
-    opacity: 0.045;
-    -webkit-mask-image: linear-gradient(to left, black 20%, transparent 75%);
-    mask-image: linear-gradient(to left, black 20%, transparent 75%);
+    opacity: 0.20;
+    -webkit-mask-image: linear-gradient(to left, $bg-topbar 70%, transparent 90%);
+    mask-image: linear-gradient(to left, $bg-topbar 70%, transparent 90%);
   }
 
   .topbar-accent {
@@ -495,11 +467,5 @@ $success:       #3fb950;
       border-color: rgba(249, 115, 22, 0.25);
       .dot { background: #fdba74; box-shadow: 0 0 6px rgba(253, 186, 116, 0.6); }
     }
-  }
-
-  // Slider-controls watermark
-  &::after {
-    opacity: 0.08;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Cline x1='7' y1='8' x2='17' y2='8'/%3E%3Cline x1='7' y1='12' x2='17' y2='12'/%3E%3Cline x1='7' y1='16' x2='17' y2='16'/%3E%3Ccircle cx='10' cy='8' r='1.5' fill='%23f97316'/%3E%3Ccircle cx='14' cy='12' r='1.5' fill='%23f97316'/%3E%3Ccircle cx='10' cy='16' r='1.5' fill='%23f97316'/%3E%3C/svg%3E");
   }
 }

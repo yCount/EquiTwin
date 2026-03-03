@@ -110,30 +110,30 @@
     
     &.temp,
     &.temperature {
-      background: rgba($danger, 0.12);
+      background: rgba($danger, 0.20);
       color: $danger;
     }
-    
+
     &.energy,
     &.power {
-      background: rgba($warning, 0.12);
+      background: rgba($warning, 0.20);
       color: $warning;
     }
-    
+
     &.comfort,
     &.occupancy {
-      background: rgba($success, 0.12);
+      background: rgba($success, 0.20);
       color: $success;
     }
-    
+
     &.air,
     &.quality {
-      background: rgba($primary, 0.12);
+      background: rgba($primary, 0.20);
       color: $primary;
     }
-    
+
     &.cost {
-      background: rgba($secondary, 0.12);
+      background: rgba($secondary, 0.20);
       color: $secondary;
     }
   }
