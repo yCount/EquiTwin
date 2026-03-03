@@ -14,6 +14,7 @@ import {
 } from "@itwin/property-grid-react";
 import { MeasureToolsUiItemsProvider } from "@itwin/measure-tools-react";
 import { IModelApp, IModelConnection, ScreenViewport } from "@itwin/core-frontend";
+import { Presentation } from "@itwin/presentation-frontend";
 import { QueryRowFormat, ColorDef } from "@itwin/core-common";
 import { unifiedSelectionStorage } from "../selectionStorage";
 import "./HomeTab.scss";
@@ -98,6 +99,17 @@ const HomeTab: React.FC<HomeTabProps> = ({
 
     return () => {
       removeListener();
+    };
+  }, [iModelConnection]);
+
+  useEffect(() => {
+    if (!iModelConnection) return;
+
+    const disposable =
+      Presentation.selection.suspendIModelToolSelectionSync(iModelConnection);
+
+    return () => {
+      disposable.dispose();
     };
   }, [iModelConnection]);
 

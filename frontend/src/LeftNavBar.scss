@@ -209,12 +209,6 @@ $active-bar-height: 32px;
   background-image: url('/public/images/controller_bg.webp');
 }
 
-.info-button:hover:not(.active) {
-  background: rgba(59, 130, 246, 0.08);
-  border-color: rgba(59, 130, 246, 0.25);
-  color: rgba(147, 197, 253, 0.90);
-}
-
 .info-button.active {
   background: rgba(59, 130, 246, 0.12);
   border-color: rgba(59, 130, 246, 0.22);

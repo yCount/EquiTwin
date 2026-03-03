@@ -27,17 +27,6 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
 
     .tab-button.active { color: $lt-text !important; }
 
-    #home-button.active       { background: rgba(59,130,246,0.14) !important; border-color: rgba(59,130,246,0.28) !important; }
-    #dashboard-button.active  { background: rgba(14,165,233,0.14) !important; border-color: rgba(14,165,233,0.28) !important; }
-    #prediction-button.active { background: rgba(239,68,68,0.14)  !important; border-color: rgba(239,68,68,0.28)  !important; }
-    #controller-button.active { background: rgba(249,115,22,0.14) !important; border-color: rgba(249,115,22,0.28) !important; }
-
-    #home-button:hover:not(:active):not(.active)       { background: rgba(59,130,246,0.09) !important; border-color: rgba(59,130,246,0.22) !important; color: #1d4ed8 !important; }
-    #dashboard-button:hover:not(:active):not(.active)  { background: rgba(14,165,233,0.09) !important; border-color: rgba(14,165,233,0.22) !important; color: #0369a1 !important; }
-    #prediction-button:hover:not(:active):not(.active) { background: rgba(239,68,68,0.09)  !important; border-color: rgba(239,68,68,0.22)  !important; color: #991b1b !important; }
-    #controller-button:hover:not(:active):not(.active) { background: rgba(249,115,22,0.09) !important; border-color: rgba(249,115,22,0.22) !important; color: #c2410c !important; }
-    .info-button:hover:not(.active) { background: rgba(59,130,246,0.09) !important; border-color: rgba(59,130,246,0.22) !important; color: #1d4ed8 !important; }
-
     .nav-divider { background: rgba(0,0,0,0.12) !important; }
   }
 
