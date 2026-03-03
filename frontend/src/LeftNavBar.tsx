@@ -23,11 +23,33 @@ interface LeftNavBarProps {
 const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   const toggleExpanded = () => {
     setIsExpanded(!isExpanded);
   };
+
+  const notificationsPopup = showNotifications
+    ? ReactDOM.createPortal(
+        <>
+          <div
+            className="settings-overlay"
+            onClick={() => setShowNotifications(false)}
+          />
+          <div className={`notifications-popup${theme === "light" ? " light-theme" : ""}`}>
+            <div className="notifications-popup-header">Notifications</div>
+            <div className="notifications-empty">
+              <span className="notifications-empty-icon">
+                  <AlertsIconOutline width={45} height={45} />          
+              </span>
+              <span className="notifications-empty-text">No notifications</span>
+            </div>
+          </div>
+        </>,
+        document.body
+      )
+    : null;
 
   const settingsPopup = showSettings
     ? ReactDOM.createPortal(
@@ -43,7 +65,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
               <div className="settings-label">Appearance</div>
               <div className="theme-switcher">
                 <span className={`theme-option ${theme === "dark" ? "active" : ""}`}>
-                  🌙 Dark
+                  Dark
                 </span>
                 <button
                   className={`theme-pill ${theme}`}
@@ -54,7 +76,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
                   <span className="pill-thumb" />
                 </button>
                 <span className={`theme-option ${theme === "light" ? "active" : ""}`}>
-                  ☀ Light
+                  Light
                 </span>
               </div>
             </div>
@@ -131,7 +153,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
               <PredictionIconOutline width={38} height={38} />
             )}
           </span>
-          <span className="tab-label">Prediction</span>
+          <span className="tab-label">Forecast</span>
         </button>
 
         {/* Controller Button */}
@@ -156,6 +178,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
         <button
           className="info-button"
           type="button"
+          onClick={() => setShowNotifications(prev => !prev)}
         >
           <span className="info-icon">
             <AlertsIconOutline width={30} height={30} />
@@ -189,6 +212,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
         </button>
       </div>
 
+      {notificationsPopup}
       {settingsPopup}
     </nav>
   );

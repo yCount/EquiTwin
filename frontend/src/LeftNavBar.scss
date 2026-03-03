@@ -329,6 +329,58 @@ $active-bar-height: 32px;
   width: calc(100% - 0.4rem);
 }
 
+// ── Notifications popup ───────────────────────────────────
+.notifications-popup {
+  position: fixed;
+  left: 95px;
+  bottom: 170px;
+  width: 220px;
+  background: #1a1d22;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  z-index: 10000;
+  padding: 16px;
+  font-family: 'Inter', sans-serif;
+
+  &.light-theme {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.10);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
+
+    .notifications-popup-header { color: #94a3b8; }
+    .notifications-empty-text { color: #64748b; }
+  }
+
+  .notifications-popup-header {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.35);
+    margin-bottom: 16px;
+  }
+
+  .notifications-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0 4px;
+
+    .notifications-empty-icon {
+      font-size: 24px;
+      opacity: 0.4;
+    }
+
+    .notifications-empty-text {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.35);
+      font-weight: 500;
+    }
+  }
+}
+
 // ── Settings overlay (closes popup on outside click) ─────
 .settings-overlay {
   position: fixed;
@@ -384,36 +436,68 @@ $active-bar-height: 32px;
     letter-spacing: 0.6px;
     color: rgba(255, 255, 255, 0.40);
   }
+.theme-switcher {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
-  .theme-switcher {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+/* Labels */
+.theme-option {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;                 // important: stable text metrics
+  display: inline-flex;           // avoids baseline wobble next to the pill
+  align-items: center;
+  height: 24px;                   // match pill height so text aligns perfectly
+  color: rgba(255, 255, 255, 0.35);
+  white-space: nowrap;
+  transition: color 0.2s;
+
+  &.active { color: rgba(255, 255, 255, 0.90); }
+}
+
+/* The switch */
+.theme-pill {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+
+  display: inline-block;          // keeps it from impacting sibling text layout
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  transition: background 0.25s ease;
+
+  &.dark  { background: #3b82f6; }
+  &.light { background: #f59e0b; }
+
+  .pill-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.30);
+    transform: translateX(0);
+    transition: transform 0.25s ease;
+    pointer-events: none;
   }
 
-  .theme-option {
-    font-size: 12px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.35);
-    white-space: nowrap;
-    transition: color 0.2s;
-
-    &.active { color: rgba(255, 255, 255, 0.90); }
+  &.light .pill-thumb {
+    transform: translateX(20px);  // 44 - 3 - 3 - 18 = 20
   }
 
-  .theme-pill {
-    width: 44px;
-    height: 24px;
-    border-radius: 12px;
-    border: none;
-    cursor: pointer;
-    position: relative;
-    transition: background 0.25s ease;
-    flex-shrink: 0;
-
-    &.dark  { background: #3b82f6; }
-    &.light { background: #f59e0b; }
-  }
+  &:focus { outline: none; }
+  &:focus-visible { outline: 2px solid rgba(59, 130, 246, 0.35); outline-offset: 2px; }
+}
 
   .pill-thumb {
     position: absolute;
