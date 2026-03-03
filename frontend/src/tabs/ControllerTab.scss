@@ -4,8 +4,7 @@
   width: 100%;
   height: 100%;
   min-height: 0;
-  background-color: #1A1D21;
-  background-image: none;
+  background: $bg-dark;
   color: $text-main;
   font-family: 'Inter', sans-serif;
   overflow: hidden;
@@ -30,16 +29,31 @@
       display: grid; grid-template-columns: repeat(4, 1fr); gap: $spacing-lg;
 
       .kpi-hero-card {
-          @include glass-panel; padding: $spacing-lg; display: flex; flex-direction: column; justify-content: center; height: 100px; position: relative;
-          .kpi-label { font-size: 10px; text-transform: uppercase; color: $text-dim; margin-bottom: 4px; font-weight: 600; }
+          @include glass-panel;
+          padding: $spacing-lg;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          height: 100px;
+          position: relative;
+          border-top-color: rgba(255,255,255,0.12); // default top-edge shine
+          transition: all 0.2s ease;
+          .kpi-label { font-size: 10px; text-transform: uppercase; color: $text-dim; margin-bottom: 4px; font-weight: 600; letter-spacing: 0.5px; }
           .kpi-val { font-size: 28px; font-weight: 700; color: $text-main; font-family: $font-family-mono;
              .unit { font-size: 14px; color: $text-dim; margin-left: 2px; font-weight: 400; }
           }
-          .kpi-trend { position: absolute; top: 16px; right: 16px; font-size: 11px; font-weight: 600;
+          .kpi-trend { position: absolute; top: 14px; right: 14px; font-size: 11px; font-weight: 600;
               &.up { color: $success; } &.down { color: $danger; } &.flat { color: $text-dim; }
           }
           .kpi-sub { font-size: 10px; color: $text-dim; margin-top: 4px; font-family: $font-family-mono; }
-          &.highlight { border-color: rgba($primary, 0.3); background: linear-gradient(135deg, rgba($primary,0.1), transparent); }
+          &.highlight {
+              border-top-color: rgba($primary, 0.50);
+              border-color: rgba($primary, 0.22);
+              background: linear-gradient(155deg, rgba($primary, 0.08) 0%, rgba($primary, 0.02) 100%);
+              box-shadow:
+                inset 0 1px 0 rgba($primary, 0.14),
+                0 8px 32px rgba(0,0,0,0.30);
+          }
       }
   }
 
@@ -57,10 +71,13 @@
   }
 
   .sim-progress-wrap {
-      height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden;
+      height: 5px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden;
       .sim-progress-bar {
-          height: 100%; background: linear-gradient(90deg, $primary, $success); border-radius: 2px;
+          height: 100%;
+          background: linear-gradient(90deg, $primary 0%, $success 100%);
+          border-radius: 3px;
           transition: width 0.25s ease;
+          box-shadow: 0 0 8px rgba($primary, 0.45), 0 0 16px rgba($success, 0.20);
       }
   }
 
@@ -208,11 +225,11 @@
   
   .advanced-input-group {
       margin-bottom: 12px;
-      label { display: block; font-size: 10px; text-transform: uppercase; color: $text-dim; margin-bottom: 4px; }
-      .input-row { display: flex; align-items: center; gap: 8px; 
-          input[type=range] { flex: 1; accent-color: $text-dim; }
+      label { display: block; font-size: 10px; text-transform: uppercase; color: $text-dim; margin-bottom: 4px; letter-spacing: 0.4px; }
+      .input-row { display: flex; align-items: center; gap: 8px;
+          input[type=range] { flex: 1; accent-color: $warning; cursor: pointer; }
           input[type=number] { width: 60px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: $text-main; padding: 4px; border-radius: 4px; }
-          .val, .unit { font-family: $font-family-mono; font-size: 11px; color: $text-main; min-width: 40px; text-align: right; }
+          .val, .unit { font-family: $font-family-mono; font-size: 11px; color: $text-main; min-width: 40px; text-align: right; font-weight: 600; }
       }
   }
 

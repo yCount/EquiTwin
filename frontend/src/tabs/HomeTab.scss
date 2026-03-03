@@ -47,11 +47,27 @@
     svg { width: 20px; height: 20px; }
   }
 
-  // Color Variants mapped to shared variables
-  &.weather .icon-box { background: rgba($warning, 0.15); color: $warning; }
-  &.occupancy .icon-box { background: rgba($primary, 0.15); color: $primary; }
-  &.air .icon-box { background: rgba($success, 0.15); color: $success; }
-  &.temp .icon-box { background: rgba($danger, 0.15); color: $danger; }
+  // Color Variants — top border accent + matching icon box + coloured hover glow
+  &.weather {
+    border-top-color: rgba($warning, 0.40);
+    .icon-box { background: rgba($warning, 0.13); color: $warning; box-shadow: 0 0 10px rgba($warning, 0.15); }
+    &:hover { box-shadow: 0 0 18px rgba($warning, 0.08), 0 12px 40px rgba(0,0,0,0.3); }
+  }
+  &.occupancy {
+    border-top-color: rgba($primary, 0.40);
+    .icon-box { background: rgba($primary, 0.13); color: $primary; box-shadow: 0 0 10px rgba($primary, 0.15); }
+    &:hover { box-shadow: 0 0 18px rgba($primary, 0.08), 0 12px 40px rgba(0,0,0,0.3); }
+  }
+  &.air {
+    border-top-color: rgba($success, 0.40);
+    .icon-box { background: rgba($success, 0.13); color: $success; box-shadow: 0 0 10px rgba($success, 0.15); }
+    &:hover { box-shadow: 0 0 18px rgba($success, 0.08), 0 12px 40px rgba(0,0,0,0.3); }
+  }
+  &.temp {
+    border-top-color: rgba($danger, 0.40);
+    .icon-box { background: rgba($danger, 0.13); color: $danger; box-shadow: 0 0 10px rgba($danger, 0.15); }
+    &:hover { box-shadow: 0 0 18px rgba($danger, 0.08), 0 12px 40px rgba(0,0,0,0.3); }
+  }
 
   .label {
     font-size: $font-size-xs;
@@ -100,13 +116,15 @@
   }
 
   &.alert {
-    border-left: 3px solid $warning;
-    .icon-box { color: $warning; background: rgba($warning, 0.1); }
+    border-left: 3px solid rgba($warning, 0.6);
+    border-top-color: rgba($warning, 0.30);
+    .icon-box { color: $warning; background: rgba($warning, 0.12); box-shadow: 0 0 8px rgba($warning, 0.12); }
   }
 
   &.normal {
-    border-left: 3px solid $primary;
-    .icon-box { color: $primary; background: rgba($primary, 0.1); }
+    border-left: 3px solid rgba($primary, 0.6);
+    border-top-color: rgba($primary, 0.30);
+    .icon-box { color: $primary; background: rgba($primary, 0.12); box-shadow: 0 0 8px rgba($primary, 0.12); }
   }
 
   .content {

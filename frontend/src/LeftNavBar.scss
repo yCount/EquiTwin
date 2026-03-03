@@ -1,8 +1,8 @@
 /* Left navigation sidebar */
 .app-sidebar {
   width: 85px;
-  background: #5C626E;
-  border-right: 1px solid #1f2937;
+  background: #141720;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
   padding: 0.75rem 0.5rem;
   display: flex;
   flex-direction: column;
@@ -39,14 +39,14 @@
   border-radius: 0.75rem;
   border: 1px solid transparent;
   background: transparent;
-  color: black;
+  color: rgba(255, 255, 255, 0.50);
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: flex-start;
   gap: 0.75rem;
   font-size: 0.82rem;
-  transition: background 0.16s ease, border-color 0.16s ease, transform 0.08s ease;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.08s ease;
   white-space: nowrap;
   margin-left: -2px;
   position: relative;
@@ -90,18 +90,22 @@
 /* Fixed height for active vertical bar - consistent across all buttons */
 $active-bar-height: 32px;
 
-/* Tab-specific active bar colors with image backgrounds */
+/* Tab-specific active bar colors — match topbar accent gradients exactly */
 #home-button::before {
-  background: url('/public/images/home_bg.webp') center/cover;
+  background: linear-gradient(to bottom, #93c5fd 0%, #3b82f6 55%, #1d4ed8 100%);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.55);
 }
 #dashboard-button::before {
-  background: url('/public/images/dashboard_bg.webp') center/cover;
+  background: linear-gradient(to bottom, #7dd3fc 0%, #0ea5e9 55%, #0369a1 100%);
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.55);
 }
 #prediction-button::before {
-  background: url('/public/images/prediction_bg.webp') center/cover;
+  background: linear-gradient(to bottom, #fca5a5 0%, #ef4444 55%, #991b1b 100%);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.55);
 }
 #controller-button::before {
-  background: url('/public/images/controller_bg.webp') center/cover;
+  background: linear-gradient(to bottom, #fdba74 0%, #f97316 55%, #c2410c 100%);
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.55);
 }
 
 /* Info button and logo button active bar - solid color */
@@ -167,27 +171,48 @@ $active-bar-height: 32px;
 
 /* Hover states for tab buttons */
 #home-button:hover:not(:active):not(.active) {
-  background: rgba(30, 64, 175, 0.15);
-  border-color: rgba(59, 130, 246, 0.8);
+  background: rgba(59, 130, 246, 0.09);
+  border-color: rgba(59, 130, 246, 0.28);
+  color: rgba(147, 197, 253, 0.90);
 }
 #dashboard-button:hover:not(:active):not(.active) {
-  background: rgba(14, 165, 233, 0.15); 
-  border-color: rgba(56, 189, 248, 0.8);
+  background: rgba(14, 165, 233, 0.09);
+  border-color: rgba(14, 165, 233, 0.28);
+  color: rgba(125, 211, 252, 0.90);
 }
 #prediction-button:hover:not(:active):not(.active) {
-  background: rgba(220, 38, 38, 0.15); 
-  border-color: rgba(239, 68, 68, 0.8);
+  background: rgba(239, 68, 68, 0.09);
+  border-color: rgba(239, 68, 68, 0.28);
+  color: rgba(252, 165, 165, 0.90);
 }
 #controller-button:hover:not(:active):not(.active) {
-  background: rgba(234, 88, 12, 0.15); 
-  border-color: rgba(249, 115, 22, 0.8);
+  background: rgba(249, 115, 22, 0.09);
+  border-color: rgba(249, 115, 22, 0.28);
+  color: rgba(253, 186, 116, 0.90);
 }
 
-/* Active tab button styles */
+/* Active tab button — base */
 .tab-button.active {
-  background: rgba(0, 0, 0, 0.2);
-  color: white;
+  color: #fff;
   padding-left: 12px; /* Offset for the vertical bar */
+}
+
+/* Per-tab tinted active backgrounds */
+#home-button.active {
+  background: rgba(59, 130, 246, 0.09);
+  border-color: rgba(59, 130, 246, 0.18);
+}
+#dashboard-button.active {
+  background: rgba(14, 165, 233, 0.09);
+  border-color: rgba(14, 165, 233, 0.18);
+}
+#prediction-button.active {
+  background: rgba(239, 68, 68, 0.09);
+  border-color: rgba(239, 68, 68, 0.18);
+}
+#controller-button.active {
+  background: rgba(249, 115, 22, 0.09);
+  border-color: rgba(249, 115, 22, 0.18);
 }
 
 /* SVG icon wrapper for image-masked background */
@@ -195,7 +220,7 @@ $active-bar-height: 32px;
   position: relative;
 }
 
-/* 
+/*
  * Image-filled SVG effect for active tab icons
  * The filled SVG shape gets masked by the image background
  */
@@ -254,12 +279,15 @@ $active-bar-height: 32px;
 
 /* Info button hover and active states */
 .info-button:hover:not(.active) {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.25);
+  color: rgba(147, 197, 253, 0.90);
 }
 
 .info-button.active {
-  background: rgba(59, 130, 246, 0.15);
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.22);
+  color: #fff;
   padding-left: 12px;
 }
 
@@ -296,7 +324,7 @@ $active-bar-height: 32px;
 
 .nav-divider {
   height: 1px;
-  background: #374151;
+  background: rgba(255, 255, 255, 0.07);
   margin: 0.5rem 0;
   width: calc(100% - 0.4rem);
 }

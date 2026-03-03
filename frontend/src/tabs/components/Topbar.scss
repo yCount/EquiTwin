@@ -1,19 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
 // ─── Base tokens ────────────────────────────────────────────────────────────
-$bg-dark:       #0b0d12;
-$panel-border:  rgba(255, 255, 255, 0.08);
+$bg-topbar:     #111316;
+$panel-border:  rgba(255, 255, 255, 0.07);
 $text-main:     #e6edf3;
-$text-dim:      rgba(255, 255, 255, 0.45);
-$btn-bg:        rgba(255, 255, 255, 0.06);
-$btn-border:    rgba(255, 255, 255, 0.12);
+$text-dim:      #8b949e;
+$btn-bg:        rgba(255, 255, 255, 0.05);
+$btn-border:    rgba(255, 255, 255, 0.10);
 $success:       #3fb950;
 
 // ─── Base container ─────────────────────────────────────────────────────────
 .topbar-container {
   flex-shrink: 0;
   position: relative;
-  padding: 0 24px 0 27px; // 27px left leaves room for the 3px accent bar
+  // 4px accent bar + 24px padding gives comfortable left margin
+  padding: 0 24px 0 28px;
   height: 68px;
   display: flex;
   justify-content: space-between;
@@ -22,11 +23,11 @@ $success:       #3fb950;
   font-family: 'Inter', sans-serif;
   overflow: hidden;
 
-  // Default (no variant) — simple dark bar
-  background: #111316;
+  // Default: plain dark bar, identical shade to right sidebar
+  background: $bg-topbar;
   border-bottom: 1px solid $panel-border;
 
-  // Background image layer — shown per-variant via opacity
+  // Background image layer — activated per variant
   &::before {
     content: '';
     position: absolute;
@@ -36,20 +37,35 @@ $success:       #3fb950;
     background-size: cover;
     background-position: right center;
     pointer-events: none;
-    transition: opacity 0.4s ease;
+  }
+
+  // Repeating icon-pattern watermark — right-side only, activated per variant.
+  // Uses the same icon shape as the tab's nav button, drawn as a stroke outline.
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 30%;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    background-repeat: repeat;
+    background-size: 38px 38px;
+    background-position: right 4px top 0;
+    -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.18) 55%, transparent 100%);
+    mask-image:         linear-gradient(to left, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.18) 55%, transparent 100%);
   }
 }
 
-// ─── Decorative accent bar (left edge) ──────────────────────────────────────
+// ─── Decorative left accent bar (4px, replaces 3px) ─────────────────────────
 .topbar-accent {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  width: 3px;
+  width: 4px;
   z-index: 4;
   pointer-events: none;
-  opacity: 0; // hidden by default; shown in variants
+  opacity: 0;
 }
 
 // ─── Decorative bottom glow line ────────────────────────────────────────────
@@ -61,31 +77,46 @@ $success:       #3fb950;
   height: 1px;
   z-index: 4;
   pointer-events: none;
-  opacity: 0; // hidden by default; shown in variants
+  opacity: 0;
 }
 
-// ─── Branding (left content area) ───────────────────────────────────────────
+// ─── Branding ───────────────────────────────────────────────────────────────
 .topbar-branding {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   position: relative;
   z-index: 2;
 }
 
-// Small category badge shown per-variant
 .topbar-tag {
-  display: none; // shown only inside a variant
+  display: none;      // activated per variant
   align-items: center;
+  gap: 0;             // gap handled by ::before margin
   padding: 2px 7px;
   border-radius: 3px;
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 1.2px;
+  letter-spacing: 1.4px;
   border: 1px solid transparent;
   width: fit-content;
   font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+
+  // Small coloured dot — inherits currentColor from the variant
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+    opacity: 0.7;
+    align-self: center;
+    margin-right: 5px;
+  }
 }
 
 .topbar-title-row {
@@ -95,7 +126,7 @@ $success:       #3fb950;
 }
 
 .topbar-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: $text-main;
   line-height: 1.2;
@@ -104,11 +135,11 @@ $success:       #3fb950;
 .topbar-subtitle {
   font-size: 11px;
   color: $text-dim;
-  letter-spacing: 0.15px;
-  line-height: 1.3;
+  letter-spacing: 0.1px;
+  line-height: 1.2;
 }
 
-// ─── Actions (right content area) ───────────────────────────────────────────
+// ─── Actions ────────────────────────────────────────────────────────────────
 .topbar-actions {
   display: flex;
   align-items: center;
@@ -116,7 +147,6 @@ $success:       #3fb950;
   position: relative;
   z-index: 2;
 
-  // Status indicator pill
   .topbar-status {
     display: flex;
     align-items: center;
@@ -131,18 +161,16 @@ $success:       #3fb950;
     .status-dot {
       width: 6px;
       height: 6px;
-      background: $success;
       border-radius: 50%;
-      box-shadow: 0 0 8px rgba($success, 0.5);
-
+      background: $success;
+      box-shadow: 0 0 7px rgba($success, 0.55);
       &.online { background: $success; }
     }
   }
 
-  // Shared button base used across tabs
   .topbar-btn {
     height: 30px;
-    padding: 0 12px;
+    padding: 0 13px;
     background: $btn-bg;
     border: 1px solid $btn-border;
     border-radius: 6px;
@@ -156,28 +184,24 @@ $success:       #3fb950;
     gap: 7px;
     font-family: 'Inter', sans-serif;
     white-space: nowrap;
+    letter-spacing: 0.1px;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.10);
-      border-color: rgba(255, 255, 255, 0.20);
+      background: rgba(255, 255, 255, 0.09);
+      border-color: rgba(255, 255, 255, 0.18);
     }
 
-    // Primary colour is overridden per-variant below
     &.primary {
       background: #1f6feb;
-      border-color: rgba(255, 255, 255, 0.10);
+      border-color: rgba(255, 255, 255, 0.08);
       color: #fff;
-
       &:hover { background: #388bfd; }
     }
 
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
+    &:disabled { opacity: 0.45; cursor: not-allowed; }
   }
 
-  // Controller-tab specific status pill & buttons
+  // Controller-tab wrappers
   .topbar-actions-group {
     display: flex;
     align-items: center;
@@ -188,24 +212,33 @@ $success:       #3fb950;
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
+    padding: 4px 11px;
     border-radius: 99px;
     font-size: 11px;
     font-weight: 600;
+    letter-spacing: 0.2px;
     border: 1px solid transparent;
 
-    .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-    }
+    .dot { width: 6px; height: 6px; border-radius: 50%; }
 
-    &.idle    { background: rgba(255,255,255,0.05); color: $text-dim;  border-color: $panel-border;
-                .dot { background: $text-dim; } }
-    &.running { background: rgba(16,185,129,0.12); color: #34d399;    border-color: rgba(16,185,129,0.3);
-                .dot { background: #34d399; box-shadow: 0 0 6px rgba(52,211,153,0.6); } }
-    &.stopped { background: rgba(239,68,68,0.10);  color: #f87171;    border-color: rgba(239,68,68,0.3);
-                .dot { background: #f87171; } }
+    &.idle {
+      background: rgba(255,255,255,0.04);
+      color: $text-dim;
+      border-color: $panel-border;
+      .dot { background: $text-dim; }
+    }
+    &.running {
+      background: rgba(63, 185, 80, 0.10);
+      color: #3fb950;
+      border-color: rgba(63, 185, 80, 0.25);
+      .dot { background: #3fb950; box-shadow: 0 0 6px rgba(63, 185, 80, 0.6); }
+    }
+    &.stopped {
+      background: rgba(239, 68, 68, 0.09);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.25);
+      .dot { background: #f87171; }
+    }
   }
 
   .btn {
@@ -226,251 +259,247 @@ $success:       #3fb950;
 
     &.btn-primary {
       background: #1f6feb;
-      border-color: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.08);
       color: #fff;
       &:hover { background: #388bfd; }
     }
 
     &.btn-danger {
-      background: rgba(239, 68, 68, 0.15);
-      border-color: rgba(239, 68, 68, 0.35);
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.28);
       color: #f87171;
-      &:hover { background: rgba(239, 68, 68, 0.25); }
+      &:hover { background: rgba(239, 68, 68, 0.20); }
     }
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ─── VARIANTS ──────────────────────────────────────────────────────────────
+//   Dark base (#111316), colour at the edges only:
+//     • 4px left accent bar with vertical gradient + glow
+//     • 1px bottom gradient line fading right
+//     • Whisper of a radial tint from the left edge into the background
+//     • Faint inset top shadow echoing the accent colour
+//   Background images shown at ≈4.5% opacity on the right half only.
 // ═══════════════════════════════════════════════════════════════════════════
 
-// ─── HOME — Blue / Indigo ───────────────────────────────────────────────────
+.topbar--home,
+.topbar--dashboard,
+.topbar--forecast,
+.topbar--controller {
+  border-bottom: none;
+  .topbar-accent     { opacity: 1; }
+  .topbar-bottom-glow { opacity: 1; }
+  .topbar-tag        { display: inline-flex; }
+}
+
+// ─── HOME — Blue  (#3b82f6) ─────────────────────────────────────────────────
 .topbar--home {
   background:
-    radial-gradient(ellipse at 0% 50%, rgba(59, 130, 246, 0.18) 0%, transparent 55%),
-    linear-gradient(to right, #0c1b3a 0%, #0e2040 35%, #0b0d14 100%);
-  border-bottom: none;
+    radial-gradient(ellipse 400px 100% at -10px 50%, rgba(59, 130, 246, 0.10) 0%, transparent 100%),
+    $bg-topbar;
+  box-shadow: inset 0 1px 0 rgba(59, 130, 246, 0.08);
 
   &::before {
     background-image: url('/public/images/home_bg.webp');
-    opacity: 0.14;
-    background-position: right center;
-    // Fade image out toward the left so it doesn't obscure text
-    -webkit-mask-image: linear-gradient(to left, black 0%, transparent 70%);
-    mask-image: linear-gradient(to left, black 0%, transparent 70%);
+    opacity: 0.045;
+    -webkit-mask-image: linear-gradient(to left, black 20%, transparent 75%);
+    mask-image: linear-gradient(to left, black 20%, transparent 75%);
   }
 
   .topbar-accent {
-    opacity: 1;
-    background: linear-gradient(to bottom, #93c5fd, #3b82f6, #1d4ed8);
-    box-shadow: 2px 0 16px rgba(59, 130, 246, 0.7);
+    background: linear-gradient(to bottom, #93c5fd 0%, #3b82f6 55%, #1d4ed8 100%);
+    box-shadow: 0 0 14px rgba(59, 130, 246, 0.60);
   }
 
   .topbar-bottom-glow {
-    opacity: 1;
     background: linear-gradient(
       to right,
-      rgba(59, 130, 246, 0.9) 0%,
-      rgba(96, 165, 250, 0.4) 30%,
-      rgba(59, 130, 246, 0.08) 60%,
-      transparent 100%
+      rgba(59, 130, 246, 0.80) 0%,
+      rgba(59, 130, 246, 0.22) 45%,
+      rgba(59, 130, 246, 0.05) 65%,
+      transparent 80%
     );
   }
 
   .topbar-tag {
-    display: inline-flex;
-    background: rgba(59, 130, 246, 0.12);
-    color: #93c5fd;
-    border-color: rgba(59, 130, 246, 0.35);
+    background: rgba(59, 130, 246, 0.11);
+    color: rgba(147, 197, 253, 0.90);
+    border-color: rgba(59, 130, 246, 0.25);
   }
-
-  .topbar-title { color: #e0f2fe; }
-  .topbar-subtitle { color: rgba(147, 197, 253, 0.6); }
 
   .topbar-actions {
     .topbar-btn.primary {
-      background: rgba(29, 78, 216, 0.9);
-      border-color: rgba(96, 165, 250, 0.3);
-      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-      &:hover {
-        background: #2563eb;
-        box-shadow: 0 0 14px rgba(59, 130, 246, 0.35);
-      }
+      background: rgba(29, 78, 216, 0.85);
+      border-color: rgba(96, 165, 250, 0.22);
+      &:hover { background: #2563eb; box-shadow: 0 0 10px rgba(59, 130, 246, 0.25); }
     }
+  }
+
+  // House outline watermark
+  &::after {
+    opacity: 0.08;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 10l9-7 9 7v11c0 .6-.4 1-1 1H4c-.6 0-1-.4-1-1V10Z'/%3E%3Crect x='10' y='14' width='4' height='7' rx='.5'/%3E%3C/svg%3E");
   }
 }
 
-// ─── DASHBOARD — Purple / Violet ────────────────────────────────────────────
+// ─── DASHBOARD — Cyan / Sky  (#0ea5e9) ──────────────────────────────────────
 .topbar--dashboard {
   background:
-    radial-gradient(ellipse at 0% 50%, rgba(139, 92, 246, 0.18) 0%, transparent 55%),
-    linear-gradient(to right, #16093a 0%, #1b0f44 35%, #0b0d14 100%);
-  border-bottom: none;
+    radial-gradient(ellipse 400px 100% at -10px 50%, rgba(14, 165, 233, 0.10) 0%, transparent 100%),
+    $bg-topbar;
+  box-shadow: inset 0 1px 0 rgba(14, 165, 233, 0.08);
 
   &::before {
     background-image: url('/public/images/dashboard_bg.webp');
-    opacity: 0.13;
-    background-position: right center;
-    -webkit-mask-image: linear-gradient(to left, black 0%, transparent 70%);
-    mask-image: linear-gradient(to left, black 0%, transparent 70%);
+    opacity: 0.045;
+    -webkit-mask-image: linear-gradient(to left, black 20%, transparent 75%);
+    mask-image: linear-gradient(to left, black 20%, transparent 75%);
   }
 
   .topbar-accent {
-    opacity: 1;
-    background: linear-gradient(to bottom, #c4b5fd, #8b5cf6, #5b21b6);
-    box-shadow: 2px 0 16px rgba(139, 92, 246, 0.7);
+    background: linear-gradient(to bottom, #7dd3fc 0%, #0ea5e9 55%, #0369a1 100%);
+    box-shadow: 0 0 14px rgba(14, 165, 233, 0.60);
   }
 
   .topbar-bottom-glow {
-    opacity: 1;
     background: linear-gradient(
       to right,
-      rgba(139, 92, 246, 0.9) 0%,
-      rgba(167, 139, 250, 0.4) 30%,
-      rgba(139, 92, 246, 0.08) 60%,
-      transparent 100%
+      rgba(14, 165, 233, 0.80) 0%,
+      rgba(14, 165, 233, 0.22) 45%,
+      rgba(14, 165, 233, 0.05) 65%,
+      transparent 80%
     );
   }
 
   .topbar-tag {
-    display: inline-flex;
-    background: rgba(139, 92, 246, 0.12);
-    color: #c4b5fd;
-    border-color: rgba(139, 92, 246, 0.35);
+    background: rgba(14, 165, 233, 0.11);
+    color: rgba(125, 211, 252, 0.90);
+    border-color: rgba(14, 165, 233, 0.25);
   }
-
-  .topbar-title { color: #f5f3ff; }
-  .topbar-subtitle { color: rgba(196, 181, 253, 0.6); }
 
   .topbar-actions {
     .topbar-btn.primary {
-      background: rgba(91, 33, 182, 0.9);
-      border-color: rgba(167, 139, 250, 0.3);
-      &:hover {
-        background: #6d28d9;
-        box-shadow: 0 0 14px rgba(139, 92, 246, 0.35);
-      }
+      background: rgba(3, 105, 161, 0.85);
+      border-color: rgba(125, 211, 252, 0.22);
+      &:hover { background: #0369a1; box-shadow: 0 0 10px rgba(14, 165, 233, 0.25); }
     }
-    .topbar-status {
-      .status-dot.online {
-        box-shadow: 0 0 8px rgba(167, 139, 250, 0.5);
-      }
+    .topbar-status .status-dot.online {
+      box-shadow: 0 0 7px rgba(14, 165, 233, 0.5);
     }
+  }
+
+  // Gauge / speedometer watermark
+  &::after {
+    opacity: 0.08;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230ea5e9' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Cpath d='M7 15a5 5 0 0 1 10 0'/%3E%3Cline x1='12' y1='10' x2='14.5' y2='13.5'/%3E%3C/svg%3E");
   }
 }
 
-// ─── FORECAST — Emerald / Green ─────────────────────────────────────────────
+// ─── FORECAST — Red / Rose  (#ef4444) ───────────────────────────────────────
 .topbar--forecast {
   background:
-    radial-gradient(ellipse at 0% 50%, rgba(16, 185, 129, 0.16) 0%, transparent 55%),
-    linear-gradient(to right, #092d1e 0%, #0d3524 35%, #0b0d12 100%);
-  border-bottom: none;
+    radial-gradient(ellipse 400px 100% at -10px 50%, rgba(239, 68, 68, 0.10) 0%, transparent 100%),
+    $bg-topbar;
+  box-shadow: inset 0 1px 0 rgba(239, 68, 68, 0.08);
 
   &::before {
     background-image: url('/public/images/prediction_bg.webp');
-    opacity: 0.13;
-    background-position: right center;
-    -webkit-mask-image: linear-gradient(to left, black 0%, transparent 70%);
-    mask-image: linear-gradient(to left, black 0%, transparent 70%);
+    opacity: 0.045;
+    -webkit-mask-image: linear-gradient(to left, black 20%, transparent 75%);
+    mask-image: linear-gradient(to left, black 20%, transparent 75%);
   }
 
   .topbar-accent {
-    opacity: 1;
-    background: linear-gradient(to bottom, #6ee7b7, #10b981, #065f46);
-    box-shadow: 2px 0 16px rgba(16, 185, 129, 0.7);
+    background: linear-gradient(to bottom, #fca5a5 0%, #ef4444 55%, #991b1b 100%);
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.60);
   }
 
   .topbar-bottom-glow {
-    opacity: 1;
     background: linear-gradient(
       to right,
-      rgba(16, 185, 129, 0.9) 0%,
-      rgba(52, 211, 153, 0.4) 30%,
-      rgba(16, 185, 129, 0.08) 60%,
-      transparent 100%
+      rgba(239, 68, 68, 0.80) 0%,
+      rgba(239, 68, 68, 0.22) 45%,
+      rgba(239, 68, 68, 0.05) 65%,
+      transparent 80%
     );
   }
 
   .topbar-tag {
-    display: inline-flex;
-    background: rgba(16, 185, 129, 0.12);
-    color: #6ee7b7;
-    border-color: rgba(16, 185, 129, 0.35);
+    background: rgba(239, 68, 68, 0.11);
+    color: rgba(252, 165, 165, 0.90);
+    border-color: rgba(239, 68, 68, 0.25);
   }
-
-  .topbar-title { color: #ecfdf5; }
-  .topbar-subtitle { color: rgba(110, 231, 183, 0.6); }
 
   .topbar-actions {
     .topbar-btn.primary {
-      background: rgba(6, 95, 70, 0.9);
-      border-color: rgba(52, 211, 153, 0.3);
-      &:hover {
-        background: #047857;
-        box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
-      }
+      background: rgba(153, 27, 27, 0.85);
+      border-color: rgba(252, 165, 165, 0.22);
+      &:hover { background: #b91c1c; box-shadow: 0 0 10px rgba(239, 68, 68, 0.25); }
     }
+  }
+
+  // Line-chart / trend watermark
+  &::after {
+    opacity: 0.08;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Cpolyline points='6,16 10,13 14,15 18,9'/%3E%3C/svg%3E");
   }
 }
 
-// ─── CONTROLLER — Amber / Orange ────────────────────────────────────────────
+// ─── CONTROLLER — Orange  (#f97316) ─────────────────────────────────────────
 .topbar--controller {
   background:
-    radial-gradient(ellipse at 0% 50%, rgba(245, 158, 11, 0.16) 0%, transparent 55%),
-    linear-gradient(to right, #291c04 0%, #311f05 35%, #0b0d12 100%);
-  border-bottom: none;
+    radial-gradient(ellipse 400px 100% at -10px 50%, rgba(249, 115, 22, 0.10) 0%, transparent 100%),
+    $bg-topbar;
+  box-shadow: inset 0 1px 0 rgba(249, 115, 22, 0.08);
 
   &::before {
     background-image: url('/public/images/controller_bg.webp');
-    opacity: 0.14;
-    background-position: right center;
-    -webkit-mask-image: linear-gradient(to left, black 0%, transparent 70%);
-    mask-image: linear-gradient(to left, black 0%, transparent 70%);
+    opacity: 0.045;
+    -webkit-mask-image: linear-gradient(to left, black 20%, transparent 75%);
+    mask-image: linear-gradient(to left, black 20%, transparent 75%);
   }
 
   .topbar-accent {
-    opacity: 1;
-    background: linear-gradient(to bottom, #fde68a, #f59e0b, #92400e);
-    box-shadow: 2px 0 16px rgba(245, 158, 11, 0.7);
+    background: linear-gradient(to bottom, #fdba74 0%, #f97316 55%, #c2410c 100%);
+    box-shadow: 0 0 14px rgba(249, 115, 22, 0.60);
   }
 
   .topbar-bottom-glow {
-    opacity: 1;
     background: linear-gradient(
       to right,
-      rgba(245, 158, 11, 0.9) 0%,
-      rgba(251, 191, 36, 0.4) 30%,
-      rgba(245, 158, 11, 0.08) 60%,
-      transparent 100%
+      rgba(249, 115, 22, 0.80) 0%,
+      rgba(249, 115, 22, 0.22) 45%,
+      rgba(249, 115, 22, 0.05) 65%,
+      transparent 80%
     );
   }
 
   .topbar-tag {
-    display: inline-flex;
-    background: rgba(245, 158, 11, 0.12);
-    color: #fde68a;
-    border-color: rgba(245, 158, 11, 0.35);
+    background: rgba(249, 115, 22, 0.11);
+    color: rgba(253, 186, 116, 0.90);
+    border-color: rgba(249, 115, 22, 0.25);
   }
-
-  .topbar-title { color: #fffbeb; }
-  .topbar-subtitle { color: rgba(253, 230, 138, 0.6); }
 
   .topbar-actions {
     .topbar-btn.primary,
     .btn.btn-primary {
-      background: rgba(146, 64, 14, 0.9);
-      border-color: rgba(251, 191, 36, 0.3);
-      &:hover {
-        background: #b45309;
-        box-shadow: 0 0 14px rgba(245, 158, 11, 0.35);
-      }
+      background: rgba(194, 65, 12, 0.85);
+      border-color: rgba(253, 186, 116, 0.22);
+      &:hover { background: #c2410c; box-shadow: 0 0 10px rgba(249, 115, 22, 0.25); }
     }
 
     .system-status-pill.running {
-      background: rgba(245, 158, 11, 0.12);
-      color: #fbbf24;
-      border-color: rgba(245, 158, 11, 0.3);
-      .dot { background: #fbbf24; box-shadow: 0 0 6px rgba(251, 191, 36, 0.7); }
+      background: rgba(249, 115, 22, 0.10);
+      color: #fdba74;
+      border-color: rgba(249, 115, 22, 0.25);
+      .dot { background: #fdba74; box-shadow: 0 0 6px rgba(253, 186, 116, 0.6); }
     }
+  }
+
+  // Slider-controls watermark
+  &::after {
+    opacity: 0.08;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Cline x1='7' y1='8' x2='17' y2='8'/%3E%3Cline x1='7' y1='12' x2='17' y2='12'/%3E%3Cline x1='7' y1='16' x2='17' y2='16'/%3E%3Ccircle cx='10' cy='8' r='1.5' fill='%23f97316'/%3E%3Ccircle cx='14' cy='12' r='1.5' fill='%23f97316'/%3E%3Ccircle cx='10' cy='16' r='1.5' fill='%23f97316'/%3E%3C/svg%3E");
   }
 }

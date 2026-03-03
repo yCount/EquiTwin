@@ -35,7 +35,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
           onClick={toggleExpanded}
         >
           <span>
-            <img src="/public/images/EquiTwin_logo.png"
+            <img src="/images/EquiTwin_logo.png"
             alt="EquiTwin"
             style={{ width: '50px', backgroundColor: 'transparent' }}
             />
@@ -140,7 +140,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
           onClick={toggleExpanded}
         >
           <span className="logo-icon">
-            <img src="/public/images/SAWB.png"
+            <img src="/images/SAWB.png"
             alt="Sir Alwyn Willam Building"
             style={{ width: '50px', borderRadius: '50%', objectFit: 'cover' }}
             />
