@@ -1,16 +1,3 @@
-// ============================================================
-// LIGHT THEME OVERRIDES
-// Root: .app-root.light-theme gives +1 class specificity on all
-// descendant selectors. !important beats any dark rule in the bundle.
-//
-// Transparency philosophy:
-//   Dark bg (#0b0d12–#111316): colored transparent elements need 0.20–0.22
-//   to be visible against near-black.
-//   Light bg (#ffffff–#f0f2f7): the same colors need 0.18–0.25 opacity since
-//   there's no luminance contrast — only chroma contrast. Borders and shadows
-//   must be heavier to define element boundaries on white surfaces.
-// ============================================================
-
 $lt-bg:      #eef1f6;        // page background — slightly deeper than pure white to offset cards
 $lt-surface: #ffffff;        // cards / panels / topbar
 $lt-sidebar: #dde2eb;        // left nav — clearly distinct from page bg
@@ -23,18 +10,12 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
   background: $lt-bg;
   color: $lt-text;
 
-  // ═══════════════════════════════════════════════════════════
-  // 1. APP SHELL
-  // ═══════════════════════════════════════════════════════════
-
   .app-shell,
   .app-main {
     background: $lt-bg !important;
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 2. LEFT NAV
-  // ═══════════════════════════════════════════════════════════
+  // LEFT NAV
 
   .app-sidebar {
     background: $lt-sidebar !important;
@@ -60,9 +41,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     .nav-divider { background: rgba(0,0,0,0.12) !important; }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 3. TOPBAR — white surface, accent bars + watermark images
-  // ═══════════════════════════════════════════════════════════
+  // TOPBAR
 
   .topbar-container {
     background: $lt-surface !important;
@@ -80,7 +59,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
   .topbar--home::before,
   .topbar--dashboard::before,
   .topbar--forecast::before,
-  .topbar--controller::before { opacity: 0.22 !important; }
+  .topbar--controller::before { opacity: 0.40 !important; }
 
   // Text
   .topbar-title    { color: $lt-text  !important; }
@@ -106,9 +85,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 4. TAB CONTAINERS
-  // ═══════════════════════════════════════════════════════════
+  // TAB CONTAINERS
 
   .home-tab-container,
   .dashboard-container,
@@ -118,10 +95,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     color: $lt-text !important;
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 5. GLASS PANELS & CARDS
-  // White surface on $lt-bg needs a clear shadow + border to define edges.
-  // ═══════════════════════════════════════════════════════════
+  // GLASS PANELS & CARDS
 
   .content-section.glass-panel,
   .chart-card,
@@ -149,11 +123,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     border-left-color: $lt-muted !important;
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 5b. COLORED ICON BOXES — must use higher opacity on white
-  // On dark bg 0.22 is fine; on white we need 0.18–0.22 of CHROMA
-  // (no luminance contrast, pure colour contrast only)
-  // ═══════════════════════════════════════════════════════════
+  // COLORED ICON BOXES — must use higher opacity on white
 
   // Sensor cards (HomeTab)
   .sensor-card {
@@ -201,9 +171,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     &.outdated                  { background: rgba(58,169,214, 0.18) !important; }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 6. TEXT — all explicit dark-mode white/grey color overrides
-  // ═══════════════════════════════════════════════════════════
+  // TEXT — all explicit dark-mode white/grey color overrides
 
   h3, h2 { color: $lt-text !important; }
   // Keep intentionally coloured elements unchanged
@@ -240,9 +208,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     .insight-message        { color: $lt-text  !important; }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 7. CONTROLLER TAB
-  // ═══════════════════════════════════════════════════════════
+  // CONTROLLER TAB
 
   .controller-container {
     .kpi-hero-card {
@@ -307,9 +273,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 8. FORECAST TAB
-  // ═══════════════════════════════════════════════════════════
+  // FORECAST TAB
 
   .forecast-container {
     .kpi-section-header h3 { color: $lt-text !important; }
@@ -338,9 +302,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     .live-metrics .lm-item .val                                      { color: $lt-text  !important; }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 9. SHARED BUTTONS & INPUTS
-  // ═══════════════════════════════════════════════════════════
+  // SHARED BUTTONS & INPUTS
 
   .btn-secondary {
     background: rgba(0,0,0,0.05) !important;
@@ -376,9 +338,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
   .section-subtitle { color: $lt-muted !important; }
   .reset-btn        { color: $lt-text  !important; background: rgba(0,0,0,0.05) !important; border-color: rgba(0,0,0,0.13) !important; }
 
-  // ═══════════════════════════════════════════════════════════
-  // 10. RIGHT SIDEBAR
-  // ═══════════════════════════════════════════════════════════
+  // RIGHT SIDEBAR
 
   .right-sidebar-container {
     background: $lt-surface !important;
@@ -402,9 +362,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     &:not(.active) .folder-icon { background: rgba(0,0,0,0.06) !important; color: $lt-muted !important; }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 11. ANOMALY CARDS
-  // ═══════════════════════════════════════════════════════════
+  // ANOMALY CARDS
 
   .anomaly-card {
     background: #f1f4f9 !important;
@@ -416,9 +374,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     .icon-wrapper           { background: rgba(0,0,0,0.06) !important; }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 12. DB TABLE
-  // ═══════════════════════════════════════════════════════════
+  // DB TABLE
 
   .db-table-wrap  { border-color: $lt-border !important; }
 
@@ -463,9 +419,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 13. MAIN CONTENT LAYOUT
-  // ═══════════════════════════════════════════════════════════
+  // MAIN CONTENT LAYOUT
 
   .main-content-area { border-right-color: $lt-border !important; }
 
@@ -474,18 +428,14 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     &::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.24); }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 14. TIMELINE
-  // ═══════════════════════════════════════════════════════════
+  // TIMELINE
 
   .timeline-control-container {
     background: rgba(0,0,0,0.03) !important;
     border-color: $lt-border !important;
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 15. HISTORY TIMELINE (Sidebar)
-  // ═══════════════════════════════════════════════════════════
+  // HISTORY TIMELINE (Sidebar)
 
   .history-timeline {
     .timeline-item:not(:last-child)::after { background: rgba(0,0,0,0.10) !important; }
@@ -499,9 +449,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 16. RECHARTS
-  // ═══════════════════════════════════════════════════════════
+  // RECHARTS
 
   .recharts-cartesian-axis-tick text,
   .recharts-text,
@@ -515,9 +463,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     color: $lt-text !important;
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 17. MODAL OVERLAYS
-  // ═══════════════════════════════════════════════════════════
+  // MODAL OVERLAYS
 
   .modal-content {
     background: $lt-surface !important;
@@ -542,9 +488,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 18. CHART SECTION (shared component)
-  // ═══════════════════════════════════════════════════════════
+  // CHART SECTION (shared component)
 
   .chart-section {
     background: $lt-surface !important;
@@ -554,9 +498,7 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
     .chart-container .recharts-cartesian-grid line { stroke: rgba(0,0,0,0.07) !important; }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // 19. STATUS CHIPS & HORIZON TRACK
-  // ═══════════════════════════════════════════════════════════
+  // STATUS CHIPS & HORIZON TRACK
 
   .status-chip.standby {
     background: rgba(0,0,0,0.06) !important;
