@@ -200,8 +200,9 @@ const HomeTab: React.FC<HomeTabProps> = ({
   return (
     <div className="home-tab-container">
       <Topbar
-        title="Building Model"
-        subtitle="Real-time Building Visualization & Telemetry"
+        variant="home"
+        title="Home"
+        subtitle="Real-time Building Visualisation & Telemetry"
         rightContent={
           <>
             <button className="topbar-btn" onClick={handleCaptureScreenshot}>

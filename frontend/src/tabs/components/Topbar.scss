@@ -1,111 +1,476 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
-// Shared Variables
-$bg-dark: #111316;
-$panel-border: #30363d;
-$primary: #58a6ff; 
-$success: #3fb950;
-$text-main: #e6edf3;
-$text-dim: #8b949e;
-$btn-bg: #21262d;
-$btn-border: #30363d;
+// ─── Base tokens ────────────────────────────────────────────────────────────
+$bg-dark:       #0b0d12;
+$panel-border:  rgba(255, 255, 255, 0.08);
+$text-main:     #e6edf3;
+$text-dim:      rgba(255, 255, 255, 0.45);
+$btn-bg:        rgba(255, 255, 255, 0.06);
+$btn-border:    rgba(255, 255, 255, 0.12);
+$success:       #3fb950;
 
+// ─── Base container ─────────────────────────────────────────────────────────
 .topbar-container {
   flex-shrink: 0;
-  padding: 0 24px;
-  height: 56px;
+  position: relative;
+  padding: 0 24px 0 27px; // 27px left leaves room for the 3px accent bar
+  height: 68px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid $panel-border;
-  background: $bg-dark;
   z-index: 20;
   font-family: 'Inter', sans-serif;
+  overflow: hidden;
 
-  .topbar-branding {
+  // Default (no variant) — simple dark bar
+  background: #111316;
+  border-bottom: 1px solid $panel-border;
+
+  // Background image layer — shown per-variant via opacity
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0;
+    background-size: cover;
+    background-position: right center;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+}
+
+// ─── Decorative accent bar (left edge) ──────────────────────────────────────
+.topbar-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0; // hidden by default; shown in variants
+}
+
+// ─── Decorative bottom glow line ────────────────────────────────────────────
+.topbar-bottom-glow {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0; // hidden by default; shown in variants
+}
+
+// ─── Branding (left content area) ───────────────────────────────────────────
+.topbar-branding {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  position: relative;
+  z-index: 2;
+}
+
+// Small category badge shown per-variant
+.topbar-tag {
+  display: none; // shown only inside a variant
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  border: 1px solid transparent;
+  width: fit-content;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.topbar-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: $text-main;
+  line-height: 1.2;
+}
+
+.topbar-subtitle {
+  font-size: 11px;
+  color: $text-dim;
+  letter-spacing: 0.15px;
+  line-height: 1.3;
+}
+
+// ─── Actions (right content area) ───────────────────────────────────────────
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 2;
+
+  // Status indicator pill
+  .topbar-status {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: $text-dim;
+    font-weight: 500;
+    margin-right: 10px;
+    padding-right: 10px;
+    border-right: 1px solid $panel-border;
 
-    .topbar-title {
-      font-size: 16px;
-      font-weight: 600;
-      margin: 0;
-      color: $text-main;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    
-    .topbar-subtitle {
-      font-size: 11px;
-      color: $text-dim;
-      margin-top: 2px;
-      letter-spacing: 0.2px;
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      background: $success;
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba($success, 0.5);
+
+      &.online { background: $success; }
     }
   }
 
-  .topbar-actions {
+  // Shared button base used across tabs
+  .topbar-btn {
+    height: 30px;
+    padding: 0 12px;
+    background: $btn-bg;
+    border: 1px solid $btn-border;
+    border-radius: 6px;
+    color: $text-main;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 7px;
+    font-family: 'Inter', sans-serif;
+    white-space: nowrap;
 
+    &:hover {
+      background: rgba(255, 255, 255, 0.10);
+      border-color: rgba(255, 255, 255, 0.20);
+    }
+
+    // Primary colour is overridden per-variant below
+    &.primary {
+      background: #1f6feb;
+      border-color: rgba(255, 255, 255, 0.10);
+      color: #fff;
+
+      &:hover { background: #388bfd; }
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  // Controller-tab specific status pill & buttons
+  .topbar-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .system-status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid transparent;
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    &.idle    { background: rgba(255,255,255,0.05); color: $text-dim;  border-color: $panel-border;
+                .dot { background: $text-dim; } }
+    &.running { background: rgba(16,185,129,0.12); color: #34d399;    border-color: rgba(16,185,129,0.3);
+                .dot { background: #34d399; box-shadow: 0 0 6px rgba(52,211,153,0.6); } }
+    &.stopped { background: rgba(239,68,68,0.10);  color: #f87171;    border-color: rgba(239,68,68,0.3);
+                .dot { background: #f87171; } }
+  }
+
+  .btn {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.18s ease;
+
+    &.btn-sm { height: 28px; font-size: 11px; padding: 0 10px; }
+
+    &.btn-primary {
+      background: #1f6feb;
+      border-color: rgba(255,255,255,0.1);
+      color: #fff;
+      &:hover { background: #388bfd; }
+    }
+
+    &.btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #f87171;
+      &:hover { background: rgba(239, 68, 68, 0.25); }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── VARIANTS ──────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── HOME — Blue / Indigo ───────────────────────────────────────────────────
+.topbar--home {
+  background:
+    radial-gradient(ellipse at 0% 50%, rgba(59, 130, 246, 0.18) 0%, transparent 55%),
+    linear-gradient(to right, #0c1b3a 0%, #0e2040 35%, #0b0d14 100%);
+  border-bottom: none;
+
+  &::before {
+    background-image: url('/public/images/home_bg.webp');
+    opacity: 0.14;
+    background-position: right center;
+    // Fade image out toward the left so it doesn't obscure text
+    -webkit-mask-image: linear-gradient(to left, black 0%, transparent 70%);
+    mask-image: linear-gradient(to left, black 0%, transparent 70%);
+  }
+
+  .topbar-accent {
+    opacity: 1;
+    background: linear-gradient(to bottom, #93c5fd, #3b82f6, #1d4ed8);
+    box-shadow: 2px 0 16px rgba(59, 130, 246, 0.7);
+  }
+
+  .topbar-bottom-glow {
+    opacity: 1;
+    background: linear-gradient(
+      to right,
+      rgba(59, 130, 246, 0.9) 0%,
+      rgba(96, 165, 250, 0.4) 30%,
+      rgba(59, 130, 246, 0.08) 60%,
+      transparent 100%
+    );
+  }
+
+  .topbar-tag {
+    display: inline-flex;
+    background: rgba(59, 130, 246, 0.12);
+    color: #93c5fd;
+    border-color: rgba(59, 130, 246, 0.35);
+  }
+
+  .topbar-title { color: #e0f2fe; }
+  .topbar-subtitle { color: rgba(147, 197, 253, 0.6); }
+
+  .topbar-actions {
+    .topbar-btn.primary {
+      background: rgba(29, 78, 216, 0.9);
+      border-color: rgba(96, 165, 250, 0.3);
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+      &:hover {
+        background: #2563eb;
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.35);
+      }
+    }
+  }
+}
+
+// ─── DASHBOARD — Purple / Violet ────────────────────────────────────────────
+.topbar--dashboard {
+  background:
+    radial-gradient(ellipse at 0% 50%, rgba(139, 92, 246, 0.18) 0%, transparent 55%),
+    linear-gradient(to right, #16093a 0%, #1b0f44 35%, #0b0d14 100%);
+  border-bottom: none;
+
+  &::before {
+    background-image: url('/public/images/dashboard_bg.webp');
+    opacity: 0.13;
+    background-position: right center;
+    -webkit-mask-image: linear-gradient(to left, black 0%, transparent 70%);
+    mask-image: linear-gradient(to left, black 0%, transparent 70%);
+  }
+
+  .topbar-accent {
+    opacity: 1;
+    background: linear-gradient(to bottom, #c4b5fd, #8b5cf6, #5b21b6);
+    box-shadow: 2px 0 16px rgba(139, 92, 246, 0.7);
+  }
+
+  .topbar-bottom-glow {
+    opacity: 1;
+    background: linear-gradient(
+      to right,
+      rgba(139, 92, 246, 0.9) 0%,
+      rgba(167, 139, 250, 0.4) 30%,
+      rgba(139, 92, 246, 0.08) 60%,
+      transparent 100%
+    );
+  }
+
+  .topbar-tag {
+    display: inline-flex;
+    background: rgba(139, 92, 246, 0.12);
+    color: #c4b5fd;
+    border-color: rgba(139, 92, 246, 0.35);
+  }
+
+  .topbar-title { color: #f5f3ff; }
+  .topbar-subtitle { color: rgba(196, 181, 253, 0.6); }
+
+  .topbar-actions {
+    .topbar-btn.primary {
+      background: rgba(91, 33, 182, 0.9);
+      border-color: rgba(167, 139, 250, 0.3);
+      &:hover {
+        background: #6d28d9;
+        box-shadow: 0 0 14px rgba(139, 92, 246, 0.35);
+      }
+    }
     .topbar-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      color: $text-dim;
-      font-weight: 500;
-      margin-right: 12px;
-      padding-right: 12px;
-      border-right: 1px solid $panel-border;
+      .status-dot.online {
+        box-shadow: 0 0 8px rgba(167, 139, 250, 0.5);
+      }
+    }
+  }
+}
 
-      .status-dot {
-        width: 6px; height: 6px;
-        background: $success;
-        border-radius: 50%;
-        box-shadow: 0 0 8px rgba($success, 0.4);
-        
-        &.online { background: $success; }
+// ─── FORECAST — Emerald / Green ─────────────────────────────────────────────
+.topbar--forecast {
+  background:
+    radial-gradient(ellipse at 0% 50%, rgba(16, 185, 129, 0.16) 0%, transparent 55%),
+    linear-gradient(to right, #092d1e 0%, #0d3524 35%, #0b0d12 100%);
+  border-bottom: none;
+
+  &::before {
+    background-image: url('/public/images/prediction_bg.webp');
+    opacity: 0.13;
+    background-position: right center;
+    -webkit-mask-image: linear-gradient(to left, black 0%, transparent 70%);
+    mask-image: linear-gradient(to left, black 0%, transparent 70%);
+  }
+
+  .topbar-accent {
+    opacity: 1;
+    background: linear-gradient(to bottom, #6ee7b7, #10b981, #065f46);
+    box-shadow: 2px 0 16px rgba(16, 185, 129, 0.7);
+  }
+
+  .topbar-bottom-glow {
+    opacity: 1;
+    background: linear-gradient(
+      to right,
+      rgba(16, 185, 129, 0.9) 0%,
+      rgba(52, 211, 153, 0.4) 30%,
+      rgba(16, 185, 129, 0.08) 60%,
+      transparent 100%
+    );
+  }
+
+  .topbar-tag {
+    display: inline-flex;
+    background: rgba(16, 185, 129, 0.12);
+    color: #6ee7b7;
+    border-color: rgba(16, 185, 129, 0.35);
+  }
+
+  .topbar-title { color: #ecfdf5; }
+  .topbar-subtitle { color: rgba(110, 231, 183, 0.6); }
+
+  .topbar-actions {
+    .topbar-btn.primary {
+      background: rgba(6, 95, 70, 0.9);
+      border-color: rgba(52, 211, 153, 0.3);
+      &:hover {
+        background: #047857;
+        box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
+      }
+    }
+  }
+}
+
+// ─── CONTROLLER — Amber / Orange ────────────────────────────────────────────
+.topbar--controller {
+  background:
+    radial-gradient(ellipse at 0% 50%, rgba(245, 158, 11, 0.16) 0%, transparent 55%),
+    linear-gradient(to right, #291c04 0%, #311f05 35%, #0b0d12 100%);
+  border-bottom: none;
+
+  &::before {
+    background-image: url('/public/images/controller_bg.webp');
+    opacity: 0.14;
+    background-position: right center;
+    -webkit-mask-image: linear-gradient(to left, black 0%, transparent 70%);
+    mask-image: linear-gradient(to left, black 0%, transparent 70%);
+  }
+
+  .topbar-accent {
+    opacity: 1;
+    background: linear-gradient(to bottom, #fde68a, #f59e0b, #92400e);
+    box-shadow: 2px 0 16px rgba(245, 158, 11, 0.7);
+  }
+
+  .topbar-bottom-glow {
+    opacity: 1;
+    background: linear-gradient(
+      to right,
+      rgba(245, 158, 11, 0.9) 0%,
+      rgba(251, 191, 36, 0.4) 30%,
+      rgba(245, 158, 11, 0.08) 60%,
+      transparent 100%
+    );
+  }
+
+  .topbar-tag {
+    display: inline-flex;
+    background: rgba(245, 158, 11, 0.12);
+    color: #fde68a;
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+
+  .topbar-title { color: #fffbeb; }
+  .topbar-subtitle { color: rgba(253, 230, 138, 0.6); }
+
+  .topbar-actions {
+    .topbar-btn.primary,
+    .btn.btn-primary {
+      background: rgba(146, 64, 14, 0.9);
+      border-color: rgba(251, 191, 36, 0.3);
+      &:hover {
+        background: #b45309;
+        box-shadow: 0 0 14px rgba(245, 158, 11, 0.35);
       }
     }
 
-    // Standardized Button Class
-    .topbar-btn {
-      height: 32px;
-      padding: 0 12px;
-      background: $btn-bg;
-      border: 1px solid $btn-border;
-      border-radius: 6px;
-      color: $text-main;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-
-      &:hover {
-        background: lighten($btn-bg, 5%);
-        border-color: $text-dim;
-      }
-
-      &.primary {
-        background: #1f6feb;
-        border-color: rgba(255,255,255,0.1);
-        color: #fff;
-        
-        &:hover {
-          background: #388bfd;
-        }
-      }
-
-      &:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
+    .system-status-pill.running {
+      background: rgba(245, 158, 11, 0.12);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.3);
+      .dot { background: #fbbf24; box-shadow: 0 0 6px rgba(251, 191, 36, 0.7); }
     }
   }
 }

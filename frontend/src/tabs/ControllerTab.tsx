@@ -226,7 +226,8 @@ const ControllerTab: React.FC = () => {
   return (
     <div className="controller-container">
       <Topbar
-        title="MPC Controller"
+        variant="controller"
+        title="Controller"
         subtitle="Digital-Twin Building Simulation"
         rightContent={
           <div className="topbar-actions-group">

@@ -676,7 +676,8 @@ const [level3Active, setLevel3Active] = useState(true);
   return (
     <div className="dashboard-container">
       <Topbar
-        title="Historical Analytics"
+        variant="dashboard"
+        title="Dashboard"
         subtitle="Past sensor logs and weather data"
         rightContent={
           <>
