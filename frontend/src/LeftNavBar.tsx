@@ -2,13 +2,9 @@ import React, { useState } from "react";
 import ReactDOM from "react-dom";
 import "./LeftNavBar.scss";
 import {
-  HomeIcon,
   HomeIconOutline,
-  DashboardIcon,
   DashboardIconOutline,
-  PredictionIcon,
   PredictionIconOutline,
-  ControllerIcon,
   ControllerIconOutline,
   AlertsIconOutline,
   SettingsIconOutline,
@@ -37,11 +33,15 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
             className="settings-overlay"
             onClick={() => setShowNotifications(false)}
           />
-          <div className={`notifications-popup${theme === "light" ? " light-theme" : ""}`}>
+          <div
+            className={`notifications-popup${
+              theme === "light" ? " light-theme" : ""
+            }`}
+          >
             <div className="notifications-popup-header">Notifications</div>
             <div className="notifications-empty">
               <span className="notifications-empty-icon">
-                  <AlertsIconOutline width={45} height={45} />          
+                <AlertsIconOutline width={45} height={45} />
               </span>
               <span className="notifications-empty-text">No notifications</span>
             </div>
@@ -54,11 +54,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
   const settingsPopup = showSettings
     ? ReactDOM.createPortal(
         <>
-          {/* Invisible overlay to close on outside click */}
-          <div
-            className="settings-overlay"
-            onClick={() => setShowSettings(false)}
-          />
+          <div className="settings-overlay" onClick={() => setShowSettings(false)} />
           <div className={`settings-popup${theme === "light" ? " light-theme" : ""}`}>
             <div className="settings-popup-header">Settings</div>
             <div className="settings-section">
@@ -92,18 +88,21 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
         <button
           type="button"
           className="logo-button"
-          style={{ backgroundColor: 'transparent', border: 'none' }}
+          style={{ backgroundColor: "transparent", border: "none" }}
           onClick={toggleExpanded}
         >
           <span>
-            <img src="/images/EquiTwin_logo.png"
-            alt="EquiTwin"
-            style={{ width: '50px', backgroundColor: 'transparent' }}
+            <img
+              src="/images/EquiTwin_logo.png"
+              alt="EquiTwin"
+              style={{ width: "50px", backgroundColor: "transparent" }}
             />
           </span>
-          <span className="logo-label" style={{ fontSize: '17px'}}>EquiTwin</span>
+          <span className="logo-label" style={{ fontSize: "17px" }}>
+            EquiTwin
+          </span>
         </button>
-        <div className="nav-divider" style={{ marginBottom: '12px' }}></div>
+        <div className="nav-divider" style={{ marginBottom: "12px" }}></div>
 
         {/* Home Button */}
         <button
@@ -113,11 +112,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
           onClick={() => setActiveTab("home")}
         >
           <span className="tab-icon">
-            {activeTab === "home" ? (
-              <HomeIcon width={38} height={38} />
-            ) : (
-              <HomeIconOutline width={38} height={38} />
-            )}
+            <HomeIconOutline width={38} height={38} />
           </span>
           <span className="tab-label">Home</span>
         </button>
@@ -130,11 +125,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
           onClick={() => setActiveTab("dashboard")}
         >
           <span className="tab-icon">
-            {activeTab === "dashboard" ? (
-              <DashboardIcon width={38} height={38} />
-            ) : (
-              <DashboardIconOutline width={38} height={38} />
-            )}
+            <DashboardIconOutline width={38} height={38} />
           </span>
           <span className="tab-label">Dashboard</span>
         </button>
@@ -147,11 +138,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
           onClick={() => setActiveTab("forecast")}
         >
           <span className="tab-icon">
-            {activeTab === "forecast" ? (
-              <PredictionIcon width={38} height={38} />
-            ) : (
-              <PredictionIconOutline width={38} height={38} />
-            )}
+            <PredictionIconOutline width={38} height={38} />
           </span>
           <span className="tab-label">Forecast</span>
         </button>
@@ -164,11 +151,7 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
           onClick={() => setActiveTab("tuning")}
         >
           <span className="tab-icon">
-            {activeTab === "tuning" ? (
-              <ControllerIcon width={38} height={38} />
-            ) : (
-              <ControllerIconOutline width={38} height={38} />
-            )}
+            <ControllerIconOutline width={38} height={38} />
           </span>
           <span className="tab-label">Controller</span>
         </button>
@@ -178,34 +161,38 @@ const LeftNavBar: React.FC<LeftNavBarProps> = ({ activeTab, setActiveTab }) => {
         <button
           className="info-button"
           type="button"
-          onClick={() => setShowNotifications(prev => !prev)}
+          onClick={() => setShowNotifications((prev) => !prev)}
         >
           <span className="info-icon">
             <AlertsIconOutline width={30} height={30} />
           </span>
           <span className="info-label">Alerts</span>
         </button>
+
         <button
           className="info-button"
           type="button"
-          style={{ marginBottom: '3px', marginTop: '3px' }}
-          onClick={() => setShowSettings(prev => !prev)}
+          style={{ marginBottom: "3px", marginTop: "3px" }}
+          onClick={() => setShowSettings((prev) => !prev)}
         >
           <span className="info-icon">
             <SettingsIconOutline width={30} height={30} />
           </span>
           <span className="info-label">Settings</span>
         </button>
+
         <div className="nav-divider"></div>
-        <button
-          className="logo-button"
-          type="button"
-          onClick={toggleExpanded}
-        >
+
+        <button className="logo-button" type="button" onClick={toggleExpanded}>
           <span className="logo-icon">
-            <img src="/images/SAWB.png"
-            alt="Sir Alwyn Willam Building"
-            style={{ width: '50px', borderRadius: '50%', objectFit: 'cover' }}
+            <img
+              src="/images/SAWB.png"
+              alt="Sir Alwyn Willam Building"
+              style={{
+                width: "50px",
+                borderRadius: "50%",
+                objectFit: "cover",
+              }}
             />
           </span>
           <span className="info-label">SAW Building</span>
