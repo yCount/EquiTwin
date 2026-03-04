@@ -1,8 +1,9 @@
+
 /* Left navigation sidebar */
 .app-sidebar {
   width: 85px;
-  background: #5C626E;
-  border-right: 1px solid #1f2937;
+  background: #141720;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
   padding: 0.75rem 0.5rem;
   display: flex;
   flex-direction: column;
@@ -25,13 +26,8 @@
   gap: 0.35rem;
 }
 
-.nav-buttons {
-  min-height: 370px;
-}
-
-.info-buttons {
-  min-height: 205px;
-}
+.nav-buttons { min-height: 370px; }
+.info-buttons { min-height: 205px; }
 
 .logo-button, .tab-button, .info-button {
   width: 100%;
@@ -39,14 +35,14 @@
   border-radius: 0.75rem;
   border: 1px solid transparent;
   background: transparent;
-  color: black;
+  color: rgba(255, 255, 255, 0.50);
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: flex-start;
   gap: 0.75rem;
   font-size: 0.82rem;
-  transition: background 0.16s ease, border-color 0.16s ease, transform 0.08s ease;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.08s ease;
   white-space: nowrap;
   margin-left: -2px;
   position: relative;
@@ -71,7 +67,7 @@
   cursor: pointer;
 }
 
-/* Active indicator bar - vertical bar on the left */
+/* Active indicator bar */
 .tab-button::before,
 .info-button::before,
 .logo-button::before {
@@ -87,37 +83,37 @@
   opacity: 0;
 }
 
-/* Fixed height for active vertical bar - consistent across all buttons */
 $active-bar-height: 32px;
 
-/* Tab-specific active bar colors with image backgrounds */
 #home-button::before {
-  background: url('/public/images/home_bg.webp') center/cover;
+  background: linear-gradient(to bottom, #93c5fd 0%, #3b82f6 55%, #1d4ed8 100%);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.55);
 }
 #dashboard-button::before {
-  background: url('/public/images/dashboard_bg.webp') center/cover;
+  background: linear-gradient(to bottom, #7dd3fc 0%, #0ea5e9 55%, #0369a1 100%);
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.55);
 }
 #prediction-button::before {
-  background: url('/public/images/prediction_bg.webp') center/cover;
+  background: linear-gradient(to bottom, #fca5a5 0%, #ef4444 55%, #991b1b 100%);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.55);
 }
 #controller-button::before {
-  background: url('/public/images/controller_bg.webp') center/cover;
+  background: linear-gradient(to bottom, #fdba74 0%, #f97316 55%, #c2410c 100%);
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.55);
 }
 
-/* Info button and logo button active bar - solid color */
-.info-button::before {
-  background: linear-gradient(180deg, #60a5fa, #3b82f6);
-}
-.logo-button::before {
-  background: linear-gradient(180deg, #a78bfa, #7c3aed);
-}
+.info-button::before { background: linear-gradient(180deg, #60a5fa, #3b82f6); }
+.logo-button::before { background: linear-gradient(180deg, #a78bfa, #7c3aed); }
 
-/* Active state for all buttons - show the vertical bar with fixed height */
-.tab-button.active::before,
-.info-button.active::before,
-.logo-button.active::before {
+.tab-button.active::before {
   height: $active-bar-height;
   opacity: 1;
+}
+
+/* Show vertical indicator on hover */
+.tab-button:hover::before {
+  height: $active-bar-height;
+  opacity: 0.7;   // softer than active
 }
 
 .tab-icon, .info-icon {
@@ -125,7 +121,8 @@ $active-bar-height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 50px;
+  width: 50px;
+  height: 50px;
   position: relative;
 }
 
@@ -165,108 +162,61 @@ $active-bar-height: 32px;
   transition-delay: 0.1s;
 }
 
-/* Hover states for tab buttons */
-#home-button:hover:not(:active):not(.active) {
-  background: rgba(30, 64, 175, 0.15);
-  border-color: rgba(59, 130, 246, 0.8);
-}
-#dashboard-button:hover:not(:active):not(.active) {
-  background: rgba(14, 165, 233, 0.15); 
-  border-color: rgba(56, 189, 248, 0.8);
-}
-#prediction-button:hover:not(:active):not(.active) {
-  background: rgba(220, 38, 38, 0.15); 
-  border-color: rgba(239, 68, 68, 0.8);
-}
+/* Hover states */
+#home-button:hover:not(:active):not(.active),
+#dashboard-button:hover:not(:active):not(.active),
+#prediction-button:hover:not(:active):not(.active),
 #controller-button:hover:not(:active):not(.active) {
-  background: rgba(234, 88, 12, 0.15); 
-  border-color: rgba(249, 115, 22, 0.8);
+  cursor: pointer;
 }
 
-/* Active tab button styles */
+/* Active tab base */
 .tab-button.active {
-  background: rgba(0, 0, 0, 0.2);
-  color: white;
-  padding-left: 12px; /* Offset for the vertical bar */
+  color: #fff;
+  padding-left: 12px;
 }
 
-/* SVG icon wrapper for image-masked background */
-.tab-button .tab-icon {
-  position: relative;
-}
-
-/* 
- * Image-filled SVG effect for active tab icons
- * The filled SVG shape gets masked by the image background
- */
-
-/* Base setup for the image-masked icon effect */
+/* Base setup: create a background layer behind the icon */
 .tab-button.active .tab-icon {
   position: relative;
 }
 
-/* Create a pseudo-element that shows the image through the SVG shape */
 .tab-button.active .tab-icon::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   background-size: cover;
   background-position: center;
   pointer-events: none;
-  z-index: 3;
+  z-index: 1;
+
+  opacity: 0.85;
+  border-radius: 10px;
+  filter: saturate(1.05) contrast(1.05);
 }
 
-/* Hide the original SVG when active (the pseudo-element replaces it) */
-.tab-button.active svg {
-  opacity: 0;
-}
-
-/* Home button - filled house icon mask */
+/* Per-tab webp backgrounds */
 #home-button.active .tab-icon::after {
   background-image: url('/public/images/home_bg.webp');
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 2.5L2 10.5V21.5C2 22.05 2.45 22.5 3 22.5H9C9.55 22.5 10 22.05 10 21.5V15.5H14V21.5C14 22.05 14.45 22.5 15 22.5H21C21.55 22.5 22 22.05 22 21.5V10.5L12 2.5Z'/%3E%3C/svg%3E") center/contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 2.5L2 10.5V21.5C2 22.05 2.45 22.5 3 22.5H9C9.55 22.5 10 22.05 10 21.5V15.5H14V21.5C14 22.05 14.45 22.5 15 22.5H21C21.55 22.5 22 22.05 22 21.5V10.5L12 2.5Z'/%3E%3C/svg%3E") center/contain no-repeat;
 }
-
-/* Dashboard button - filled grid icon mask */
 #dashboard-button.active .tab-icon::after {
   background-image: url('/public/images/dashboard_bg.webp');
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Crect x='3' y='3' width='7' height='7' rx='1.5'/%3E%3Crect x='14' y='3' width='7' height='5' rx='1.5'/%3E%3Crect x='14' y='11' width='7' height='10' rx='1.5'/%3E%3Crect x='3' y='12' width='7' height='9' rx='1.5'/%3E%3C/svg%3E") center/contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Crect x='3' y='3' width='7' height='7' rx='1.5'/%3E%3Crect x='14' y='3' width='7' height='5' rx='1.5'/%3E%3Crect x='14' y='11' width='7' height='10' rx='1.5'/%3E%3Crect x='3' y='12' width='7' height='9' rx='1.5'/%3E%3C/svg%3E") center/contain no-repeat;
 }
-
-/* Prediction button - line chart */
 #prediction-button.active .tab-icon::after {
   background-image: url('/public/images/prediction_bg.webp');
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Crect x='2' y='2' width='20' height='18' rx='2'/%3E%3C/svg%3E") center/contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Crect x='2' y='2' width='20' height='18' rx='2'/%3E%3C/svg%3E") center/contain no-repeat;
 }
-
-/* Controller button - fan blades */
 #controller-button.active .tab-icon::after {
   background-image: url('/public/images/controller_bg.webp');
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 8C12 8 12 2 7 2C7 2 7 8 12 8Z'/%3E%3Cpath d='M16 12C16 12 22 12 22 7C22 7 16 7 16 12Z'/%3E%3Cpath d='M12 16C12 16 12 22 17 22C17 22 17 16 12 16Z'/%3E%3Cpath d='M8 12C8 12 2 12 2 17C2 17 8 17 8 12Z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") center/contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 8C12 8 12 2 7 2C7 2 7 8 12 8Z'/%3E%3Cpath d='M16 12C16 12 22 12 22 7C22 7 16 7 16 12Z'/%3E%3Cpath d='M12 16C12 16 12 22 17 22C17 22 17 16 12 16Z'/%3E%3Cpath d='M8 12C8 12 2 12 2 17C2 17 8 17 8 12Z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E") center/contain no-repeat;
-}
-
-/* Info button hover and active states */
-.info-button:hover:not(.active) {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.4);
 }
 
 .info-button.active {
-  background: rgba(59, 130, 246, 0.15);
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.22);
+  color: #fff;
   padding-left: 12px;
 }
 
-/* Logo specific styling */
-.logo-button {
-  justify-content: flex-start;
-}
+.logo-button { justify-content: flex-start; }
 
 .logo-button .tab-icon {
   min-width: 50px;
@@ -280,7 +230,6 @@ $active-bar-height: 32px;
   background-color: transparent;
 }
 
-/* Building image styling */
 .info-button:last-child .info-icon {
   min-width: 50px;
   width: 50px;
@@ -296,7 +245,172 @@ $active-bar-height: 32px;
 
 .nav-divider {
   height: 1px;
-  background: #374151;
+  background: rgba(255, 255, 255, 0.07);
   margin: 0.5rem 0;
   width: calc(100% - 0.4rem);
+}
+
+// -- Notifications popup
+.notifications-popup {
+  position: fixed;
+  left: 95px;
+  bottom: 170px;
+  width: 220px;
+  background: #1a1d22;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  z-index: 10000;
+  padding: 16px;
+  font-family: 'Inter', sans-serif;
+
+  &.light-theme {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.10);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
+
+    .notifications-popup-header { color: #94a3b8; }
+    .notifications-empty-text { color: #64748b; }
+  }
+
+  .notifications-popup-header {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.35);
+    margin-bottom: 16px;
+  }
+
+  .notifications-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0 4px;
+
+    .notifications-empty-icon {
+      font-size: 24px;
+      opacity: 0.4;
+    }
+
+    .notifications-empty-text {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.35);
+      font-weight: 500;
+    }
+  }
+}
+
+// Settings overlay (closes popup on outside click)
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: transparent;
+}
+
+// Settings popup panel
+.settings-popup {
+  position: fixed;
+  left: 95px;
+  bottom: 130px;
+  width: 220px;
+  background: #1a1d22;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  z-index: 10000;
+  padding: 16px;
+  font-family: 'Inter', sans-serif;
+
+  // Light mode variant
+  &.light-theme {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.10);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
+
+    .settings-popup-header { color: #94a3b8; }
+    .settings-label { color: #94a3b8; }
+    .theme-option { color: #94a3b8; &.active { color: #0f172a; } }
+  }
+
+  .settings-popup-header {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.35);
+    margin-bottom: 16px;
+  }
+
+  .settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .settings-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: rgba(255, 255, 255, 0.40);
+  }
+
+  .theme-switcher {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .theme-option {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    color: rgba(255, 255, 255, 0.35);
+    white-space: nowrap;
+    transition: color 0.2s;
+
+    &.active { color: rgba(255, 255, 255, 0.90); }
+  }
+
+  .theme-pill {
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    display: inline-block;
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.25s ease;
+
+    &.dark  { background: #3b82f6; }
+    &.light { background: #f59e0b; }
+
+    .pill-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.30);
+      transform: translateX(0);
+      transition: transform 0.25s ease;
+      pointer-events: none;
+    }
+
+    &.light .pill-thumb { transform: translateX(20px); }
+
+    &:focus { outline: none; }
+    &:focus-visible { outline: 2px solid rgba(59, 130, 246, 0.35); outline-offset: 2px; }
+  }
 }

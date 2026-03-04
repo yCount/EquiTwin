@@ -10,6 +10,7 @@ import { createRoot } from "react-dom/client";
 
 import App from "./App";
 import { Auth } from "./Auth";
+import { ThemeProvider } from "./ThemeContext";
 import * as serviceWorker from "./serviceWorker";
 
 // Debugging: catch unhandled promise rejections and log them into the debugger
@@ -92,7 +93,11 @@ const redirectUrl = new URL(process.env.IMJS_AUTH_CLIENT_REDIRECT_URI);
 if (redirectUrl.pathname === window.location.pathname) {
   Auth.handleSigninCallback().catch(console.error);
 } else {
-  root.render(<App />);
+  root.render(
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
+  );
 }
 
 // If you want your app to work offline and load faster, you can change

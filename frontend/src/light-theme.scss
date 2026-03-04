@@ -1,0 +1,502 @@
+$lt-bg:      #eef1f6;        // page background — slightly deeper than pure white to offset cards
+$lt-surface: #ffffff;        // cards / panels / topbar
+$lt-sidebar: #dde2eb;        // left nav — clearly distinct from page bg
+$lt-border:  rgba(0,0,0,0.13); // borders — readable on both white and off-white
+$lt-text:    #0f172a;        // primary text
+$lt-muted:   #64748b;        // secondary text
+$lt-faint:   #94a3b8;        // tertiary / section labels
+
+.app-root.light-theme {
+  background: $lt-bg;
+  color: $lt-text;
+
+  .app-shell,
+  .app-main {
+    background: $lt-bg !important;
+  }
+
+  // LEFT NAV
+
+  .app-sidebar {
+    background: $lt-sidebar !important;
+    border-right: 1px solid $lt-border !important;
+
+    .logo-button, .tab-button, .info-button {
+      color: rgba(0, 0, 0, 0.50) !important;
+    }
+
+    .tab-button.active { color: $lt-text !important; }
+
+    .nav-divider { background: rgba(0,0,0,0.12) !important; }
+  }
+
+  // TOPBAR
+
+  .topbar-container {
+    background: $lt-surface !important;
+    border-bottom: 1px solid $lt-border !important;
+  }
+
+  // Variant overrides: keep radial left-tint, just invert base to white
+  // Tints raised from 0.08 to 0.12 so they read on a bright surface
+  .topbar--home       { background: radial-gradient(ellipse 400px 100% at -10px 50%, rgba(59,130,246,0.12)  0%, transparent 100%), $lt-surface !important; box-shadow: inset 0 1px 0 rgba(59,130,246,0.10); border-bottom: none !important; }
+  .topbar--dashboard  { background: radial-gradient(ellipse 400px 100% at -10px 50%, rgba(14,165,233,0.12)  0%, transparent 100%), $lt-surface !important; box-shadow: inset 0 1px 0 rgba(14,165,233,0.10); border-bottom: none !important; }
+  .topbar--forecast   { background: radial-gradient(ellipse 400px 100% at -10px 50%, rgba(239,68,68,0.12)   0%, transparent 100%), $lt-surface !important; box-shadow: inset 0 1px 0 rgba(239,68,68,0.10);  border-bottom: none !important; }
+  .topbar--controller { background: radial-gradient(ellipse 400px 100% at -10px 50%, rgba(249,115,22,0.12)  0%, transparent 100%), $lt-surface !important; box-shadow: inset 0 1px 0 rgba(249,115,22,0.10); border-bottom: none !important; }
+
+  // Watermark photos: slightly more visible on white (0.06 was too faint)
+  .topbar--home::before,
+  .topbar--dashboard::before,
+  .topbar--forecast::before,
+  .topbar--controller::before { opacity: 0.40 !important; }
+
+  // Text
+  .topbar-title    { color: $lt-text  !important; }
+  .topbar-subtitle { color: $lt-muted !important; }
+
+  // Action buttons
+  .topbar-actions {
+    .topbar-status {
+      color: $lt-muted !important;
+      border-right-color: $lt-border !important;
+    }
+    .topbar-btn {
+      background: rgba(0,0,0,0.05) !important;
+      border-color: rgba(0,0,0,0.13) !important;
+      color: $lt-text !important;
+      &:hover { background: rgba(0,0,0,0.09) !important; border-color: rgba(0,0,0,0.20) !important; }
+    }
+    .system-status-pill.idle {
+      background: rgba(0,0,0,0.05) !important;
+      color: $lt-muted !important;
+      border-color: $lt-border !important;
+      .dot { background: $lt-muted !important; }
+    }
+  }
+
+  // TAB CONTAINERS
+
+  .home-tab-container,
+  .dashboard-container,
+  .forecast-container,
+  .controller-container {
+    background: $lt-bg !important;
+    color: $lt-text !important;
+  }
+
+  // GLASS PANELS & CARDS
+
+  .content-section.glass-panel,
+  .chart-card,
+  .kpi-card,
+  .kpi-hero-card,
+  .chart-wrapper-section,
+  .forecast-chart-section,
+  .chart-section,
+  .scenario-card,
+  .summary-card,
+  .sensor-card,
+  .model-card,
+  .model-pill,
+  .live-metrics {
+    background: $lt-surface !important;
+    border-color: $lt-border !important;
+    // Stronger shadow + ring to define card on off-white page bg
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.05) !important;
+  }
+
+  .model-card .card-header          { border-bottom-color: rgba(0,0,0,0.08) !important; background: transparent !important; }
+  .model-card .card-actions-footer  { background: rgba(0,0,0,0.03) !important; border-top-color: rgba(0,0,0,0.08) !important; }
+  .model-card .card-body .insight-message {
+    background: rgba(0,0,0,0.04) !important;
+    border-left-color: $lt-muted !important;
+  }
+
+  // COLORED ICON BOXES — must use higher opacity on white
+
+  // Sensor cards (HomeTab)
+  .sensor-card {
+    &.weather  .icon-box { background: rgba(245,158,11,  0.18) !important; color: #b45309 !important; box-shadow: none !important; }
+    &.occupancy .icon-box{ background: rgba(59,130,246,  0.18) !important; color: #1d4ed8 !important; box-shadow: none !important; }
+    &.air      .icon-box { background: rgba(16,185,129,  0.18) !important; color: #047857 !important; box-shadow: none !important; }
+    &.temp     .icon-box { background: rgba(239,68,68,   0.18) !important; color: #b91c1c !important; box-shadow: none !important; }
+  }
+
+  // Summary cards (HomeTab)
+  .summary-card {
+    &.alert  .icon-box { background: rgba(245,158,11,0.18) !important; color: #b45309 !important; box-shadow: none !important; }
+    &.normal .icon-box { background: rgba(59,130,246,0.18) !important; color: #1d4ed8 !important; box-shadow: none !important; }
+  }
+
+  // Metric / KPI card icons (shared component)
+  .metric-icon, .kpi-icon {
+    &.temp, &.temperature { background: rgba(239,68,68,  0.18) !important; color: #b91c1c !important; }
+    &.energy, &.power     { background: rgba(245,158,11, 0.18) !important; color: #b45309 !important; }
+    &.comfort, &.occupancy{ background: rgba(16,185,129, 0.18) !important; color: #047857 !important; }
+    &.air, &.quality      { background: rgba(59,130,246, 0.18) !important; color: #1d4ed8 !important; }
+    &.cost                { background: rgba(139,92,246, 0.18) !important; color: #6d28d9 !important; }
+  }
+
+  // Forecast model card icon
+  .model-card .model-icon {
+    background: rgba(239,68,68,0.18) !important;
+    border-color: rgba(239,68,68,0.28) !important;
+    color: #b91c1c !important;
+  }
+
+  // Status pills — 0.15 was too faint on white; raise to 0.18–0.22
+  .status-pill {
+    &.online, &.active  { background: rgba(16,185,129,  0.20) !important; }
+    &.offline, &.inactive { background: rgba(239,68,68, 0.20) !important; }
+    &.warning           { background: rgba(245,158,11,  0.20) !important; }
+    &.info              { background: rgba(58,169,214,  0.20) !important; }
+  }
+
+  // Status badges — 0.12 was invisible on white; raise to 0.18
+  .status-badge {
+    &.ready, &.trained, &.good { background: rgba(16,185,129, 0.18) !important; }
+    &.pending, &.training       { background: rgba(245,158,11, 0.18) !important; }
+    &.error, &.critical, &.missing { background: rgba(239,68,68, 0.18) !important; }
+    &.outdated                  { background: rgba(58,169,214, 0.18) !important; }
+  }
+
+  // TEXT — all explicit dark-mode white/grey color overrides
+
+  h3, h2 { color: $lt-text !important; }
+  // Keep intentionally coloured elements unchanged
+  .topbar-tag, .mode-badge, .mpc-on, .mpc-warming { color: inherit !important; }
+
+  .kpi-val        { color: $lt-text  !important; }
+  .kpi-label      { color: $lt-muted !important; }
+  .kpi-sub        { color: $lt-muted !important; }
+  .kpi-val .unit  { color: $lt-muted !important; }
+
+  .stats-group .stat .val   { color: $lt-text  !important; }
+  .stats-group .stat .label { color: $lt-faint !important; }
+
+  .sensor-card {
+    .label             { color: $lt-muted !important; }
+    .value-group .val  { color: $lt-text  !important; }
+    .value-group .unit { color: $lt-muted !important; }
+  }
+
+  .summary-card .content {
+    .label { color: $lt-muted !important; }
+    .val   { color: $lt-text  !important; }
+    .unit  { color: $lt-muted !important; }
+  }
+
+  .model-card {
+    .title-text h3          { color: $lt-text  !important; }
+    .title-text .meta-row   { color: $lt-muted !important; }
+    .card-body {
+      .main-metric .val     { color: $lt-text  !important; }
+      .main-metric .label   { color: $lt-muted !important; }
+      .input-tag            { background: rgba(0,0,0,0.06) !important; color: $lt-muted !important; }
+    }
+    .insight-message        { color: $lt-text  !important; }
+  }
+
+  // CONTROLLER TAB
+
+  .controller-container {
+    .kpi-hero-card {
+      .kpi-val   { color: $lt-text  !important; }
+      .kpi-label { color: $lt-muted !important; }
+      .kpi-sub   { color: $lt-muted !important; }
+    }
+
+    .mono-val          { color: $lt-text  !important; }
+    .status-row .label { color: $lt-muted !important; }
+    .health-label      { color: $lt-muted !important; }
+
+    .model-pill {
+      color: $lt-text !important;
+      .acc { border-left-color: rgba(0,0,0,0.12) !important; color: $lt-muted !important; }
+    }
+
+    .cw-header h3       { color: $lt-text  !important; }
+    .cw-legend span     { color: $lt-muted !important; }
+
+    .sc-header          { color: $lt-text  !important; border-bottom-color: rgba(0,0,0,0.08) !important; }
+    .sc-stat span       { color: $lt-muted !important; }
+    .sc-stat strong     { color: $lt-text  !important; }
+
+    .sim-msg.idle       { background: rgba(0,0,0,0.05) !important; color: $lt-muted !important; border-color: rgba(0,0,0,0.10) !important; }
+    .sim-progress-wrap  { background: rgba(0,0,0,0.10) !important; }
+    .sim-progress-labels { color: $lt-muted !important; }
+    .sim-time-label     { color: $lt-muted !important; }
+    .mpc-standby        { color: $lt-muted !important; }
+    .status-idle        { color: $lt-muted !important; }
+
+    .progress-section .progress-bar-track { background: rgba(0,0,0,0.10) !important; }
+    .progress-section .progress-stats     { color: $lt-muted !important; }
+
+    .hvac-schematic-box {
+      background: rgba(0,0,0,0.04) !important;
+      .schematic-row {
+        .label           { color: $lt-muted !important; }
+        .value           { color: $lt-text  !important; }
+        .state-bar-track { background: rgba(0,0,0,0.10) !important; }
+      }
+      .status-item { background: rgba(0,0,0,0.06) !important; color: $lt-muted !important; }
+    }
+
+    .weight-control .wc-labels { color: $lt-muted !important; }
+
+    .advanced-input-group {
+      label { color: $lt-muted !important; }
+      .val, .unit { color: $lt-text !important; }
+      input[type=number] {
+        background: rgba(0,0,0,0.05) !important;
+        border-color: rgba(0,0,0,0.13) !important;
+        color: $lt-text !important;
+      }
+    }
+
+    // Scenario/summary card glass background — on white they'd be invisible
+    .scenario-card, .summary-card {
+      background: $lt-surface !important;
+      border-color: $lt-border !important;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04) !important;
+    }
+  }
+
+  // FORECAST TAB
+
+  .forecast-container {
+    .kpi-section-header h3 { color: $lt-text !important; }
+
+    .time-selector {
+      background: rgba(0,0,0,0.07) !important;
+      button {
+        color: $lt-muted !important;
+        &.active {
+          background: $lt-surface !important;
+          color: $lt-text !important;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+        }
+        &:hover:not(.active) { color: $lt-text !important; }
+      }
+    }
+
+    .subtitle                                                        { color: $lt-muted !important; }
+    .corr-row .f-name                                                { color: $lt-muted !important; }
+    .corr-row .f-val                                                 { color: $lt-muted !important; }
+    .corr-row .f-bar-track                                           { background: rgba(0,0,0,0.09) !important; }
+    .chart-legend                                                    { color: $lt-muted !important; }
+    .training-overlay-content .progress-section .progress-bar-track { background: rgba(0,0,0,0.10) !important; }
+    .training-overlay-content .progress-section .progress-stats     { color: $lt-muted !important; }
+    .live-metrics .lm-item .lbl                                      { color: $lt-muted !important; }
+    .live-metrics .lm-item .val                                      { color: $lt-text  !important; }
+  }
+
+  // SHARED BUTTONS & INPUTS
+
+  .btn-secondary {
+    background: rgba(0,0,0,0.05) !important;
+    border-color: rgba(0,0,0,0.13) !important;
+    color: $lt-text !important;
+    &:hover:not(:disabled) { background: rgba(0,0,0,0.09) !important; border-color: rgba(0,0,0,0.20) !important; }
+  }
+
+  .pill-btn {
+    background: rgba(0,0,0,0.05) !important;
+    border-color: rgba(0,0,0,0.11) !important;
+    color: $lt-muted !important;
+    &:hover { background: rgba(0,0,0,0.09) !important; color: $lt-text !important; }
+  }
+
+  .control-group {
+    label { color: $lt-muted !important; }
+    input[type="text"],
+    input[type="time"],
+    input[type="number"],
+    select {
+      background: rgba(0,0,0,0.05) !important;
+      border-color: rgba(0,0,0,0.13) !important;
+      color: $lt-text !important;
+      &:hover { border-color: rgba(0,0,0,0.20) !important; }
+    }
+    input[type="range"] { background: rgba(0,0,0,0.12) !important; }
+  }
+
+  .close-btn { color: $lt-text !important; background: rgba(0,0,0,0.06) !important; }
+
+  .section-title    { color: $lt-faint !important; }
+  .section-subtitle { color: $lt-muted !important; }
+  .reset-btn        { color: $lt-text  !important; background: rgba(0,0,0,0.05) !important; border-color: rgba(0,0,0,0.13) !important; }
+
+  // RIGHT SIDEBAR
+
+  .right-sidebar-container {
+    background: $lt-surface !important;
+    border-left: 1px solid $lt-border !important;
+    color: $lt-text !important;
+  }
+
+  .sidebar-section {
+    border-bottom-color: rgba(0,0,0,0.10) !important;
+    .section-title .title-content { color: $lt-faint !important; }
+    .toggle-icon { color: $lt-faint !important; }
+  }
+
+  .folder-toggle-btn {
+    // Slightly off-white so it pops against the white sidebar bg
+    background: #f1f4f9 !important;
+    border-color: $lt-border !important;
+    color: $lt-text !important;
+    .folder-name { color: $lt-text !important; }
+    &:hover { background: #e8ecf4 !important; border-color: rgba(0,0,0,0.20) !important; }
+    &:not(.active) .folder-icon { background: rgba(0,0,0,0.06) !important; color: $lt-muted !important; }
+  }
+
+  // ANOMALY CARDS
+
+  .anomaly-card {
+    background: #f1f4f9 !important;
+    border-color: $lt-border !important;
+    &:hover { background: #e8ecf4 !important; }
+    .content .metric-name   { color: $lt-text  !important; }
+    .content .impact-label  { color: $lt-muted !important; }
+    .value-box .status-text { color: $lt-muted !important; }
+    .icon-wrapper           { background: rgba(0,0,0,0.06) !important; }
+  }
+
+  // DB TABLE
+
+  .db-table-wrap  { border-color: $lt-border !important; }
+
+  .db-table {
+    th {
+      background: #eef1f6 !important;
+      color: rgba(0,0,0,0.45) !important;
+      border-bottom-color: rgba(0,0,0,0.10) !important;
+    }
+    td {
+      color: #334155 !important;
+      border-bottom-color: rgba(0,0,0,0.06) !important;
+      .cell-null { color: rgba(0,0,0,0.25) !important; }
+    }
+    tr:hover td { background: rgba(0,0,0,0.03) !important; }
+  }
+
+  .db-loading-overlay { background: rgba(255,255,255,0.80) !important; span { color: $lt-muted !important; } }
+  .db-total-badge     { color: $lt-muted !important; }
+  .db-page-info       { color: $lt-muted !important; }
+
+  .db-page-size-select,
+  .db-page-btn,
+  .db-col-picker-btn {
+    background: rgba(0,0,0,0.05) !important;
+    border-color: $lt-border !important;
+    color: $lt-text !important;
+    &:hover:not(:disabled) { background: rgba(0,0,0,0.09) !important; }
+  }
+
+  .db-col-picker-dropdown {
+    background: $lt-surface !important;
+    border-color: $lt-border !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+    .col-picker-actions {
+      border-bottom-color: $lt-border !important;
+      button { background: rgba(0,0,0,0.05) !important; border-color: $lt-border !important; color: $lt-muted !important; }
+    }
+    .db-col-option {
+      color: $lt-muted !important;
+      &:hover { color: $lt-text !important; background: rgba(0,0,0,0.04) !important; }
+    }
+  }
+
+  // MAIN CONTENT LAYOUT
+
+  .main-content-area { border-right-color: $lt-border !important; }
+
+  .content-area {
+    &::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.14); }
+    &::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.24); }
+  }
+
+  // TIMELINE
+
+  .timeline-control-container {
+    background: rgba(0,0,0,0.03) !important;
+    border-color: $lt-border !important;
+  }
+
+  // HISTORY TIMELINE (Sidebar)
+
+  .history-timeline {
+    .timeline-item:not(:last-child)::after { background: rgba(0,0,0,0.10) !important; }
+    .timeline-content {
+      .header .trigger  { color: $lt-text  !important; }
+      .header .date     { color: $lt-muted !important; }
+      .details {
+        .models-chip { background: rgba(0,0,0,0.06) !important; border-color: $lt-border !important; color: $lt-muted !important; }
+        .duration    { color: $lt-muted !important; }
+      }
+    }
+  }
+
+  // RECHARTS
+
+  .recharts-cartesian-axis-tick text,
+  .recharts-text,
+  .recharts-legend-item-text { fill: $lt-muted !important; }
+
+  .recharts-cartesian-grid line { stroke: rgba(0,0,0,0.07) !important; }
+
+  .recharts-default-tooltip {
+    background: $lt-surface !important;
+    border-color: $lt-border !important;
+    color: $lt-text !important;
+  }
+
+  // MODAL OVERLAYS
+
+  .modal-content {
+    background: $lt-surface !important;
+    .modal-header {
+      border-bottom-color: rgba(0,0,0,0.10) !important;
+      h3, h2 { color: $lt-text !important; }
+      .close-btn { color: $lt-muted !important; &:hover { color: $lt-text !important; } }
+    }
+    .modal-footer { border-top-color: rgba(0,0,0,0.10) !important; background: rgba(0,0,0,0.02) !important; }
+    .source-btn {
+      background: rgba(0,0,0,0.04) !important;
+      border-color: $lt-border !important;
+      &:hover { background: rgba(0,0,0,0.07) !important; }
+      .text .title { color: $lt-text  !important; }
+      .text .desc  { color: $lt-muted !important; }
+    }
+    .ingest-progress .progress-bar-track { background: rgba(0,0,0,0.10) !important; }
+    .inspect-body .inspect-grid {
+      h4 { color: $lt-muted !important; }
+      .metric-table .row { color: $lt-text !important; border-bottom-color: rgba(0,0,0,0.06) !important; }
+      .tag-cloud .tag { background: rgba(0,0,0,0.06) !important; color: $lt-muted !important; }
+    }
+  }
+
+  // CHART SECTION (shared component)
+
+  .chart-section {
+    background: $lt-surface !important;
+    border-color: $lt-border !important;
+    .chart-header h3, .chart-header-row h3 { color: $lt-text  !important; }
+    .chart-legend span                      { color: $lt-muted !important; }
+    .chart-container .recharts-cartesian-grid line { stroke: rgba(0,0,0,0.07) !important; }
+  }
+
+  // STATUS CHIPS & HORIZON TRACK
+
+  .status-chip.standby {
+    background: rgba(0,0,0,0.06) !important;
+    color: $lt-muted !important;
+    border-color: $lt-border !important;
+  }
+
+  .horizon-track .history {
+    background: rgba(0,0,0,0.07) !important;
+    color: $lt-muted !important;
+  }
+}

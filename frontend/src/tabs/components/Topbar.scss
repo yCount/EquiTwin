@@ -1,111 +1,471 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
-// Shared Variables
-$bg-dark: #111316;
-$panel-border: #30363d;
-$primary: #58a6ff; 
-$success: #3fb950;
-$text-main: #e6edf3;
-$text-dim: #8b949e;
-$btn-bg: #21262d;
-$btn-border: #30363d;
+// ─── Base tokens ────────────────────────────────────────────────────────────
+$bg-topbar:     #111316;
+$panel-border:  rgba(255, 255, 255, 0.07);
+$text-main:     #e6edf3;
+$text-dim:      #8b949e;
+$btn-bg:        rgba(255, 255, 255, 0.05);
+$btn-border:    rgba(255, 255, 255, 0.10);
+$success:       #3fb950;
 
+// ─── Base container ─────────────────────────────────────────────────────────
 .topbar-container {
   flex-shrink: 0;
-  padding: 0 24px;
-  height: 56px;
+  position: relative;
+  // 4px accent bar + 24px padding gives comfortable left margin
+  padding: 0 24px 0 28px;
+  height: 68px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid $panel-border;
-  background: $bg-dark;
   z-index: 20;
   font-family: 'Inter', sans-serif;
+  overflow: hidden;
 
-  .topbar-branding {
+  // Default: plain dark bar, identical shade to right sidebar
+  background: $bg-topbar;
+  border-bottom: none;
+
+  // Background image layer — activated per variant
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    opacity: 0;
+    background-size: cover;
+    background-position: right center;
+    pointer-events: none;
+  }
+
+  // Single large PlayStation-style geometric artwork — right-side only.
+  // Each variant has its own shape tuned to the tab's accent colour.
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    background-repeat: no-repeat;
+    background-size: auto 100%;
+    background-position: right center;
+    -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.45) 30%, rgba(0,0,0,0.15) 58%, transparent 78%);
+    mask-image:         linear-gradient(to left, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.45) 30%, rgba(0,0,0,0.15) 58%, transparent 78%);
+  }
+}
+
+// ─── Decorative left accent bar (4px, replaces 3px) ─────────────────────────
+.topbar-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+}
+
+// ─── Decorative bottom glow line ────────────────────────────────────────────
+.topbar-bottom-glow {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+}
+
+// ─── Branding ───────────────────────────────────────────────────────────────
+.topbar-branding {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  position: relative;
+  z-index: 2;
+}
+
+.topbar-tag {
+  display: none;      // activated per variant
+  align-items: center;
+  gap: 0;             // gap handled by ::before margin
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  border: 1px solid transparent;
+  width: fit-content;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+
+  // Small coloured dot — inherits currentColor from the variant
+  &::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+    opacity: 0.7;
+    align-self: center;
+    margin-right: 5px;
+  }
+}
+
+.topbar-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: $text-main;
+  line-height: 1.2;
+}
+
+.topbar-subtitle {
+  font-size: 11px;
+  color: $text-dim;
+  letter-spacing: 0.1px;
+  line-height: 1.2;
+}
+
+// ─── Actions ────────────────────────────────────────────────────────────────
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 2;
+
+  .topbar-status {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: $text-dim;
+    font-weight: 500;
+    margin-right: 10px;
+    padding-right: 10px;
+    border-right: 1px solid $panel-border;
 
-    .topbar-title {
-      font-size: 16px;
-      font-weight: 600;
-      margin: 0;
-      color: $text-main;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    
-    .topbar-subtitle {
-      font-size: 11px;
-      color: $text-dim;
-      margin-top: 2px;
-      letter-spacing: 0.2px;
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: $success;
+      box-shadow: 0 0 7px rgba($success, 0.55);
+      &.online { background: $success; }
     }
   }
 
-  .topbar-actions {
+  .topbar-btn {
+    height: 30px;
+    padding: 0 13px;
+    background: $btn-bg;
+    border: 1px solid $btn-border;
+    border-radius: 6px;
+    color: $text-main;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 7px;
+    font-family: 'Inter', sans-serif;
+    white-space: nowrap;
+    letter-spacing: 0.1px;
 
-    .topbar-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      color: $text-dim;
-      font-weight: 500;
-      margin-right: 12px;
-      padding-right: 12px;
-      border-right: 1px solid $panel-border;
-
-      .status-dot {
-        width: 6px; height: 6px;
-        background: $success;
-        border-radius: 50%;
-        box-shadow: 0 0 8px rgba($success, 0.4);
-        
-        &.online { background: $success; }
-      }
+    &:hover {
+      background: rgba(255, 255, 255, 0.09);
+      border-color: rgba(255, 255, 255, 0.18);
     }
 
-    // Standardized Button Class
-    .topbar-btn {
-      height: 32px;
-      padding: 0 12px;
-      background: $btn-bg;
-      border: 1px solid $btn-border;
-      border-radius: 6px;
-      color: $text-main;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    &.primary {
+      background: #1f6feb;
+      border-color: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      &:hover { background: #388bfd; }
+    }
 
-      &:hover {
-        background: lighten($btn-bg, 5%);
-        border-color: $text-dim;
-      }
+    &:disabled { opacity: 0.45; cursor: not-allowed; }
+  }
 
-      &.primary {
-        background: #1f6feb;
-        border-color: rgba(255,255,255,0.1);
-        color: #fff;
-        
-        &:hover {
-          background: #388bfd;
-        }
-      }
+  // Controller-tab wrappers
+  .topbar-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
 
-      &:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
+  .system-status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    border: 1px solid transparent;
+
+    .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+    &.idle {
+      background: rgba(255,255,255,0.04);
+      color: $text-dim;
+      border-color: $panel-border;
+      .dot { background: $text-dim; }
+    }
+    &.running {
+      background: rgba(63, 185, 80, 0.10);
+      color: #3fb950;
+      border-color: rgba(63, 185, 80, 0.25);
+      .dot { background: #3fb950; box-shadow: 0 0 6px rgba(63, 185, 80, 0.6); }
+    }
+    &.stopped {
+      background: rgba(239, 68, 68, 0.09);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.25);
+      .dot { background: #f87171; }
+    }
+  }
+
+  .btn {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.18s ease;
+
+    &.btn-sm { height: 28px; font-size: 11px; padding: 0 10px; }
+
+    &.btn-primary {
+      background: #1f6feb;
+      border-color: rgba(255,255,255,0.08);
+      color: #fff;
+      &:hover { background: #388bfd; }
+    }
+
+    &.btn-danger {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.28);
+      color: #f87171;
+      &:hover { background: rgba(239, 68, 68, 0.20); }
+    }
+  }
+}
+
+.topbar--home,
+.topbar--dashboard,
+.topbar--forecast,
+.topbar--controller {
+  border-bottom: none;
+  .topbar-accent     { opacity: 1; }
+  .topbar-bottom-glow { opacity: 1; }
+  .topbar-tag        { display: inline-flex; }
+}
+
+// ─── HOME — Blue  (#3b82f6) ─────────────────────────────────────────────────
+.topbar--home {
+  background:
+    radial-gradient(ellipse 400px 100% at -10px 50%, rgba(59, 130, 246, 0.10) 0%, transparent 100%),
+    $bg-topbar;
+  box-shadow: inset 0 1px 0 rgba(59, 130, 246, 0.08);
+
+  &::before {
+    background-image: url('/public/images/home_bg.webp');
+    opacity: 0.40;
+    -webkit-mask-image: linear-gradient(to left, $bg-topbar 80%, transparent 90%);
+    mask-image: linear-gradient(to left, $bg-topbar 80%, transparent 90%);
+  }
+
+  .topbar-accent {
+    background: linear-gradient(to bottom, #93c5fd 0%, #3b82f6 55%, #1d4ed8 100%);
+    box-shadow: 0 0 14px rgba(59, 130, 246, 0.60);
+  }
+
+  .topbar-bottom-glow {
+    background: linear-gradient(
+      to right,
+      rgba(59, 130, 246, 0.80) 0%,
+      rgba(59, 130, 246, 0.22) 45%,
+      rgba(59, 130, 246, 0.05) 65%,
+      transparent 80%
+    );
+  }
+
+  .topbar-tag {
+    background: rgba(59, 130, 246, 0.11);
+    color: rgba(147, 197, 253, 0.90);
+    border-color: rgba(59, 130, 246, 0.25);
+  }
+
+  .topbar-actions {
+    .topbar-btn.primary {
+      background: rgba(29, 78, 216, 0.85);
+      border-color: rgba(96, 165, 250, 0.22);
+      &:hover { background: #2563eb; box-shadow: 0 0 10px rgba(59, 130, 246, 0.25); }
+    }
+  }
+}
+
+// ─── DASHBOARD — Cyan / Sky  (#0ea5e9) ──────────────────────────────────────
+.topbar--dashboard {
+  background:
+    radial-gradient(ellipse 400px 100% at -10px 50%, rgba(14, 165, 233, 0.10) 0%, transparent 100%),
+    $bg-topbar;
+  box-shadow: inset 0 1px 0 rgba(14, 165, 233, 0.08);
+
+  &::before {
+    background-image: url('/public/images/dashboard_bg.webp');
+    opacity: 0.25;
+    -webkit-mask-image: linear-gradient(to left, $bg-topbar 80%, transparent 90%);
+    mask-image: linear-gradient(to left, $bg-topbar 80%, transparent 90%);
+  }
+
+  .topbar-accent {
+    background: linear-gradient(to bottom, #7dd3fc 0%, #0ea5e9 55%, #0369a1 100%);
+    box-shadow: 0 0 14px rgba(14, 165, 233, 0.60);
+  }
+
+  .topbar-bottom-glow {
+    background: linear-gradient(
+      to right,
+      rgba(14, 165, 233, 0.80) 0%,
+      rgba(14, 165, 233, 0.22) 45%,
+      rgba(14, 165, 233, 0.05) 65%,
+      transparent 80%
+    );
+  }
+
+  .topbar-tag {
+    background: rgba(14, 165, 233, 0.11);
+    color: rgba(125, 211, 252, 0.90);
+    border-color: rgba(14, 165, 233, 0.25);
+  }
+
+  .topbar-actions {
+    .topbar-btn.primary {
+      background: rgba(3, 105, 161, 0.85);
+      border-color: rgba(125, 211, 252, 0.22);
+      &:hover { background: #0369a1; box-shadow: 0 0 10px rgba(14, 165, 233, 0.25); }
+    }
+    .topbar-status .status-dot.online {
+      box-shadow: 0 0 7px rgba(14, 165, 233, 0.5);
+    }
+  }
+}
+
+// ─── FORECAST — Red / Rose  (#ef4444) ───────────────────────────────────────
+.topbar--forecast {
+  background:
+    radial-gradient(ellipse 400px 100% at -10px 50%, rgba(239, 68, 68, 0.10) 0%, transparent 100%),
+    $bg-topbar;
+  box-shadow: inset 0 1px 0 rgba(239, 68, 68, 0.08);
+
+  &::before {
+    background-image: url('/public/images/prediction_bg.webp');
+    opacity: 0.30;
+    -webkit-mask-image: linear-gradient(to left, $bg-topbar 70%, transparent 90%);
+    mask-image: linear-gradient(to left, $bg-topbar 70%, transparent 90%);
+  }
+
+  .topbar-accent {
+    background: linear-gradient(to bottom, #fca5a5 0%, #ef4444 55%, #991b1b 100%);
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.60);
+  }
+
+  .topbar-bottom-glow {
+    background: linear-gradient(
+      to right,
+      rgba(239, 68, 68, 0.80) 0%,
+      rgba(239, 68, 68, 0.22) 45%,
+      rgba(239, 68, 68, 0.05) 65%,
+      transparent 80%
+    );
+  }
+
+  .topbar-tag {
+    background: rgba(239, 68, 68, 0.11);
+    color: rgba(252, 165, 165, 0.90);
+    border-color: rgba(239, 68, 68, 0.25);
+  }
+
+  .topbar-actions {
+    .topbar-btn.primary {
+      background: rgba(153, 27, 27, 0.85);
+      border-color: rgba(252, 165, 165, 0.22);
+      &:hover { background: #b91c1c; box-shadow: 0 0 10px rgba(239, 68, 68, 0.25); }
+    }
+  }
+}
+
+// ─── CONTROLLER — Orange  (#f97316) ─────────────────────────────────────────
+.topbar--controller {
+  background:
+    radial-gradient(ellipse 400px 100% at -10px 50%, rgba(249, 115, 22, 0.10) 0%, transparent 100%),
+    $bg-topbar;
+  box-shadow: inset 0 1px 0 rgba(249, 115, 22, 0.08);
+
+  &::before {
+    background-image: url('/public/images/controller_bg.webp');
+    opacity: 0.20;
+    -webkit-mask-image: linear-gradient(to left, $bg-topbar 70%, transparent 90%);
+    mask-image: linear-gradient(to left, $bg-topbar 70%, transparent 90%);
+  }
+
+  .topbar-accent {
+    background: linear-gradient(to bottom, #fdba74 0%, #f97316 55%, #c2410c 100%);
+    box-shadow: 0 0 14px rgba(249, 115, 22, 0.60);
+  }
+
+  .topbar-bottom-glow {
+    background: linear-gradient(
+      to right,
+      rgba(249, 115, 22, 0.80) 0%,
+      rgba(249, 115, 22, 0.22) 45%,
+      rgba(249, 115, 22, 0.05) 65%,
+      transparent 80%
+    );
+  }
+
+  .topbar-tag {
+    background: rgba(249, 115, 22, 0.11);
+    color: rgba(253, 186, 116, 0.90);
+    border-color: rgba(249, 115, 22, 0.25);
+  }
+
+  .topbar-actions {
+    .topbar-btn.primary,
+    .btn.btn-primary {
+      background: rgba(194, 65, 12, 0.85);
+      border-color: rgba(253, 186, 116, 0.22);
+      &:hover { background: #c2410c; box-shadow: 0 0 10px rgba(249, 115, 22, 0.25); }
+    }
+
+    .system-status-pill.running {
+      background: rgba(249, 115, 22, 0.10);
+      color: #fdba74;
+      border-color: rgba(249, 115, 22, 0.25);
+      .dot { background: #fdba74; box-shadow: 0 0 6px rgba(253, 186, 116, 0.6); }
     }
   }
 }

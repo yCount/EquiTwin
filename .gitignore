@@ -143,3 +143,9 @@ vite.config.ts.timestamp-*
 
 # Environment Variables
 .env
+
+# pycache
+__pycache__/
+
+# artifacts (trained models)
+artifacts/

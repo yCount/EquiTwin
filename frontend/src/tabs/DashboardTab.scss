@@ -3,10 +3,11 @@
 .dashboard-container {
   width: 100%;
   height: 100%;
-  min-height: 100vh;
+  min-height: 0;
   background: $bg-dark;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   
   // === CHART CARDS ===
   .chart-card {
@@ -14,38 +15,44 @@
     padding: $spacing-lg;
     display: flex;
     flex-direction: column;
-    min-height: 240px; 
+    min-height: 240px;
     @include hover-lift(-1px);
-    
+
+    // Subtle cyan top-edge accent — echoes the Dashboard variant's colour
+    border-top-color: rgba($primary, 0.22);
+
     .card-header {
       @include flex-between;
       margin-bottom: $spacing-lg;
-      
+
       .title-group {
         h3 {
           margin: 0;
           font-size: $font-size-md;
           font-weight: $font-weight-semibold;
           color: $text-main;
+          letter-spacing: 0.1px;
         }
         .subtitle {
           font-size: $font-size-xs;
           color: $text-dim;
           text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-top: 2px;
         }
       }
-      
+
       .stats-group {
         display: flex;
         gap: $spacing-lg;
-        
+
         .stat {
           text-align: right;
-          .label { font-size: 9px; text-transform: uppercase; color: $text-dim; display: block;}
-          .val { 
-            font-family: $font-family-mono; 
+          .label { font-size: 9px; text-transform: uppercase; color: $text-dim; display: block; letter-spacing: 0.5px; }
+          .val {
+            font-family: $font-family-mono;
             font-weight: $font-weight-bold;
-            font-size: $font-size-md; 
+            font-size: $font-size-md;
             color: $text-main;
           }
         }
@@ -55,6 +62,20 @@
     .chart-area {
       flex: 1;
       width: 100%;
+    }
+
+    .chart-area-empty {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      .chart-empty-msg {
+        font-size: $font-size-sm;
+        color: $text-muted;
+        opacity: 0.45;
+        letter-spacing: 0.02em;
+      }
     }
   }
   
@@ -77,6 +98,279 @@
          font-family: $font-family-mono;
          font-size: $font-size-xs;
          color: $primary;
+      }
+    }
+  }
+
+  // === CHARTS ERROR BANNER ===
+  .charts-error-banner {
+    padding: $spacing-md $spacing-lg;
+    background: rgba(239,68,68,0.07);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: $radius-sm;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xs;
+    span { font-size: $font-size-sm; color: $danger; }
+    .charts-error-hint { color: $text-dim; font-size: $font-size-xs; }
+    code { font-family: $font-family-mono; color: rgba(255,255,255,0.4); }
+  }
+
+  // === DATABASE VIEWER ===
+  .db-total-badge {
+    font-family: $font-family-mono;
+    font-size: $font-size-xs;
+    color: $text-dim;
+  }
+
+  .db-viewer {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-md;
+
+    // ---- Controls bar ----
+    .db-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: $spacing-sm;
+
+      .db-controls-left {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+      }
+
+      .db-page-size-select {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid $panel-border;
+        border-radius: $radius-xs;
+        color: $text-main;
+        padding: 4px 8px;
+        font-size: $font-size-sm;
+        cursor: pointer;
+        &:focus { outline: none; border-color: $primary; }
+        option { background: $bg-main; }
+      }
+
+      .db-col-picker-wrap {
+        position: relative;
+
+        .db-col-picker-btn {
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid $panel-border;
+          border-radius: $radius-xs;
+          color: $text-main;
+          padding: 4px 10px;
+          font-size: $font-size-sm;
+          cursor: pointer;
+          transition: background $transition-fast;
+          &:hover { background: rgba(255,255,255,0.09); }
+          .col-count { color: $primary; font-family: $font-family-mono; }
+        }
+
+        .db-col-picker-dropdown {
+          position: absolute;
+          top: calc(100% + 4px);
+          left: 0;
+          z-index: $z-dropdown;
+          background: $bg-main;
+          border: 1px solid $panel-border;
+          border-radius: $radius-sm;
+          padding: $spacing-sm;
+          min-width: 300px;
+          max-height: 320px;
+          overflow-y: auto;
+          box-shadow: $shadow-lg;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1px $spacing-md;
+
+          .col-picker-actions {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: $spacing-xs;
+            margin-bottom: $spacing-xs;
+            padding-bottom: $spacing-xs;
+            border-bottom: 1px solid $panel-border;
+
+            button {
+              background: rgba(255,255,255,0.06);
+              border: 1px solid $panel-border;
+              border-radius: $radius-xs;
+              color: $text-dim;
+              font-size: $font-size-xs;
+              padding: 2px 8px;
+              cursor: pointer;
+              &:hover { color: $text-main; }
+            }
+          }
+
+          .db-col-option {
+            display: flex;
+            align-items: center;
+            gap: $spacing-xs;
+            font-size: $font-size-xs;
+            color: $text-dim;
+            cursor: pointer;
+            padding: 3px 4px;
+            border-radius: $radius-xs;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            &:hover { color: $text-main; background: rgba(255,255,255,0.04); }
+            input[type="checkbox"] { accent-color: $primary; cursor: pointer; }
+          }
+        }
+      }
+
+      .db-pagination {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+
+        .db-page-info {
+          font-family: $font-family-mono;
+          font-size: $font-size-xs;
+          color: $text-dim;
+          min-width: 130px;
+          text-align: right;
+        }
+
+        .db-page-btn {
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid $panel-border;
+          border-radius: $radius-xs;
+          color: $text-main;
+          font-size: $font-size-lg;
+          cursor: pointer;
+          transition: background $transition-fast;
+          &:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+          &:disabled { opacity: 0.3; cursor: not-allowed; }
+        }
+
+        .db-page-current {
+          font-family: $font-family-mono;
+          font-size: $font-size-sm;
+          color: $primary;
+          min-width: 20px;
+          text-align: center;
+        }
+      }
+    }
+
+    // ---- Error state ----
+    .db-error {
+      padding: $spacing-md;
+      background: rgba(239,68,68,0.07);
+      border: 1px solid rgba(239,68,68,0.2);
+      border-radius: $radius-sm;
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-xs;
+      span { font-size: $font-size-sm; color: $danger; }
+      .db-error-hint { color: $text-dim; font-size: $font-size-xs; line-height: $line-height-relaxed; }
+      code { font-family: $font-family-mono; color: rgba(255,255,255,0.45); }
+    }
+
+    // ---- Table ----
+    .db-table-wrap {
+      position: relative;
+      overflow: auto;
+      max-height: 420px;
+      border: 1px solid $panel-border;
+      border-radius: $radius-sm;
+
+      .db-loading-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+        span { font-family: $font-family-mono; font-size: $font-size-sm; color: $text-dim; }
+      }
+
+      .db-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: $font-size-xs;
+
+        th {
+          position: sticky;
+          top: 0;
+          background: rgba(10, 12, 17, 0.98);
+          color: rgba(255,255,255,0.38);
+          text-transform: uppercase;
+          letter-spacing: 0.07em;
+          padding: 7px 10px;
+          text-align: left;
+          font-size: 9px;
+          font-weight: $font-weight-bold;
+          white-space: nowrap;
+          border-bottom: 1px solid rgba(255,255,255,0.07);
+          z-index: 1;
+        }
+
+        td {
+          padding: 5px 10px;
+          border-bottom: 1px solid rgba(255,255,255,0.025);
+          color: $text-dim;
+          white-space: nowrap;
+          font-family: $font-family-mono;
+          max-width: 200px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+
+          .cell-null { color: rgba(255,255,255,0.14); }
+
+          // net_occupancy colouring
+          &.cell-occ-zero { color: rgba(255,255,255,0.2); }
+          &.cell-occ-low  { color: $success; }
+          &.cell-occ-mid  { color: $warning; }
+          &.cell-occ-high { color: $danger; }
+
+          // event_label badges
+          .event-badge {
+            display: inline-block;
+            padding: 1px 7px;
+            border-radius: $radius-full;
+            font-size: 10px;
+            font-family: $font-family;
+            font-weight: $font-weight-medium;
+            &.ev-motion { background: rgba(255,255,255,0.06); color: $text-muted; }
+            &.ev-exit   { background: rgba(245,158,11,0.13);  color: $warning; }
+            &.ev-energy { background: rgba(59,130,246,0.13);  color: $primary; }
+            &.ev-aq     { background: rgba(16,185,129,0.13);  color: $success; }
+            &.ev-other  { background: rgba(255,255,255,0.05); color: $text-dim; }
+          }
+        }
+
+        tr {
+          &:hover td { background: rgba(255,255,255,0.018); }
+          // left accent by sensor type
+          &.db-row-occ td:first-child { border-left: 2px solid rgba(249,115,22,0.45); }
+          &.db-row-energy td:first-child { border-left: 2px solid rgba(59,130,246,0.35); }
+          &.db-row-aq td:first-child { border-left: 2px solid rgba(16,185,129,0.35); }
+        }
+
+        .db-empty {
+          text-align: center;
+          color: $text-muted;
+          padding: $spacing-xl;
+          font-family: $font-family;
+          font-size: $font-size-sm;
+        }
       }
     }
   }

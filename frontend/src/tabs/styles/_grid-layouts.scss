@@ -176,15 +176,15 @@
 }
 
 // Sensor Grid (HomeTab - auto-fit)
-.sensor-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: $spacing-lg;
+// .sensor-grid {
+//   display: grid;
+//   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+//   gap: $spacing-lg;
   
-  @include respond-to(sm) {
-    grid-template-columns: 1fr;
-  }
-}
+//   @include respond-to(sm) {
+//     grid-template-columns: 1fr;
+//   }
+// }
 
 // === UTILITY CLASSES ===
 
