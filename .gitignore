@@ -144,8 +144,9 @@ vite.config.ts.timestamp-*
 # Environment Variables
 .env
 
-# artifacts/ directory
-artifacts/
-
 # Compiled python bytecode files
 *.pyc
+__pycache__/
+
+# artifacts (trained models)
+artifacts/
