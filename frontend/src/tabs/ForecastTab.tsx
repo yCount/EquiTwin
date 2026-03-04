@@ -180,7 +180,7 @@ const ForecastTab: React.FC = () => {
 
   return (
     <div className="forecast-container">
-      <Topbar title="Prediction Engine" subtitle="Model Training & Evaluation" />
+      <Topbar variant="forecast" title="Forecast" subtitle="Model Training & Evaluation" />
       
       <MainContent
         sidebar={

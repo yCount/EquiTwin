@@ -4,7 +4,7 @@ Forecast-then-Optimise core. Consumes the recent data window, constraints, and w
 """
 
 from typing import List
-from app import MpcRequest, MpcSuggestion
+from models import MpcRequest, MpcSuggestion
 
 def run_mpc(req: MpcRequest) -> List[MpcSuggestion]:
     # Replace with your optimizer call; here we return “nudge to 21.5C”
