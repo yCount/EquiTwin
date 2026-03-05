@@ -19,6 +19,12 @@ class FeatureSpec:
     roll_cols: Sequence[str] = ()
     # Columns to drop before modeling
     drop_cols: Sequence[str] = ("raw_payload",)
+    # Lead (future-look) columns for LT models only.
+    # During training: actual future values serve as oracle forecast proxy.
+    # During inference: populated from WeatherClient.get_forecast().
+    # Only consumed by build_features_longterm() - ST ignores the Lead.
+    lead_cols: Sequence[str] = ()
+    leads: Sequence[int] = ()     # lead steps in LT-block units (4h each)
 
 def add_time_features(df: pd.DataFrame, ts_col: str) -> pd.DataFrame:
     out = df.copy()
@@ -78,6 +84,49 @@ def add_rolling_features(df: pd.DataFrame, ts_col: str, group_col: Optional[str]
     if feats:
         out = pd.concat([out, pd.DataFrame(feats, index=out.index)], axis=1)
     return out
+
+def add_lead_features(
+    df: pd.DataFrame,
+    ts_col: str,
+    group_col: Optional[str],
+    lead_cols: Sequence[str],
+    leads: Sequence[int],
+) -> pd.DataFrame:
+    """
+    Add forward-shifted (lead) features for LT weather forecast inputs.
+
+    col_lead1 = value at t+1 block, col_lead2 = t+2 ...
+
+    During LT training these are actual future values - a valid oracle proxy
+    for the weather forecast that would be available at inference time.
+    The model learns to exploit known-future weather; at inference the
+    FeatureBuffer4h populates them from WeatherClient.get_forecast().
+
+    Rows at the end of the series that have no future data get NaN.
+    """
+    if not lead_cols or not leads:
+        return df
+    out = df.sort_values(ts_col).copy()
+    feats = {}
+    if group_col and group_col in out.columns:
+        g = out.groupby(group_col, sort=False)
+        for col in lead_cols:
+            if col not in out.columns:
+                continue
+            s = g[col]
+            for L in leads:
+                feats[f"{col}_lead{L}"] = s.shift(-L)   # negative shift = lead
+    else:
+        for col in lead_cols:
+            if col not in out.columns:
+                continue
+            s = out[col]
+            for L in leads:
+                feats[f"{col}_lead{L}"] = s.shift(-L)
+    if feats:
+        out = pd.concat([out, pd.DataFrame(feats, index=out.index)], axis=1)
+    return out
+
 
 def build_features(raw: pd.DataFrame, spec: FeatureSpec) -> pd.DataFrame:
     df = raw.copy()
@@ -192,5 +241,8 @@ def build_features_longterm(
                 feats[f"{col}_ltlag{L}"] = s.shift(L)
     if feats:
         lt = pd.concat([lt, pd.DataFrame(feats, index=lt.index)], axis=1)
+
+    # Lead features (LT only)
+    lt = add_lead_features(lt, spec.ts_col, group_col, spec.lead_cols, spec.leads)
 
     return lt

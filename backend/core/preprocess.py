@@ -307,6 +307,64 @@ def cross_sensor_ffill(
 
     return out
 
+# Columns that should NOT be outlier-clipped (counts, IDs, flags).
+_NO_CLIP_COLS: frozenset = frozenset({
+    "entries", "exits", "num_targets", "sensor_id",
+    "quality_score", "battery_v",
+})
+
+
+def clip_outliers_iqr(
+    df: pd.DataFrame,
+    *,
+    cols: Optional[List[str]] = None,
+    group_col: Optional[str] = "sensor_id",
+    k: float = 3.0,
+) -> pd.DataFrame:
+    """
+    Clip sensor readings that fall beyond k × IQR from Q1/Q3.
+
+    Applies per column, per sensor group if group_col is present,
+    otherwise globally.  Only columns in _NUMERIC_COLS that are not
+    in _NO_CLIP_COLS are touched.
+
+    k=3.0 is intentionally conservative — only genuine outliers (e.g.
+    power-meter resets, CO2 sensor glitches) are clipped, not normal
+    peaks in occupancy or energy.
+
+    Columns with zero IQR (constants) are left untouched.
+    """
+    out = df.copy()
+    clip_cols = [
+        c for c in (cols if cols is not None else _NUMERIC_COLS)
+        if c in out.columns and c not in _NO_CLIP_COLS
+        and pd.api.types.is_numeric_dtype(out[c])
+    ]
+    if not clip_cols:
+        return out
+
+    has_group = (
+        group_col and group_col in out.columns
+        and out[group_col].notna().any()
+    )
+
+    def _clip_series(s: pd.Series) -> pd.Series:
+        q1 = s.quantile(0.25)
+        q3 = s.quantile(0.75)
+        iqr = q3 - q1
+        if iqr == 0:
+            return s
+        lo, hi = q1 - k * iqr, q3 + k * iqr
+        return s.clip(lower=lo, upper=hi)
+
+    if has_group:
+        for c in clip_cols:
+            out[c] = out.groupby(group_col, sort=False)[c].transform(_clip_series)
+    else:
+        for c in clip_cols:
+            out[c] = _clip_series(out[c])
+
+    return out
 
 # Step 5 – 15-minute downsampling
 
@@ -412,6 +470,7 @@ def preprocess_raw_table(
     feature_name: Optional[str] = None,
     ts_col: str = "timestamp",
     group_col: str = "sensor_id",
+    do_clip_outliers: bool = True,
     do_cross_sensor_ffill: bool = True,
     max_ffill_gap_minutes: Optional[int] = 60,
 ) -> pd.DataFrame:
@@ -442,6 +501,10 @@ def preprocess_raw_table(
 
     # 1. Numeric coercion
     out = coerce_numeric(out)
+
+    # Outlier clipping, runs before ffill so we don't clip filled values
+    if do_clip_outliers:
+        out = clip_outliers_iqr(out, group_col=group_col)
 
     # 2. Sensor-ID normalisation
     out = fill_sensor_id(out)

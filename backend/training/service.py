@@ -10,12 +10,16 @@ import pandas as pd
 
 from core.data import DataSpec, load_table
 from core.csv_source import build_training_frame_from_csv, load_dashboard_csv
+from core.drift import check_feature_drift
 from core.featurize import FeatureSpec, build_features, build_features_longterm
 from core.persist import save_model, load_model, save_metrics_csv
 from core.preprocess import preprocess_raw_table, resample_to_15min
 from core.source_config import get_data_source_mode, get_synthetic_csv_path
 from core.split import SplitSpec
-from training.search import SearchSpec, evaluate_models, fit_best_model
+from training.search import (
+    SearchSpec, evaluate_models, fit_best_model,
+    evaluate_quantile_models, evaluate_multioutput, fit_multioutput_model,
+)
 
 # Weather enrichment helper
 
@@ -266,7 +270,7 @@ def train_feature_best_models(
     gp_max_rows: int = 800,
     lt_block_minutes: int = 240,
     lt_agg: str = "mean",
-    lt_lags: Sequence[int] = (1, 2, 3),
+    lt_lags: Sequence[int] = (1, 2, 3, 6, 9, 12, 18),
 ) -> Dict[str, Any]:
     """
     Train and select the best model for each horizon for one feature and one level.
@@ -305,6 +309,18 @@ def train_feature_best_models(
         ts_col=feature.ts_col,
         group_col=feature.group_col or "sensor_id",
     )
+
+    # Drift check: compare oldest 80% vs newest 20% of the resampled data.
+    # Issues a UserWarning when PSI >= 0.10 on any key column.
+    # This runs before synthetic augmentation so only real sensor data is checked.
+    _drift_cols = [c for c in list(feature.lag_cols) if c in raw.columns]
+    if _drift_cols:
+        check_feature_drift(
+            raw,
+            cols=_drift_cols,
+            ts_col=feature.ts_col,
+            feature_name=feature.name,
+        )
 
     # Optionally append synthetic 15-minute rows derived from dashboard exports.
     if get_data_source_mode() != "csv":
@@ -375,8 +391,7 @@ def train_feature_best_models(
         best_summary["best"][str(h)] = {**best_row, "level": level}
 
         model, extra = fit_best_model(df, ss, horizon=int(h), best_model_name=best_row["model"])
-        meta = {
-            **best_row,
+        shared_meta = {
             "level": level,
             "target": feature.target,
             "ts_col": feature.ts_col,
@@ -390,9 +405,72 @@ def train_feature_best_models(
             "lt_block_minutes": lt_block_minutes if level == "lt" else None,
             "lt_agg": lt_agg if level == "lt" else None,
             "lt_lags": list(lt_lags) if level == "lt" else None,
-            **extra,
         }
+        meta = {**best_row, **shared_meta, **extra}
         save_model(model, out_root_p / "best" / f"{level}_h{int(h)}", meta)
+
+        # --- Quantile interval models (Q10 / Q50 / Q90)
+        # Saved alongside the point model so the MPC solver can use
+        # uncertainty bounds for risk-aware optimisation.
+        try:
+            q_result = evaluate_quantile_models(df, ss, horizon=int(h))
+            if q_result and q_result.get("q_pipes"):
+                # Save each quantile model separately
+                for qtag, qpipe in q_result["q_pipes"].items():
+                    q_meta = {
+                        **shared_meta,
+                        "quantile_tag": qtag,
+                        "coverage": q_result.get("coverage"),
+                        "sharpness": q_result.get("sharpness"),
+                    }
+                    save_model(qpipe, out_root_p / "quantile" / f"{level}_h{int(h)}_{qtag}", q_meta)
+                # Append quantile metric rows to the overall CSV
+                all_rows.extend([{**r, "level": level} for r in q_result.get("rows", [])])
+                best_summary["best"][str(h)]["quantile"] = {
+                    "coverage": q_result.get("coverage"),
+                    "sharpness": q_result.get("sharpness"),
+                }
+        except Exception as exc:
+            warnings.warn(
+                f"[{feature.name}/{level}/h{h}] Quantile evaluation failed: {exc}. "
+                "Skipping quantile models for this horizon.",
+                UserWarning, stacklevel=2,
+            )
+
+    # --- Multi-output model (all horizons)
+    # Trains one model that predicts every horizon in a single fit() call.
+    # Faster than per-horizon and can share representations across horizons.
+    _mo_base_meta = {
+        "level": level,
+        "target": feature.target,
+        "ts_col": feature.ts_col,
+        "group_col": feature.group_col,
+        "lags": list(feature.lags),
+        "lag_cols": list(feature.lag_cols),
+        "base_cols": list(feature.base_cols) if feature.base_cols is not None else None,
+        "drop_cols": list(feature.drop_cols),
+        "lt_block_minutes": lt_block_minutes if level == "lt" else None,
+        "lt_agg": lt_agg if level == "lt" else None,
+        "lt_lags": list(lt_lags) if level == "lt" else None,
+    }
+    if len(horizons) > 1:
+        try:
+            mo_pipe, mo_summary = fit_multioutput_model(df, ss, horizons=list(horizons))
+            mo_meta = {
+                **_mo_base_meta,
+                "model_type": "multioutput",
+                "base_model": "hgb",
+                "horizons": list(horizons),
+                "per_horizon_mae": mo_summary,
+            }
+            save_model(mo_pipe, out_root_p / "multioutput" / f"{level}_all_horizons", mo_meta)
+            best_summary["multioutput"] = mo_summary
+        except Exception as exc:
+            warnings.warn(
+                f"[{feature.name}/{level}] Multi-output model training failed: {exc}. "
+                "Continuing with per-horizon models.",
+                UserWarning, stacklevel=2,
+            )
 
     if all_rows:
         save_metrics_csv(all_rows, out_root_p / f"metrics_{level}.csv")
@@ -415,7 +493,7 @@ def train_feature_best_models_two_level(
     models: Optional[Sequence[str]] = None,
     gp_max_rows: int = 800,
     lt_agg: str = "mean",
-    lt_lags: Sequence[int] = (1, 2, 3),
+    lt_lags: Sequence[int] = (1, 2, 3, 6, 9, 12, 18),
 ) -> Dict[str, Any]:
     """Convenience wrapper: train ST (15m) and LT (4h) banks for a feature."""
     from equitwin_forecasting.timebase import default_horizons

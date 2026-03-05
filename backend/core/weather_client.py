@@ -174,7 +174,7 @@ class WeatherClient:
         Return up to ``hours`` hourly WeatherSnapshot objects starting from now.
 
         No caching — called at most once per MPC solve cycle.
-        Returns an empty list on failure (callers must handle gracefully).
+        Returns an empty list on failure.
         """
         try:
             url = _FORECAST_URL.format(lat=self.lat, lon=self.lon)

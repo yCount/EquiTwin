@@ -6,6 +6,14 @@ from core.featurize import FeatureSpec
 
 _META_DROP = ("raw_payload", "quality", "version")
 
+# Lead steps (in 4h blocks) for LT weather-forecast features.
+# lead1=4h, lead2=8h, lead3=12h from current block.
+# During LT training these are actual future values (oracle proxy).
+# During LT inference, FeatureBuffer4h should populate them from
+# WeatherClient.get_forecast() — see equitwin_forecasting/feature_buffer.py.
+_WEATHER_LEAD_COLS = ("outdoor_temp", "sunlight")
+_WEATHER_LEADS     = (1, 2, 3)
+
 ENERGY = FeatureSpec(
     name="energy",
     target="total_act_power",
@@ -29,6 +37,8 @@ ENERGY = FeatureSpec(
     ],
     lags=(1,2,3,6,12),
     drop_cols=_META_DROP,
+    lead_cols=_WEATHER_LEAD_COLS,
+    leads=_WEATHER_LEADS,
 )
 
 TEMPERATURE = FeatureSpec(
@@ -46,6 +56,8 @@ TEMPERATURE = FeatureSpec(
               "outdoor_temp","sunlight"],
     lags=(1,2,3,6,12),
     drop_cols=_META_DROP,
+    lead_cols=_WEATHER_LEAD_COLS,
+    leads=_WEATHER_LEADS,
 )
 
 AIRQUALITY_CO2 = FeatureSpec(
@@ -64,6 +76,8 @@ AIRQUALITY_CO2 = FeatureSpec(
               "outdoor_temp","sunlight"],
     lags=(1,2,3,6,12),
     drop_cols=_META_DROP,
+    lead_cols=_WEATHER_LEAD_COLS,
+    leads=_WEATHER_LEADS,
 )
 
 OCCUPANCY = FeatureSpec(
@@ -81,4 +95,6 @@ OCCUPANCY = FeatureSpec(
               "outdoor_temp","sunlight"],
     lags=(1,2,3,6,12),
     drop_cols=_META_DROP,
+    lead_cols=_WEATHER_LEAD_COLS,
+    leads=_WEATHER_LEADS,
 )

@@ -61,21 +61,22 @@ ALL_FEATURES = {
 PRESETS: Dict[str, Dict[str, Any]] = {
     "fast": {
         "limit_rows":   600,
-        "models":       ["ridge", "hgb", "rf"],
+        # lgbm/xgb are tried if installed; skip if not
+        "models":       ["ridge", "hgb", "rf", "lgbm", "xgb"],
         "st_horizons":  [1, 3, 6],
         "lt_horizons":  [1, 3],
         "gp_max_rows":  200,
     },
     "normal": {
         "limit_rows":   5000,
-        "models":       ["ridge", "hgb", "rf", "ann", "gp"],
+        "models":       ["ridge", "hgb", "rf", "ann", "gp", "lgbm", "xgb"],
         "st_horizons":  [1, 2, 3, 4, 6, 8],
         "lt_horizons":  [1, 2, 3, 4, 5, 6],
         "gp_max_rows":  400,
     },
     "full": {
         "limit_rows":   None,   # load everything
-        "models":       None,   # all 9 candidates
+        "models":       None,   # all candidates (including lgbm/xgb if installed)
         "st_horizons":  None,   # use default_horizons()
         "lt_horizons":  None,
         "gp_max_rows":  800,
@@ -96,7 +97,7 @@ def train_all_features(
     lt_horizons: Optional[Sequence[int]] = (1, 3),
     gp_max_rows: int = 200,
     lt_agg: str = "mean",
-    lt_lags: Sequence[int] = (1, 2, 3),
+    lt_lags: Sequence[int] = (1, 2, 3, 6, 9, 12, 18),
 ) -> Dict[str, Any]:
     """
     Train ST + LT model banks for every requested feature.
@@ -200,7 +201,7 @@ def _build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--gp-max-rows", type=int, default=None,
                     help="Override GP row cap (overrides --mode)")
     ap.add_argument("--lt-agg", default="mean", choices=["mean", "sum", "last"])
-    ap.add_argument("--lt-lags", type=int, nargs="+", default=[1, 2, 3])
+    ap.add_argument("--lt-lags", type=int, nargs="+", default=[1, 2, 3, 6, 9, 12, 18])
     return ap
 
 
