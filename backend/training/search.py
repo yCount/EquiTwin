@@ -109,6 +109,7 @@ def evaluate_models(df: pd.DataFrame, spec: SearchSpec, horizon: int) -> List[Di
         if name not in cand:
             continue
 
+        print(f"[model] {name} h{horizon}", flush=True)
         pre = make_preprocessor(cat_cols, num_cols, PreprocessSpec(scale_numeric=(name == "ann")))
         pipe = Pipeline([("pre", pre), ("model", cand[name])])
 
@@ -143,6 +144,7 @@ def evaluate_models(df: pd.DataFrame, spec: SearchSpec, horizon: int) -> List[Di
         })
 
     if "voting" in spec.include_models:
+        print(f"[model] voting h{horizon}", flush=True)
         base_names = [n for n in ("ridge", "hgb", "rf") if n in cand]
         pre = make_preprocessor(cat_cols, num_cols, PreprocessSpec(scale_numeric=False))
 

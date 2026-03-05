@@ -372,6 +372,7 @@ def train_feature_best_models(
         "level": level, "n_rows": len(df), "best": {},
     }
 
+    print(f"[level] {level} {feature.name}", flush=True)
     for h in horizons:
         rows = evaluate_models(df, ss, horizon=int(h))
 
@@ -413,6 +414,7 @@ def train_feature_best_models(
         # Saved alongside the point model so the MPC solver can use
         # uncertainty bounds for risk-aware optimisation.
         try:
+            print(f"[quantile] h{h}", flush=True)
             q_result = evaluate_quantile_models(df, ss, horizon=int(h))
             if q_result and q_result.get("q_pipes"):
                 # Save each quantile model separately
@@ -455,6 +457,7 @@ def train_feature_best_models(
     }
     if len(horizons) > 1:
         try:
+            print(f"[multioutput] {level} {feature.name}", flush=True)
             mo_pipe, mo_summary = fit_multioutput_model(df, ss, horizons=list(horizons))
             mo_meta = {
                 **_mo_base_meta,

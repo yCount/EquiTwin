@@ -728,17 +728,22 @@ _KNOWN_FEATURES = ["energy", "temperature", "airquality", "occupancy"]
 @app.get("/api/artifacts/status")
 def artifacts_status():
     """
-    Walk the artifacts directory and return per-feature / per-horizon metadata.
-    Reads the metadata.json stored alongside each model.joblib by training.service.
-    NaN values (R²) are normalised to null for safe JSON serialisation.
+    Walk the artifacts directory and return rich per-feature training metadata.
+
+    Response shape per feature:
+      st / lt : { "<horizon>": { model, mae, rmse, r2, mase, n_rows, quantile? } }
+      all_models_st / all_models_lt : rows from metrics_<level>.csv (full comparison)
+      multioutput : { st?: { per_horizon_mae }, lt?: { ... } }
+      n_rows : total training rows (from first available horizon)
     """
+    import csv as _csv
+
     arts_root = os.environ.get(
         "ARTIFACTS_ROOT",
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts"),
     )
 
     def _safe(v):
-        """Return None instead of NaN / Inf so the response is valid JSON."""
         if v is None:
             return None
         try:
@@ -748,34 +753,130 @@ def artifacts_status():
             pass
         return v
 
+    def _read_metrics_csv(path: str):
+        """Read a metrics CSV and return list of row dicts with safe numeric values."""
+        rows = []
+        if not os.path.exists(path):
+            return rows
+        try:
+            with open(path, newline="", encoding="utf-8") as fh:
+                for r in _csv.DictReader(fh):
+                    rows.append({
+                        "model":      r.get("model", ""),
+                        "horizon":    _safe(int(r["horizon"])) if r.get("horizon") else None,
+                        "mae":        _safe(float(r["mae"]))   if r.get("mae")     else None,
+                        "rmse":       _safe(float(r["rmse"]))  if r.get("rmse")    else None,
+                        "r2":         _safe(float(r["r2"]))    if r.get("r2")      else None,
+                        "mase":       _safe(float(r["mase"]))  if r.get("mase")    else None,
+                        "n_folds":    int(r["n_folds"])        if r.get("n_folds") else None,
+                        "level":      r.get("level", ""),
+                    })
+        except Exception:
+            pass
+        return rows
+
     result: Dict[str, Any] = {}
     for feature in _KNOWN_FEATURES:
-        best_dir = os.path.join(arts_root, feature, "best")
-        feature_data: Dict[str, Dict] = {"st": {}, "lt": {}}
+        feat_root  = os.path.join(arts_root, feature)
+        best_dir   = os.path.join(feat_root, "best")
+        q_dir      = os.path.join(feat_root, "quantile")
+        mo_dir     = os.path.join(feat_root, "multioutput")
 
+        feature_data: Dict[str, Any] = {
+            "st": {}, "lt": {},
+            "all_models_st": [], "all_models_lt": [],
+            "multioutput": {},
+            "n_rows": None,
+        }
+
+        # ── best models per horizon ───────────────────────────────────────────
         if os.path.isdir(best_dir):
-            for entry in os.listdir(best_dir):
-                # Expecting names like  st_h1  lt_h3
+            for entry in sorted(os.listdir(best_dir)):
                 if "_h" not in entry:
                     continue
-                level, h_str = entry.split("_h", 1)
+                parts = entry.split("_h", 1)
+                if len(parts) != 2:
+                    continue
+                level, h_str = parts
                 if level not in ("st", "lt"):
                     continue
                 meta_path = os.path.join(best_dir, entry, "metadata.json")
                 if not os.path.exists(meta_path):
                     continue
                 try:
-                    with open(meta_path, "r") as fh:
+                    with open(meta_path) as fh:
                         raw = json.load(fh)
-                    feature_data[level][h_str] = {
+                    horizon_data: Dict[str, Any] = {
                         "model":  raw.get("model"),
                         "mae":    _safe(raw.get("mae")),
                         "rmse":   _safe(raw.get("rmse")),
                         "r2":     _safe(raw.get("r2")),
+                        "mase":   _safe(raw.get("mase")),
                         "n_rows": raw.get("n_rows"),
                     }
+                    feature_data[level][h_str] = horizon_data
+                    if feature_data["n_rows"] is None:
+                        feature_data["n_rows"] = raw.get("n_rows")
                 except Exception:
-                    pass  # corrupt metadata, skip silently
+                    pass
+
+        # ── quantile coverage / sharpness per horizon ─────────────────────────
+        if os.path.isdir(q_dir):
+            for entry in os.listdir(q_dir):
+                # names like  st_h1_q90  st_h1_lgbm_q50  lt_h3_q10
+                meta_path = os.path.join(q_dir, entry, "metadata.json")
+                if not os.path.exists(meta_path):
+                    continue
+                try:
+                    with open(meta_path) as fh:
+                        raw = json.load(fh)
+                    # Parse level and horizon from entry name  e.g. st_h1_q90
+                    parts = entry.split("_h", 1)
+                    if len(parts) != 2:
+                        continue
+                    level = parts[0]
+                    rest = parts[1]          # "1_q90" or "1_lgbm_q50"
+                    h_str = rest.split("_")[0]
+                    qtag  = raw.get("quantile_tag", "")
+                    if level not in ("st", "lt") or h_str not in feature_data[level]:
+                        continue
+                    # Attach coverage/sharpness once per horizon (use q90 as canonical)
+                    if "quantile" not in feature_data[level][h_str]:
+                        feature_data[level][h_str]["quantile"] = {}
+                    cov = _safe(raw.get("coverage"))
+                    sha = _safe(raw.get("sharpness"))
+                    if cov is not None:
+                        feature_data[level][h_str]["quantile"]["coverage"]  = cov
+                        feature_data[level][h_str]["quantile"]["sharpness"] = sha
+                except Exception:
+                    pass
+
+        # ── full model comparison tables (all models × all horizons) ──────────
+        feature_data["all_models_st"] = _read_metrics_csv(
+            os.path.join(feat_root, "metrics_st.csv")
+        )
+        feature_data["all_models_lt"] = _read_metrics_csv(
+            os.path.join(feat_root, "metrics_lt.csv")
+        )
+
+        # ── multi-output summary ──────────────────────────────────────────────
+        if os.path.isdir(mo_dir):
+            for entry in os.listdir(mo_dir):
+                # names like  st_all_horizons  lt_all_horizons
+                meta_path = os.path.join(mo_dir, entry, "metadata.json")
+                if not os.path.exists(meta_path):
+                    continue
+                try:
+                    with open(meta_path) as fh:
+                        raw = json.load(fh)
+                    level = raw.get("level", entry.split("_")[0])
+                    if level in ("st", "lt"):
+                        feature_data["multioutput"][level] = {
+                            "base_model": raw.get("base_model"),
+                            "per_horizon_mae": raw.get("per_horizon_mae", {}),
+                        }
+                except Exception:
+                    pass
 
         result[feature] = feature_data
 
@@ -911,18 +1012,40 @@ async def training_ws(ws: WebSocket):
                 kind, payload = await line_queue.get()
 
                 if kind == "line":
+                    import re as _re
                     line = payload
                     msg_out: Dict[str, Any] = {
                         "type": "log", "line": line,
                         "feature_start": None, "feature_done": None,
+                        "current_level": None,    # "st" | "lt"
+                        "current_model": None,    # model name being evaluated
+                        "current_horizon": None,  # int
+                        "current_step": None,     # "model" | "quantile" | "multioutput"
                     }
                     stripped = line.strip()
                     for fname in _KNOWN_FEATURES:
                         if stripped == f"--- {fname.upper()} ---":
                             msg_out["feature_start"] = fname
-                        # train_all.py prints: "energy done."
                         if stripped == f"{fname} done.":
                             msg_out["feature_done"] = fname
+                    # Parse structured [TAG] DATA progress lines
+                    m = _re.match(r"^\[(\w+)\]\s+(.*)", stripped)
+                    if m:
+                        tag, data = m.group(1), m.group(2).strip()
+                        parts = data.split()
+                        if tag == "level" and len(parts) >= 1 and parts[0] in ("st", "lt"):
+                            msg_out["current_level"] = parts[0]
+                            msg_out["current_step"]  = "model"
+                        elif tag == "model" and len(parts) >= 2:
+                            msg_out["current_model"] = parts[0]
+                            h_part = parts[1]
+                            if h_part.startswith("h") and h_part[1:].isdigit():
+                                msg_out["current_horizon"] = int(h_part[1:])
+                            msg_out["current_step"] = "model"
+                        elif tag == "quantile":
+                            msg_out["current_step"] = "quantile"
+                        elif tag == "multioutput":
+                            msg_out["current_step"] = "multioutput"
                     await ws.send_json(msg_out)
 
                 elif kind == "done":
