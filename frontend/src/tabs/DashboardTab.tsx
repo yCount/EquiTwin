@@ -310,6 +310,16 @@ const DashboardTab = () => {
     timeRange.end    ?? fullTimeRange.end,
   ], [timeRange, fullTimeRange]);
 
+  const timelineFlatData = useMemo(() => {
+    const src = timelineViewRange
+      ? sensorData?.weather.filter(d => {
+          const t = d.fullTimestamp.getTime();
+          return t >= timelineViewRange.start && t <= timelineViewRange.end;
+        })
+      : sensorData?.weather;
+    return (src ?? []).map(d => ({ ...d, flat: 1 }));
+  }, [sensorData?.weather, timelineViewRange]);
+
   const handleTimelineChange = useCallback((start: number, end: number) => {
     setTimeRange({ start, end });
   }, []);
@@ -913,14 +923,8 @@ const [level3Active, setLevel3Active] = useState(true);
                  fullTimeRange={fullTimeRange}
                  selectedRange={timeRange}
                  onChange={handleTimelineChange}
-                 data={timelineViewRange 
-                   ? sensorData?.weather.filter(d => {
-                       const t = d.fullTimestamp.getTime();
-                       return t >= timelineViewRange.start && t <= timelineViewRange.end;
-                     })
-                   : sensorData?.weather
-                 }
-                 dataKey="temperature"
+                 data={timelineFlatData}
+                 dataKey="flat"
                />
             </div>
           </Section>

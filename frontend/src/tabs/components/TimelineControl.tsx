@@ -34,6 +34,15 @@ const TimelineControl: React.FC<TimelineControlProps> = ({
     return fullTimeRange.start + (pct / 100) * total;
   };
 
+  const formatCompactDate = (ms: number) =>
+    new Date(ms).toLocaleString([], {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
   // --- Memoized Values ---
   const currentValue = useMemo(() => {
     // If no range selected, show full range (0-100)
@@ -43,6 +52,20 @@ const TimelineControl: React.FC<TimelineControlProps> = ({
       rangeToPercent(selectedRange.end)
     ];
   }, [selectedRange, fullTimeRange]);
+
+  const keySpots = useMemo(() => {
+    const n = 6; // start + 4 interior + end
+    const total = fullTimeRange.end - fullTimeRange.start;
+    if (total <= 0) return [] as Array<{ pct: number; label: string }>;
+    return Array.from({ length: n }).map((_, i) => {
+      const pct = (i / (n - 1)) * 100;
+      const ts = fullTimeRange.start + (total * pct / 100);
+      return { pct, label: formatCompactDate(ts) };
+    });
+  }, [fullTimeRange.start, fullTimeRange.end]);
+
+  const selectedStartMs = selectedRange.start ?? fullTimeRange.start;
+  const selectedEndMs = selectedRange.end ?? fullTimeRange.end;
 
   // --- Sparkline Path Generation ---
   const sparklinePath = useMemo(() => {
@@ -57,12 +80,14 @@ const TimelineControl: React.FC<TimelineControlProps> = ({
         if (val > max) max = val;
     });
     const range = max - min;
+    const isFlat = range === 0;
+    const safeRange = isFlat ? 1 : range;
 
     // 2. Build SVG Path (now with 0-100 for X, will be scaled by transform)
     return data.map((d, i) => {
-        const x = (i / (data.length - 1)) * 100;
-        const normalizedVal = (d[dataKey] - min) / range;
-        const y = (1 - normalizedVal) * 100; 
+        const x = data.length === 1 ? 50 : (i / (data.length - 1)) * 100;
+        const normalizedVal = (d[dataKey] - min) / safeRange;
+        const y = isFlat ? 50 : (1 - normalizedVal) * 100; 
         return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
     }).join(' ') + ' L 100 100 L 0 100 Z';
   }, [data, dataKey]);
@@ -142,11 +167,13 @@ const TimelineControl: React.FC<TimelineControlProps> = ({
 
   // --- Render ---
   const handleRender = (node: any, handleProps: any) => {
+    const pct = Number(handleProps?.value ?? 0);
+    const ts = percentToRange(pct);
     return (
       <div {...node.props} className={`custom-timeline-handle handle-${handleProps.index}`}>
         <div className="handle-line" />
-        <div className="handle-dot" /> 
-        {/* Tooltip logic (Optional: stripped for brevity, add back if desired) */}
+        <div className="handle-dot" />
+        <div className="handle-tooltip">{formatCompactDate(ts)}</div>
       </div>
     );
   };
@@ -225,6 +252,15 @@ const TimelineControl: React.FC<TimelineControlProps> = ({
          </svg>
       </div>
 
+      <div className="timeline-keyspots" aria-hidden="true">
+        {keySpots.map((k, i) => (
+          <div key={i} className="keyspot" style={{ left: `${k.pct}%` }}>
+            <div className="keyspot-line" />
+            <div className="keyspot-label">{k.label}</div>
+          </div>
+        ))}
+      </div>
+
       {/* Hover Tooltip */}
       {hoverPosition && (
         <div 
@@ -232,18 +268,20 @@ const TimelineControl: React.FC<TimelineControlProps> = ({
           style={{ left: `${hoverPosition.x}%` }}
         >
           <div className="tooltip-time">
-            {new Date(hoverPosition.data.fullTimestamp).toLocaleString([], {
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
+            Cursor
           </div>
           <div className="tooltip-value">
-            {Number(hoverPosition.data[dataKey]).toFixed(1)} kWh
+            {formatCompactDate(new Date(hoverPosition.data.fullTimestamp).getTime())}
           </div>
         </div>
       )}
+
+      <div className="timeline-edge-label edge-start">
+        {formatCompactDate(selectedStartMs)}
+      </div>
+      <div className="timeline-edge-label edge-end">
+        {formatCompactDate(selectedEndMs)}
+      </div>
 
       {/* 2. Slider Interactive Layer */}
       <div className="slider-wrapper">

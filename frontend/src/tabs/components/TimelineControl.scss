@@ -1,350 +1,219 @@
-$primary: #3b82f6; 
-$primary-glow: rgba(59, 130, 246, 0.6);
-$bg-dark: #0b0d12;
-$ruler-base: rgba(255, 255, 255, 0.1);
-$tooltip-bg: #1e1e24;
-
 .timeline-control-container {
+  position: relative;
   width: 100%;
-  height: 36px; 
-  position: relative;
+  height: 64px; // vertically shorter than before
   margin-top: 4px;
-  user-select: none;
-  padding-top: 12px; 
-
-  .timeline-sparkline-layer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: all;
-    
-    svg {
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      
-      .sparkline-fill {
-        fill: rgba(59, 130, 246, 0.08);
-        transition: fill 0.3s ease;
-      }
-      
-      .sparkline-stroke {
-        stroke: rgba(59, 130, 246, 0.4);
-        stroke-width: 0.5;
-        transition: stroke 0.3s ease;
-      }
-      
-      .selection-dim {
-        fill: rgba(0, 0, 0, 0.5);
-      }
-      
-      .selection-line {
-        stroke: $primary;
-        stroke-width: 1;
-        opacity: 0.9;
-        filter: drop-shadow(0 0 4px $primary-glow);
-        
-        &.selection-line-start {
-          stroke: $primary;
-        }
-        
-        &.selection-line-end {
-          stroke: $primary;
-        }
-      }
-
-      .hover-line {
-        stroke: rgba(255, 255, 255, 0.6);
-        stroke-width: 1;
-        pointer-events: none;
-      }
-    }
-  }
-
-  .timeline-tooltip {
-    position: absolute;
-    top: -50px;
-    transform: translateX(-50%);
-    background: $tooltip-bg;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 6px 10px;
-    border-radius: 6px;
-    pointer-events: none;
-    z-index: 1000;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    
-    .tooltip-time {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 9px;
-      color: rgba(255, 255, 255, 0.6);
-      margin-bottom: 2px;
-    }
-    
-    .tooltip-value {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      color: $primary;
-      font-weight: 600;
-    }
-
-    &::after {
-      content: '';
-      position: absolute;
-      top: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      border-left: 4px solid transparent;
-      border-right: 4px solid transparent;
-      border-top: 4px solid $tooltip-bg;
-    }
-  }
-
-  .timeline-ruler-track {
-    position: absolute;
-    top: 24px; 
-    left: 0;
-    width: 100%;
-    height: 0; 
-    border-bottom: 1px solid $ruler-base;
-    pointer-events: none;
-
-    .ruler-tick {
-      position: absolute;
-      top: 1px; 
-      background: $ruler-base;
-      transform: translateX(-50%);
-
-      &.major {
-        height: 5px;
-        width: 1px;
-
-        .tick-label {
-          position: absolute;
-          top: 6px; 
-          left: 50%;
-          transform: translateX(-50%);
-          font-size: 9px;
-          font-family: 'JetBrains Mono', monospace;
-          color: rgba(255, 255, 255, 0.3);
-          white-space: nowrap;
-        }
-      }
-
-      &.minor {
-        height: 3px;
-        width: 1px;
-      }
-    }
-  }
-
-  .slider-wrapper {
-    position: absolute;
-    top: 24px;
-    left: 0;
-    width: 100%;
-    height: 0;
-
-    .rc-slider {
-      padding: 0;
-      width: 100%;
-
-      .rc-slider-rail {
-        background: transparent;
-        height: 0;
-      }
-
-      .rc-slider-track {
-        height: 2px;
-        top: -1px;
-        background: $primary;
-        box-shadow: 0 0 8px $primary-glow;
-        border-radius: 0;
-      }
-
-      .rc-slider-handle {
-        width: 0;
-        height: 0;
-        margin-top: 0;
-        border: none;
-        background: transparent;
-        opacity: 1;
-        box-shadow: none !important;
-
-        &-dragging {
-           box-shadow: none !important;
-           .custom-timeline-handle .handle-tooltip {
-              opacity: 1;
-              transform: translateX(-50%) translateY(-5px);
-           }
-        }
-
-        .custom-timeline-handle {
-            position: absolute;
-            top: -8px; 
-            height: 16px; 
-            width: 16px; 
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: ew-resize; 
-            z-index: 100;
-            transform: translateX(-50%);
-
-            .handle-line {
-                width: 1px;
-                height: 100%;
-                background: #fff;
-                box-shadow: 0 0 4px rgba(0,0,0,0.5);
-                transition: height 0.2s, background 0.2s;
-            }
-
-            .handle-dot {
-                position: absolute;
-                bottom: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 3px;
-                height: 3px;
-                background: #fff;
-                border-radius: 50%;
-                transition: background 0.2s;
-            }
-
-            .handle-tooltip {
-              position: absolute;
-              bottom: 100%; // Above the handle
-              left: 50%;
-              transform: translateX(-50%) translateY(0);
-              background: $tooltip-bg;
-              border: 1px solid rgba(255,255,255,0.1);
-              padding: 4px 8px;
-              border-radius: 6px;
-              font-family: 'JetBrains Mono', monospace;
-              font-size: 10px;
-              color: #fff;
-              white-space: nowrap;
-              opacity: 0; // Hidden by default
-              pointer-events: none;
-              transition: all 0.2s ease;
-              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-              z-index: 200;
-
-              &::after {
-                content: '';
-                position: absolute;
-                bottom: -4px;
-                left: 50%;
-                transform: translateX(-50%);
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 4px solid $tooltip-bg;
-              }
-            }
-
-            &:hover {
-                .handle-line { 
-                    height: 20px; 
-                    top: -2px;
-                    background: $primary;
-                    box-shadow: 0 0 8px $primary;
-                }
-                .handle-dot { background: $primary; }
-                
-                .handle-tooltip {
-                  opacity: 1;
-                  transform: translateX(-50%) translateY(-5px);
-                }
-            }
-        }
-      }
-    }
-  }
-}
-
-.timeline-control-container {
-  position: relative;
-  height: 84px;                 /* slimmer, timeline-like */
-  border-radius: 14px;
+  border-radius: 12px;
   overflow: hidden;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
+  user-select: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(14, 165, 233, 0.12) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
 }
 
-/* Sparkline becomes the “track background” */
 .timeline-sparkline-layer {
   position: absolute;
   inset: 0;
-  opacity: 0.9;
+  pointer-events: all;
+
+  svg {
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .sparkline-fill {
+    fill: rgba(14, 165, 233, 0.14);
+  }
+
+  .sparkline-stroke {
+    stroke: rgba(125, 211, 252, 0.75);
+    stroke-width: 1.2;
+  }
+
+  .selection-dim {
+    fill: rgba(4, 8, 16, 0.5);
+  }
+
+  .selection-line {
+    stroke: rgba(56, 189, 248, 0.95);
+    stroke-width: 1.2;
+    filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.6));
+  }
+
+  .hover-line {
+    stroke: rgba(255, 255, 255, 0.85);
+    stroke-width: 1;
+    stroke-dasharray: 3 2;
+  }
 }
 
-/* Subtle tick marks overlay */
-.timeline-control-container::after {
-  content: "";
+.timeline-keyspots {
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(to right, rgba(255,255,255,0.07) 1px, transparent 1px);
-  background-size: 10% 100%;   /* 10 major ticks */
   pointer-events: none;
-  mix-blend-mode: overlay;
+
+  .keyspot {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+
+    .keyspot-line {
+      width: 1px;
+      height: 36px;
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .keyspot-label {
+      margin-top: 2px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.01em;
+      color: rgba(255, 255, 255, 0.56);
+      white-space: nowrap;
+    }
+  }
 }
 
-/* Slider sits on top */
+.timeline-edge-label {
+  position: absolute;
+  top: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.72);
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(2, 6, 23, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  max-width: 48%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edge-start {
+  left: 6px;
+}
+
+.edge-end {
+  right: 6px;
+  text-align: right;
+}
+
+.timeline-tooltip {
+  position: absolute;
+  top: -42px;
+  transform: translateX(-50%);
+  z-index: 15;
+  pointer-events: none;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(2, 6, 23, 0.9);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.28);
+
+  .tooltip-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.66);
+  }
+
+  .tooltip-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #7dd3fc;
+    font-weight: 600;
+    margin-top: 1px;
+  }
+}
+
 .slider-wrapper {
   position: absolute;
-  inset: 0;
-  padding: 10px 14px 12px 14px; /* gives breathing room */
-  display: flex;
-  align-items: flex-end;        /* puts the track near the bottom */
+  left: 0;
+  right: 0;
+  bottom: 18px;
+  padding: 0 8px;
+
+  .rc-slider {
+    width: 100%;
+    padding: 0;
+  }
+
+  .rc-slider-rail {
+    height: 2px;
+    background: rgba(255, 255, 255, 0.26);
+  }
+
+  .rc-slider-track {
+    height: 2px;
+    background: rgba(56, 189, 248, 0.95);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.55);
+  }
+
+  .rc-slider-handle {
+    width: 0;
+    height: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none !important;
+    opacity: 1;
+  }
 }
 
-/* rc-slider track/rail: timeline bar */
-.rc-slider {
-  width: 100%;
-}
-
-.rc-slider-rail {
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.10);
-}
-
-.rc-slider-track {
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(59,130,246,0.55); /* soft “selected range” */
-}
-
-.rc-slider-handle {
-  opacity: 0; /* we’ll use your custom handleRender instead */
-}
-
-/* Your custom handles (from handleRender in TimelineControl.tsx) */
 .custom-timeline-handle {
-  position: relative;
-  width: 0;
-  height: 0;
-}
-
-.custom-timeline-handle .handle-line {
   position: absolute;
-  bottom: -8px;
-  width: 2px;
-  height: 44px;
-  background: rgba(255,255,255,0.7);
-  border-radius: 999px;
-}
+  top: -12px;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 24px;
+  cursor: ew-resize;
+  z-index: 20;
 
-.custom-timeline-handle .handle-dot {
-  position: absolute;
-  bottom: -12px;
-  width: 12px;
-  height: 12px;
-  transform: translateX(-5px);
-  border-radius: 999px;
-  background: rgba(255,255,255,0.9);
-  box-shadow: 0 0 0 6px rgba(59,130,246,0.22);
-}
+  .handle-line {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 22px;
+    border-radius: 1px;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.45);
+  }
 
+  .handle-dot {
+    position: absolute;
+    left: 50%;
+    bottom: -2px;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #e0f2fe;
+    box-shadow: 0 0 8px rgba(125, 211, 252, 0.7);
+  }
+
+  .handle-tooltip {
+    position: absolute;
+    left: 50%;
+    bottom: 25px;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
+    padding: 3px 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(2, 6, 23, 0.88);
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    pointer-events: none;
+  }
+
+  &:hover .handle-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-2px);
+  }
+}
