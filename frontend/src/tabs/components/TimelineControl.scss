@@ -4,7 +4,7 @@
   height: 64px; // vertically shorter than before
   margin-top: 4px;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible; // allow hover tooltip to render outside timeline bounds
   user-select: none;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background:
@@ -16,6 +16,8 @@
   position: absolute;
   inset: 0;
   pointer-events: all;
+  border-radius: 12px;
+  overflow: hidden; // keep sparkline/selection clipping inside rounded frame
 
   svg {
     width: 100%;
@@ -53,6 +55,8 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
+  border-radius: 12px;
+  overflow: hidden;
 
   .keyspot {
     position: absolute;
@@ -135,6 +139,7 @@
   right: 0;
   bottom: 18px;
   padding: 0 8px;
+  z-index: 10;
 
   .rc-slider {
     width: 100%;

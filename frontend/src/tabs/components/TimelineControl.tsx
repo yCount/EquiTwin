@@ -165,6 +165,42 @@ const TimelineControl: React.FC<TimelineControlProps> = ({
     setHoverPosition(null);
   };
 
+  const getHoverMetric = (row: any): { label: string; valueText: string } => {
+    const asNum = (v: any) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    const candidates: Array<{ key: string; label: string; unit: string; digits: number }> = [
+      { key: "temperature", label: "Temperature", unit: "°C", digits: 1 },
+      { key: "value",       label: "Value",       unit: "",   digits: 1 },
+      { key: "airQuality",  label: "Air Quality", unit: "ppm", digits: 0 },
+      { key: "occupancy",   label: "Occupancy",   unit: "ppl", digits: 0 },
+      { key: "energy",      label: "Energy",      unit: "kW",  digits: 2 },
+      { key: "net_occupancy", label: "Occupancy", unit: "ppl", digits: 0 },
+    ];
+
+    // Prefer current dataKey unless it's the synthetic flat-line key.
+    if (dataKey && dataKey !== "flat") {
+      const n = asNum(row?.[dataKey]);
+      if (n !== null) {
+        const unit = dataKey === "temperature" ? "°C" : "";
+        return { label: dataKey, valueText: `${n.toFixed(1)}${unit ? ` ${unit}` : ""}` };
+      }
+    }
+
+    for (const c of candidates) {
+      const n = asNum(row?.[c.key]);
+      if (n !== null) {
+        return {
+          label: c.label,
+          valueText: `${n.toFixed(c.digits)}${c.unit ? ` ${c.unit}` : ""}`,
+        };
+      }
+    }
+    return { label: "Value", valueText: "N/A" };
+  };
+
   // --- Render ---
   const handleRender = (node: any, handleProps: any) => {
     const pct = Number(handleProps?.value ?? 0);
@@ -268,10 +304,16 @@ const TimelineControl: React.FC<TimelineControlProps> = ({
           style={{ left: `${hoverPosition.x}%` }}
         >
           <div className="tooltip-time">
-            Cursor
+            Date
           </div>
           <div className="tooltip-value">
             {formatCompactDate(new Date(hoverPosition.data.fullTimestamp).getTime())}
+          </div>
+          <div className="tooltip-time">
+            {getHoverMetric(hoverPosition.data).label}
+          </div>
+          <div className="tooltip-value">
+            {getHoverMetric(hoverPosition.data).valueText}
           </div>
         </div>
       )}
