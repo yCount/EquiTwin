@@ -11,7 +11,6 @@ import math
 import os
 import sys
 from contextlib import asynccontextmanager
-from decimal import Decimal
 from fastapi import FastAPI, HTTPException, Request, WebSocket, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Any, Dict, List, Optional
@@ -24,6 +23,17 @@ from models import (
 from services.mpc import run_mpc
 from services.forecast import forecast_energy
 from services.kpis import compute_kpis
+from core.dashboard_rows import (
+    build_count_query,
+    build_dashboard_rows_query,
+    coerce_value,
+    discover_table_columns,
+)
+from core.source_config import get_data_source_mode, get_synthetic_csv_path
+from core.csv_source import (
+    get_cached_db_rows_page_from_csv,
+    get_cached_timeseries_from_csv,
+)
 
 # Lazy-initialised engine for the /api/db/rows viewer endpoint.
 _db_engine = None
@@ -116,6 +126,19 @@ def get_db_rows(page: int = 1, page_size: int = 50, table: str = "matches"):
     server.  Training pipelines (equitwin_integration/train_all.py) connect via
     their own DataSpec and are not affected by this endpoint.
     """
+    mode = get_data_source_mode()
+    if mode == "csv":
+        csv_path = get_synthetic_csv_path()
+        if not csv_path.exists():
+            raise HTTPException(
+                status_code=503,
+                detail=f"CSV source mode enabled but file not found: {csv_path}",
+            )
+        try:
+            return get_cached_db_rows_page_from_csv(csv_path, page=page, page_size=page_size)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"CSV source load failed: {exc}")
+
     engine = _get_db_engine()
     if engine is None:
         raise HTTPException(
@@ -131,80 +154,26 @@ def get_db_rows(page: int = 1, page_size: int = 50, table: str = "matches"):
     offset = (page - 1) * page_size
 
     with engine.connect() as conn:
-        # 1. Discover columns so we can build feature SQL conditionally.
-        cols_res = conn.execute(
-            text("SELECT column_name FROM information_schema.columns "
-                 "WHERE table_name = :t ORDER BY ordinal_position"),
-            {"t": table},
-        )
-        schema_cols: List[str] = [r[0] for r in cols_res]
-
-        has_entries    = "entries"    in schema_cols
-        has_exits      = "exits"      in schema_cols
-        has_event_type = "event_type" in schema_cols
+        # 1. Discover columns and compile the same engineered dashboard query
+        # used by CSV export so both surfaces stay in sync.
+        schema_cols = discover_table_columns(conn, table)
+        if not schema_cols:
+            raise HTTPException(status_code=404, detail=f"Table '{table}' has no visible columns.")
 
         # 2. Total row count
-        total: int = conn.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar()
+        total = int(conn.execute(build_count_query(table)).scalar() or 0)
 
-        # 3. Build feature-engineering expressions
-        extra_select = ""
-        result_extra: List[str] = []
-
-        if has_entries and has_exits:
-            # Running net occupancy: cumulative entries minus exits, never < 0.
-            # PARTITION BY day resets the count at midnight each calendar day so
-            # that undetected exits don't cause the total to drift across days.
-            # Window function runs over all rows before LIMIT/OFFSET, so the
-            # value on page 3 correctly reflects the full day's running total.
-            extra_select += (
-                ",\n  GREATEST(0,\n"
-                "    SUM(COALESCE(entries,0)) OVER (\n"
-                "      PARTITION BY DATE_TRUNC('day', timestamp)\n"
-                "      ORDER BY timestamp, id\n"
-                "      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) -\n"
-                "    SUM(COALESCE(exits,0))   OVER (\n"
-                "      PARTITION BY DATE_TRUNC('day', timestamp)\n"
-                "      ORDER BY timestamp, id\n"
-                "      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)\n"
-                "  ) AS net_occupancy"
-            )
-            result_extra.append("net_occupancy")
-
-        if has_event_type:
-            extra_select += (
-                ",\n  CASE event_type\n"
-                "    WHEN 'NO_MOVEMENT'    THEN 'No Motion'\n"
-                "    WHEN 'EXIT_DETECTED'  THEN 'Exit Detected'\n"
-                "    WHEN 'NORMAL_EM'      THEN 'Energy Meter'\n"
-                "    WHEN 'NORMAL_AQ'      THEN 'Air Quality'\n"
-                "    ELSE event_type\n"
-                "  END AS event_label"
-            )
-            result_extra.append("event_label")
-
-        data_sql = text(
-            f"SELECT *{extra_select}\n"
-            f"FROM {table}\n"
-            f"ORDER BY timestamp, id\n"
-            f"LIMIT :lim OFFSET :off"
+        # 3. Page query
+        data_sql, all_cols = build_dashboard_rows_query(
+            table,
+            schema_cols,
+            with_limit=True,
+            with_offset=True,
         )
         rows_res = conn.execute(data_sql, {"lim": page_size, "off": offset})
-        all_cols = schema_cols + result_extra
-
-        def _coerce(v):
-            """Make values JSON-serialisable."""
-            if v is None:
-                return None
-            if hasattr(v, "isoformat"):   # datetime / date
-                return v.isoformat()
-            if isinstance(v, Decimal):
-                return float(v)
-            if isinstance(v, (bytes, bytearray)):
-                return v.hex()
-            return v
 
         rows = [
-            {col: _coerce(row[i]) for i, col in enumerate(all_cols)}
+            {col: coerce_value(row[i]) for i, col in enumerate(all_cols)}
             for row in rows_res
         ]
 
@@ -215,6 +184,7 @@ def get_db_rows(page: int = 1, page_size: int = 50, table: str = "matches"):
         "page_size": page_size,
         "total_pages": max(1, (int(total) + page_size - 1) // page_size),
         "columns": all_cols,
+        "source_mode": "postgres",
     }
 
 # ---- Dashboard time-series charts ------------------------------------------
@@ -233,6 +203,19 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
       energy       : total active power from NORMAL_EM rows (W)
       weather      : outdoor_temp as the WeatherClient logged it (°C)
     """
+    mode = get_data_source_mode()
+    if mode == "csv":
+        csv_path = get_synthetic_csv_path()
+        if not csv_path.exists():
+            raise HTTPException(
+                status_code=503,
+                detail=f"CSV source mode enabled but file not found: {csv_path}",
+            )
+        try:
+            return get_cached_timeseries_from_csv(csv_path)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"CSV source load failed: {exc}")
+
     engine = _get_db_engine()
     if engine is None:
         raise HTTPException(status_code=503, detail="DATABASE_URL env var not set")
@@ -429,6 +412,7 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
             except Exception as _exc:
                 print(f"[timeseries] WeatherClient archive failed: {_exc}")
 
+    result["source_mode"] = "postgres"
     return result
 
 
@@ -819,7 +803,13 @@ async def training_ws(ws: WebSocket):
         {"type": "complete",      "success": bool, "returncode": int}
         {"type": "stopped"}
         {"type": "error",         "message": str}
+
+    Implementation note: uses subprocess.Popen + threading.Thread instead of
+    asyncio.create_subprocess_exec to avoid Windows SelectorEventLoop limitations.
     """
+    import subprocess as _sp
+    import threading
+
     await ws.accept()
 
     try:
@@ -833,85 +823,126 @@ async def training_ws(ws: WebSocket):
         features = start_msg.get("features") or _KNOWN_FEATURES
         table    = start_msg.get("table", "matches")
 
+        source_mode = get_data_source_mode()
         db_url = os.environ.get("DATABASE_URL")
-        if not db_url:
+        if source_mode == "postgres" and not db_url:
             await ws.send_json({
                 "type":    "error",
-                "message": "DATABASE_URL env var not set — cannot run training.",
+                "message": "DATABASE_URL env var not set - cannot run training in postgres mode.",
             })
             return
+        if source_mode == "csv" and not db_url:
+            db_url = "csv://local"
 
         backend_dir = os.path.dirname(os.path.abspath(__file__))
 
         cmd: List[str] = [
-            sys.executable, "-m", "equitwin_integration.train_all",
+            sys.executable, "-u", "-m", "equitwin_integration.train_all",
             "--db-url", db_url,
             "--table", table,
             "--mode",  mode,
             "--features", *features,
         ]
 
-        await ws.send_json({"type": "started", "mode": mode, "features": features})
+        await ws.send_json({
+            "type": "started",
+            "mode": mode,
+            "features": features,
+            "source_mode": source_mode,
+        })
 
-        # Phase 2: subprocess + background stop listener
-        stop_event = asyncio.Event()
+        # Phase 2: Popen + reader thread + asyncio Queue
+        stop_flag = threading.Event()
+        line_queue: asyncio.Queue = asyncio.Queue()
+        loop = asyncio.get_event_loop()
 
         async def _recv_loop():
             try:
                 while True:
                     msg = await ws.receive_json()
                     if msg.get("type") == "stop":
-                        stop_event.set()
+                        stop_flag.set()
                         break
             except Exception:
-                stop_event.set()
+                stop_flag.set()
 
         recv_task = asyncio.create_task(_recv_loop())
-        proc: asyncio.subprocess.Process | None = None
+
+        def _reader_thread(proc: "_sp.Popen[bytes]") -> None:
+            """Read stdout lines from proc and push them to line_queue via the event loop."""
+            try:
+                for raw_line in proc.stdout:  # type: ignore[union-attr]
+                    if stop_flag.is_set():
+                        proc.kill()
+                        asyncio.run_coroutine_threadsafe(
+                            line_queue.put(("stopped", None)), loop
+                        )
+                        return
+                    line = raw_line.decode("utf-8", errors="replace").rstrip()
+                    asyncio.run_coroutine_threadsafe(
+                        line_queue.put(("line", line)), loop
+                    )
+                proc.wait()
+                asyncio.run_coroutine_threadsafe(
+                    line_queue.put(("done", proc.returncode)), loop
+                )
+            except Exception as exc:
+                asyncio.run_coroutine_threadsafe(
+                    line_queue.put(("error", str(exc))), loop
+                )
 
         try:
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT,
+            proc = _sp.Popen(
+                cmd,
+                stdout=_sp.PIPE,
+                stderr=_sp.STDOUT,
                 cwd=backend_dir,
             )
+        except Exception as exc:
+            await ws.send_json({"type": "error", "message": f"Failed to start training: {exc}"})
+            recv_task.cancel()
+            return
 
-            async for raw_line in proc.stdout:          # type: ignore[union-attr]
-                if stop_event.is_set():
-                    proc.kill()
+        t = threading.Thread(target=_reader_thread, args=(proc,), daemon=True)
+        t.start()
+
+        try:
+            while True:
+                kind, payload = await line_queue.get()
+
+                if kind == "line":
+                    line = payload
+                    msg_out: Dict[str, Any] = {
+                        "type": "log", "line": line,
+                        "feature_start": None, "feature_done": None,
+                    }
+                    stripped = line.strip()
+                    for fname in _KNOWN_FEATURES:
+                        if stripped == f"--- {fname.upper()} ---":
+                            msg_out["feature_start"] = fname
+                        # train_all.py prints: "energy done."
+                        if stripped == f"{fname} done.":
+                            msg_out["feature_done"] = fname
+                    await ws.send_json(msg_out)
+
+                elif kind == "done":
+                    returncode = payload
+                    success = (returncode == 0)
+                    await ws.send_json({
+                        "type": "complete", "success": success, "returncode": returncode,
+                    })
+                    break
+
+                elif kind == "stopped":
                     await ws.send_json({"type": "stopped"})
-                    return
+                    break
 
-                line = raw_line.decode("utf-8", errors="replace").rstrip()
-
-                msg_out: Dict[str, Any] = {"type": "log", "line": line,
-                                            "feature_start": None, "feature_done": None}
-
-                stripped = line.strip()
-                # Detect feature boundaries from train_all.py print statements
-                for fname in _KNOWN_FEATURES:
-                    if stripped == f"--- {fname.upper()} ---":
-                        msg_out["feature_start"] = fname
-                    if stripped in (f"✓ {fname} done.", f"v {fname} done."):
-                        msg_out["feature_done"] = fname
-
-                await ws.send_json(msg_out)
-
-            await proc.wait()
-            success = (proc.returncode == 0)
-            await ws.send_json({
-                "type":       "complete",
-                "success":    success,
-                "returncode": proc.returncode,
-            })
+                elif kind == "error":
+                    await ws.send_json({"type": "error", "message": payload or "Unknown error"})
+                    break
 
         finally:
-            if proc and proc.returncode is None:
-                try:
-                    proc.kill()
-                except Exception:
-                    pass
+            stop_flag.set()
             recv_task.cancel()
             try:
                 await recv_task
@@ -920,7 +951,7 @@ async def training_ws(ws: WebSocket):
 
     except Exception as exc:
         try:
-            await ws.send_json({"type": "error", "message": str(exc)})
+            await ws.send_json({"type": "error", "message": str(exc) or repr(exc)})
         except Exception:
             pass
 

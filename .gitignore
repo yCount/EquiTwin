@@ -150,3 +150,6 @@ __pycache__/
 
 # artifacts (trained models)
 artifacts/
+
+# exports directory
+exports/

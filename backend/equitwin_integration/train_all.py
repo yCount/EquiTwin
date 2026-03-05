@@ -45,6 +45,7 @@ import argparse
 import json
 from typing import Any, Dict, List, Optional, Sequence
 
+from core.source_config import get_data_source_mode
 from features.registry import ENERGY, TEMPERATURE, AIRQUALITY_CO2, OCCUPANCY
 from training.service import train_feature_best_models_two_level
 from equitwin_forecasting.timebase import default_horizons
@@ -180,7 +181,7 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    ap.add_argument("--db-url", required=True, help="SQLAlchemy DB URL")
+    ap.add_argument("--db-url", required=False, default=None, help="SQLAlchemy DB URL")
     ap.add_argument("--table", required=True, help="Source table name")
     ap.add_argument("--mode", default="fast", choices=["fast", "normal", "full"],
                     help="Speed preset (default: fast)")
@@ -205,6 +206,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = _build_parser().parse_args()
+    source_mode = get_data_source_mode()
 
     preset = PRESETS[args.mode].copy()
     limit     = args.limit       if args.limit       is not None else preset["limit_rows"]
@@ -212,9 +214,14 @@ def main() -> None:
     st_h      = args.st_horizons if args.st_horizons  is not None else preset["st_horizons"]
     lt_h      = args.lt_horizons if args.lt_horizons  is not None else preset["lt_horizons"]
     gp_rows   = args.gp_max_rows if args.gp_max_rows  is not None else preset["gp_max_rows"]
+    db_url = args.db_url
+    if source_mode == "postgres" and not db_url:
+        raise SystemExit("--db-url is required when DATA_SOURCE_MODE=postgres")
+    if source_mode == "csv" and not db_url:
+        db_url = "csv://local"
 
     results = train_all_features(
-        db_url=args.db_url,
+        db_url=db_url,
         table=args.table,
         features=args.features,
         where_sql=args.where,

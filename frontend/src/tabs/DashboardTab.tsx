@@ -798,29 +798,16 @@ const [level3Active, setLevel3Active] = useState(true);
               domain={['dataMin - 1', 'dataMax + 1']}
               xDomain={chartXDomain}
             />
-            {filteredData.weather.length > 0 ? (
-              <ChartCard
-                title="External Weather"
-                subtitle="Outdoor °C"
-                data={filteredData.weather}
-                color="#f59e0b"
-                unit="°C"
-                type="weather"
-                xDomain={chartXDomain}
-              />
-            ) : (
-              <ChartCard
-                title="Energy Overview"
-                subtitle="Avg Power"
-                data={filteredData.energyByFloor}
-                color="#f59e0b"
-                unit="kW"
-                type="area"
-                domain={[0, 'auto']}
-                xDomain={chartXDomain}
-                emptyMessage="No energy data recorded"
-              />
-            )}
+            <ChartCard
+              title="External Weather"
+              subtitle="Outdoor Â°C"
+              data={filteredData.weather}
+              color="#f59e0b"
+              unit="Â°C"
+              type="weather"
+              xDomain={chartXDomain}
+              emptyMessage="No weather data available"
+            />
             <ChartCard
               title="Occupancy"
               subtitle="People"
@@ -842,19 +829,16 @@ const [level3Active, setLevel3Active] = useState(true);
             />
 
             <ChartCard
-              title="Floor Distribution"
-              subtitle="Energy by Circuit"
+              title="Energy Overview"
+              subtitle="Avg Power"
               data={filteredData.energyByFloor}
-              color="#3b82f6"
+              color="#f59e0b"
               unit="kW"
-              type="stacked"
-              stackConfig={[
-                { dataKey: 'floor3', name: 'Circuit 0', color: '#3b82f6' },
-                { dataKey: 'floor4', name: 'Circuit 1', color: '#8b5cf6' }
-              ]}
+              type="area"
               domain={[0, 'auto']}
               xDomain={chartXDomain}
               isWide={true}
+              emptyMessage="No energy data recorded"
             />
           </section>
 

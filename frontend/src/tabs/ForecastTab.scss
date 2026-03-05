@@ -2,9 +2,13 @@
 // FORECASTTAB - Full Styles
 // ============================================
 
-// Adjust this path if your styles folder is in a different location
-// e.g., use './styles/shared' if styles is inside the tabs folder
-@import 'styles/shared'; 
+@import 'styles/shared';
+
+.topbar-action-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
 .forecast-container {
   width: 100%;
@@ -14,25 +18,25 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  
+
   // === HEADER CONTROLS ===
   .kpi-section-header {
       @include flex-between;
       margin-bottom: $spacing-md;
-      
+
       h3 {
         font-size: 14px;
         color: $text-main;
         font-weight: 600;
         margin: 0;
       }
-      
+
       .time-selector {
           background: rgba(255,255,255,0.05);
           padding: 2px;
           border-radius: 6px;
           display: flex;
-          
+
           button {
               background: transparent;
               border: none;
@@ -43,13 +47,13 @@
               border-radius: 4px;
               cursor: pointer;
               transition: all 0.2s;
-              
+
               &.active {
                   background: $bg-dark;
                   color: $text-main;
                   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
               }
-              
+
               &:hover:not(.active) {
                   color: $text-main;
               }
@@ -72,35 +76,35 @@
           justify-content: space-between;
           height: 120px;
           border-top-color: rgba($danger, 0.22);
-          
-          .kpi-top { 
-              @include flex-between; 
+
+          .kpi-top {
+              @include flex-between;
               .kpi-label { font-size: 10px; text-transform: uppercase; color: $text-dim; font-weight: 700; }
               .kpi-icon { font-size: 14px; opacity: 0.7; }
           }
-          
-          .kpi-val { 
+
+          .kpi-val {
               font-size: 28px;
               font-weight: 700;
               color: $text-main;
               font-family: $font-family-mono;
-              
+
               .trend { font-size: 12px; margin-left: 8px; font-weight: 500; &.up { color: $success; } }
               .unit { font-size: 14px; color: $text-dim; font-weight: 400; margin-left: 2px; }
           }
-          
+
           .kpi-sub {
               font-size: 11px;
               color: $text-dim;
               display: flex;
               align-items: center;
               gap: 8px;
-              
+
               .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 4px; &.train { background: $primary; } &.test { background: rgba($primary, 0.3); } }
-              .ok { color: $success; } 
+              .ok { color: $success; }
               .warn { color: $warning; }
           }
-          
+
           &.action-center {
               .action-buttons {
                   margin-top: auto;
@@ -113,11 +117,11 @@
   // === 2. MODEL CARDS GRID ===
   .models-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: $spacing-lg;
       margin-bottom: $spacing-xl;
   }
-  
+
   .model-card {
       @include glass-panel;
       padding: 0;
@@ -129,7 +133,6 @@
       overflow: hidden;
       position: relative;
 
-      // Coloured top accent on hover — echoes the Forecast/red variant
       border-top-color: rgba($danger, 0.18);
 
       &:hover, &.active {
@@ -148,12 +151,12 @@
           padding: 16px 16px 12px 16px;
           @include flex-between;
           border-bottom: 1px solid rgba(255,255,255,0.03);
-          
+
           .title-group {
               display: flex;
               align-items: center;
               gap: 12px;
-              
+
               .model-icon {
                   color: rgba($danger, 0.90);
                   background: rgba($danger, 0.18);
@@ -165,7 +168,7 @@
                   align-items: center;
                   justify-content: center;
               }
-              
+
               .title-text {
                   display: flex;
                   flex-direction: column;
@@ -173,14 +176,14 @@
                   .meta-row { font-size: 10px; color: $text-dim; font-family: $font-family-mono; margin-top: 2px; .sep { margin: 0 4px; } }
               }
           }
-          
+
           .status-badge {
               font-size: 10px;
               text-transform: uppercase;
               font-weight: 700;
               padding: 2px 8px;
               border-radius: 4px;
-              
+
               &.active { background: rgba($success, 0.1); color: $success; }
               &.drift-detected { background: rgba($warning, 0.1); color: $warning; border: 1px solid rgba($warning, 0.2); }
               &.optimized { background: rgba($primary, 0.1); color: $primary; }
@@ -189,7 +192,7 @@
 
       .card-body {
           padding: 16px;
-          
+
           .insight-message {
               font-size: 11px;
               color: $text-main;
@@ -199,27 +202,34 @@
               margin-bottom: 16px;
               border-left: 2px solid $text-dim;
           }
-          
+
           .metric-row {
               display: flex;
               align-items: flex-end;
               justify-content: space-between;
-              margin-bottom: 16px;
-              
-              .main-metric { 
-                  display: flex; 
-                  flex-direction: column; 
-                  .val { font-size: 32px; font-weight: 700; color: $text-main; font-family: $font-family-mono; line-height: 1; } 
-                  .label { font-size: 10px; color: $text-dim; margin-top: 4px; } 
+
+              .main-metric {
+                  display: flex;
+                  flex-direction: column;
+                  .val { font-size: 32px; font-weight: 700; color: $text-main; font-family: $font-family-mono; line-height: 1; }
+                  .label { font-size: 10px; color: $text-dim; margin-top: 4px; }
               }
-              .sparkline-container { width: 100px; height: 32px; }
-          }
-          
-          .inputs-row {
-              display: flex;
-              flex-wrap: wrap;
-              gap: 6px;
-              .input-tag { font-size: 9px; background: rgba(255,255,255,0.05); padding: 3px 6px; border-radius: 3px; color: $text-dim; }
+
+              .side-metrics {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 4px;
+                  align-items: flex-end;
+
+                  .sm-item {
+                      display: flex;
+                      align-items: baseline;
+                      gap: 6px;
+
+                      .sm-val { font-size: 13px; font-weight: 700; font-family: $font-family-mono; color: $text-main; }
+                      .sm-lbl { font-size: 9px; color: $text-dim; text-transform: uppercase; }
+                  }
+              }
           }
       }
 
@@ -229,7 +239,8 @@
           display: flex;
           gap: 8px;
           border-top: 1px solid rgba(255,255,255,0.03);
-          
+          margin-top: auto;
+
           .btn { flex: 1; font-size: 11px; padding: 6px; }
       }
 
@@ -238,7 +249,7 @@
           border-color: $warning;
           background: rgba($warning, 0.02);
           cursor: default;
-          
+
           .training-overlay-content {
               padding: 24px;
               display: flex;
@@ -246,7 +257,7 @@
               gap: 20px;
               height: 100%;
               justify-content: center;
-              
+
               .training-header {
                   display: flex;
                   align-items: center;
@@ -254,46 +265,53 @@
                   color: $warning;
                   font-weight: 600;
                   font-size: 13px;
-                  
-                  .spinner { 
-                      width: 16px; height: 16px; border: 2px solid rgba($warning, 0.3); border-top-color: $warning; border-radius: 50%; animation: spin 1s linear infinite; 
+
+                  .spinner {
+                      width: 16px; height: 16px; border: 2px solid rgba($warning, 0.3); border-top-color: $warning; border-radius: 50%; animation: spin 1s linear infinite;
                   }
               }
-              
+
               .progress-section {
                   .progress-bar-track { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
-                  .progress-bar-fill { height: 100%; background: $warning; transition: width 0.2s linear; }
-                  .progress-stats { @include flex-between; font-size: 10px; color: $text-dim; font-family: $font-family-mono; }
+                  .progress-bar-fill {
+                      height: 100%;
+                      background: $warning;
+                      &.indeterminate {
+                          width: 40%;
+                          animation: bar-slide 1.6s ease-in-out infinite;
+                      }
+                  }
+                  .progress-stats {
+                      display: flex; justify-content: flex-end;
+                      font-size: 10px; color: $text-dim; font-family: $font-family-mono;
+                      .stop-link { color: $danger; cursor: pointer; &:hover { text-decoration: underline; } }
+                  }
               }
-              
+
               .live-metrics {
                    @include glass-panel;
                    background: rgba(0,0,0,0.2);
                    padding: 12px;
                    display: flex;
                    justify-content: center;
-                   
-                   .lm-item { 
-                       display: flex; 
-                       flex-direction: column; 
-                       align-items: center; 
-                       .lbl { font-size: 9px; text-transform: uppercase; color: $text-dim; } 
-                       .val { font-family: $font-family-mono; font-size: 16px; font-weight: 600; color: $text-main; } 
+
+                   .lm-item {
+                       display: flex;
+                       flex-direction: column;
+                       align-items: center;
+                       .lbl { font-size: 9px; text-transform: uppercase; color: $text-dim; }
+                       .val { font-family: $font-family-mono; font-size: 13px; font-weight: 600; color: $text-main; }
                    }
-              }
-              
-              .training-footer { 
-                  text-align: center; 
-                  .btn-xs { 
-                      font-size: 10px; padding: 4px 12px; background: rgba($danger, 0.1); color: $danger; border: 1px solid rgba($danger, 0.2); 
-                      &:hover { background: rgba($danger, 0.2); } 
-                  } 
               }
           }
       }
   }
 
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin     { to { transform: rotate(360deg); } }
+  @keyframes bar-slide {
+    0%   { transform: translateX(-150%); }
+    100% { transform: translateX(300%);  }
+  }
 
   // === 3. VERIFICATION CHART ===
   .forecast-chart-section {
@@ -302,35 +320,71 @@
       min-height: 300px;
       display: flex;
       flex-direction: column;
-      
+
       .section-header-custom {
           @include flex-between;
           margin-bottom: 20px;
-          
-          .header-title { 
-              h3 { font-size: 14px; font-weight: 600; margin: 0; } 
-              .subtitle { font-size: 11px; color: $text-dim; margin-top: 2px; } 
+
+          .header-title {
+              h3 { font-size: 14px; font-weight: 600; margin: 0; }
+              .subtitle { font-size: 11px; color: $text-dim; margin-top: 2px; }
           }
-          
-          .chart-legend { 
-              display: flex; gap: 16px; font-size: 11px; color: $text-dim; 
-              .item { display: flex; align-items: center; gap: 6px; } 
-              .dot { width: 8px; height: 8px; border-radius: 50%; &.actual { background: $primary; } &.predicted { background: $secondary; } } 
-          } 
+
+          .chart-legend {
+              display: flex; gap: 16px; font-size: 11px; color: $text-dim;
+              .item { display: flex; align-items: center; gap: 6px; }
+              .dot { width: 8px; height: 8px; border-radius: 50%; &.actual { background: $primary; } &.predicted { background: $secondary; } }
+          }
       }
-      
+
       .chart-container { flex: 1; min-height: 0; }
   }
 
   // === SIDEBAR COMPONENTS ===
-  .correlation-chart { 
-      .corr-row { 
-          display: grid; grid-template-columns: 90px 1fr 30px; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 8px; 
-          .f-name { color: $text-dim; } 
-          .f-bar-track { height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; } 
-          .f-bar { height: 100%; border-radius: 3px; &.positive { background: $primary; } &.negative { background: $warning; } } 
-          .f-val { color: $text-dim; text-align: right; } 
-      } 
+  .correlation-chart {
+      .corr-row {
+          display: grid; grid-template-columns: 90px 1fr 30px; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 8px;
+          .f-name { color: $text-dim; }
+          .f-bar-track { height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; }
+          .f-bar { height: 100%; border-radius: 3px; &.positive { background: $primary; } &.negative { background: $warning; } }
+          .f-val { color: $text-dim; text-align: right; }
+      }
+  }
+
+  // === TRAINING LOG CONSOLE (sidebar) ===
+  .training-log-console {
+    height: 180px;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: $font-family-mono;
+    font-size: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+
+    .log-placeholder {
+      color: $text-dim;
+      text-align: center;
+      margin: auto;
+      padding: 10px;
+    }
+
+    .log-entry {
+      color: rgba(255,255,255,0.5);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-all;
+
+      &.log-ok  { color: $success; font-weight: 600; }
+      &.log-err { color: $danger; }
+    }
+
+    &::-webkit-scrollbar       { width: 3px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
   }
 }
 
@@ -339,12 +393,12 @@
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
     z-index: 1000; display: flex; align-items: center; justify-content: center;
-    
+
     .modal-content {
         @include glass-panel; background: #161b22; width: 400px; max-width: 90vw;
         display: flex; flex-direction: column; overflow: hidden;
         animation: slideUp 0.3s ease;
-        
+
         &.large { width: 800px; }
 
         .modal-header {
@@ -356,8 +410,7 @@
 
         .modal-body {
             padding: 24px;
-            
-            // Ingest Styles
+
             .ingest-options {
                 display: flex; flex-direction: column; gap: 12px;
                 .source-btn {
@@ -374,9 +427,9 @@
                 .spinner-large { width: 40px; height: 40px; border: 3px solid rgba($primary, 0.3); border-top-color: $primary; border-radius: 50%; animation: spin 1s linear infinite; }
                 .progress-bar-track { width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
                 .progress-bar-fill { height: 100%; background: $success; transition: width 0.2s; }
+                .status-text { font-size: 12px; color: $text-dim; }
             }
 
-            // Inspect Styles
             &.inspect-body {
                 .inspect-grid {
                     display: grid; grid-template-columns: 1fr 2fr; gap: 24px;
@@ -389,7 +442,7 @@
                 }
             }
         }
-        
+
         .modal-footer {
             padding: 16px; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2);
             display: flex; justify-content: flex-end; gap: 12px;
@@ -397,5 +450,5 @@
     }
 }
 
-// Animation keyframes
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes spin    { to { transform: rotate(360deg); } }

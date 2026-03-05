@@ -5,12 +5,15 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+import numpy as np
 import pandas as pd
 
 from core.data import DataSpec, load_table
+from core.csv_source import build_training_frame_from_csv, load_dashboard_csv
 from core.featurize import FeatureSpec, build_features, build_features_longterm
 from core.persist import save_model, load_model, save_metrics_csv
 from core.preprocess import preprocess_raw_table, resample_to_15min
+from core.source_config import get_data_source_mode, get_synthetic_csv_path
 from core.split import SplitSpec
 from training.search import SearchSpec, evaluate_models, fit_best_model
 
@@ -80,6 +83,137 @@ _ST_MIN_ROWS = 50
 _LT_MIN_ROWS = 10     # 10 blocks × 4h = 40h of history — absolute minimum
 
 
+def _default_synth_csv_path() -> Path:
+    backend_dir = Path(__file__).resolve().parents[1]
+    return backend_dir / "exports" / "dashboard.csv"
+
+
+def _load_raw_training_frame(
+    feature: FeatureSpec,
+    db_url: str,
+    table: str,
+    *,
+    where_sql: Optional[str] = None,
+    limit_rows: Optional[int] = None,
+) -> pd.DataFrame:
+    mode = get_data_source_mode()
+    if mode == "csv":
+        csv_path = get_synthetic_csv_path()
+        if not csv_path.exists():
+            raise FileNotFoundError(
+                f"CSV source mode enabled but synthetic CSV not found: {csv_path}"
+            )
+        csv_df = load_dashboard_csv(csv_path)
+        raw = build_training_frame_from_csv(csv_df)
+        if limit_rows is not None:
+            raw = raw.iloc[: int(limit_rows)].copy()
+        return raw
+
+    return load_table(
+        DataSpec(
+            db_url=db_url,
+            table=table,
+            ts_col=feature.ts_col,
+            where_sql=where_sql,
+            limit_rows=limit_rows,
+            order="ASC",
+        )
+    )
+
+
+def _maybe_append_synthetic_timeseries(raw: pd.DataFrame, ts_col: str) -> pd.DataFrame:
+    """
+    Optionally augment training data with synthetic 15-minute dashboard series.
+
+    Controlled by env vars:
+      SYNTHETIC_AUGMENT          default "1" (enabled)
+      SYNTHETIC_TIMESERIES_CSV   default backend/exports/dashboard.csv
+      SYNTHETIC_SENSOR_ID        default "synthetic_dashboard_15m"
+      SYNTHETIC_MULTIPLIER       default "1" (repeat synthetic rows N times)
+    """
+    if os.environ.get("SYNTHETIC_AUGMENT", "1").strip().lower() in {"0", "false", "no"}:
+        return raw
+
+    synth_csv = os.environ.get("SYNTHETIC_TIMESERIES_CSV", str(_default_synth_csv_path()))
+    p = Path(synth_csv)
+    if not p.exists():
+        return raw
+
+    try:
+        sdf = pd.read_csv(p)
+    except Exception as exc:
+        warnings.warn(
+            f"[synthetic] Could not read synthetic CSV '{p}': {exc}. Skipping augmentation.",
+            UserWarning, stacklevel=3,
+        )
+        return raw
+
+    required = {"timestamp", "temperature", "airQuality", "occupancy", "energy"}
+    missing = required - set(sdf.columns)
+    if missing:
+        warnings.warn(
+            f"[synthetic] Synthetic CSV missing required columns: {sorted(missing)}. Skipping augmentation.",
+            UserWarning, stacklevel=3,
+        )
+        return raw
+
+    sdf = sdf.copy()
+    sdf[ts_col] = pd.to_datetime(sdf["timestamp"], utc=True, errors="coerce")
+    sdf = sdf.dropna(subset=[ts_col]).sort_values(ts_col).reset_index(drop=True)
+    if sdf.empty:
+        return raw
+
+    # Dashboard timeseries energy is in kW; training feature expects total_act_power scale.
+    energy_kw = pd.to_numeric(sdf["energy"], errors="coerce")
+    energy_scale = 1000.0 if (float(energy_kw.median()) if energy_kw.notna().any() else 0.0) < 50.0 else 1.0
+
+    syn = pd.DataFrame({
+        ts_col: sdf[ts_col],
+        "sensor_id": os.environ.get("SYNTHETIC_SENSOR_ID", "synthetic_dashboard_15m"),
+        "event_type": "SYNTHETIC_TS",
+        "temp": pd.to_numeric(sdf["temperature"], errors="coerce"),
+        "co2": pd.to_numeric(sdf["airQuality"], errors="coerce"),
+        "num_targets": pd.to_numeric(sdf["occupancy"], errors="coerce"),
+        "total_act_power": energy_kw * energy_scale,
+    })
+
+    # Humidity is not present in dashboard CSV; synthesize a plausible signal.
+    syn["humidity"] = np.clip(
+        42.0 + 0.28 * syn["num_targets"].fillna(0) - 0.35 * (syn["temp"].fillna(22.0) - 22.0),
+        28.0,
+        70.0,
+    )
+
+    if "weather" in sdf.columns:
+        syn["outdoor_temp"] = pd.to_numeric(sdf["weather"], errors="coerce")
+    if "condition" in sdf.columns:
+        syn["weather_condition"] = sdf["condition"].astype(str)
+
+    try:
+        mul = max(1, int(os.environ.get("SYNTHETIC_MULTIPLIER", "1")))
+    except ValueError:
+        mul = 1
+    if mul > 1:
+        syn = pd.concat([syn] * mul, ignore_index=True)
+
+    for c in raw.columns:
+        if c not in syn.columns:
+            syn[c] = np.nan
+    for c in syn.columns:
+        if c not in raw.columns:
+            raw[c] = np.nan
+
+    out = pd.concat([raw, syn[raw.columns]], ignore_index=True)
+    out[ts_col] = pd.to_datetime(out[ts_col], utc=True, errors="coerce")
+    out = out.dropna(subset=[ts_col]).sort_values(ts_col).reset_index(drop=True)
+    warnings.warn(
+        f"[synthetic] Appended {len(syn):,} synthetic rows from '{p}'. "
+        f"Training frame now has {len(out):,} rows.",
+        UserWarning, stacklevel=3,
+    )
+    return out
+
+
 def featurize_for_feature(feature: FeatureSpec, raw: pd.DataFrame) -> pd.DataFrame:
     df = build_features(raw, feature)
     if feature.target in df.columns:
@@ -145,10 +279,13 @@ def train_feature_best_models(
     If there is insufficient data for a horizon, that horizon is skipped with
     a warning instead of crashing.
     """
-    raw = load_table(DataSpec(
-        db_url=db_url, table=table, ts_col=feature.ts_col,
-        where_sql=where_sql, limit_rows=limit_rows, order="ASC"
-    ))
+    raw = _load_raw_training_frame(
+        feature,
+        db_url,
+        table,
+        where_sql=where_sql,
+        limit_rows=limit_rows,
+    )
 
     # --- Preprocessing
     # Handles: string-numeric coercion (e.g. num_targets stored as VARCHAR),
@@ -168,6 +305,10 @@ def train_feature_best_models(
         ts_col=feature.ts_col,
         group_col=feature.group_col or "sensor_id",
     )
+
+    # Optionally append synthetic 15-minute rows derived from dashboard exports.
+    if get_data_source_mode() != "csv":
+        raw = _maybe_append_synthetic_timeseries(raw, ts_col=feature.ts_col)
 
     # --- Weather enrichment (runs when WEATHER_LAT/LON are set)
     raw = _maybe_join_weather(raw, ts_col=feature.ts_col)
