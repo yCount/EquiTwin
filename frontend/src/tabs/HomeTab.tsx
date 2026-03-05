@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
   Viewer,
   ViewerNavigationToolsProvider,
@@ -209,6 +209,27 @@ const HomeTab: React.FC<HomeTabProps> = ({
     console.log("iModel connected:", connection.iModelId);
   }, []);
 
+  const uiProviders = useMemo(
+    () => [
+      new ViewerNavigationToolsProvider(),
+      new ViewerContentToolsProvider({ vertical: { measureGroup: false } }),
+      new ViewerStatusbarItemsProvider(),
+      {
+        id: "PropertyGridUIProvider",
+        getWidgets: () => [
+          createPropertyGrid({
+            autoExpandChildCategories: true,
+            ancestorsNavigationControls: (props) => <AncestorsNavigationControls {...props} />,
+            contextMenuItems: [(props) => <CopyPropertyTextContextMenuItem {...props} />],
+            settingsMenuItems: [(props) => <ShowHideNullValuesSettingsMenuItem {...props} persist={true} />],
+          }),
+        ],
+      },
+      new MeasureToolsUiItemsProvider(),
+    ],
+    []
+  );
+
   return (
     <div className="home-tab-container">
       <Topbar
@@ -343,23 +364,7 @@ const HomeTab: React.FC<HomeTabProps> = ({
             onIModelConnected={handleIModelConnected}
             mapLayerOptions={{ BingMaps: { key: "key", value: process.env.IMJS_BING_MAPS_KEY ?? "" } }}
             backendConfiguration={{ defaultBackend: { rpcInterfaces: [ECSchemaRpcInterface] } }}
-            uiProviders={[
-              new ViewerNavigationToolsProvider(),
-              new ViewerContentToolsProvider({ vertical: { measureGroup: false } }),
-              new ViewerStatusbarItemsProvider(),
-              {
-                id: "PropertyGridUIProvider",
-                getWidgets: () => [
-                  createPropertyGrid({
-                    autoExpandChildCategories: true,
-                    ancestorsNavigationControls: (props) => <AncestorsNavigationControls {...props} />,
-                    contextMenuItems: [(props) => <CopyPropertyTextContextMenuItem {...props} />],
-                    settingsMenuItems: [(props) => <ShowHideNullValuesSettingsMenuItem {...props} persist={true} />],
-                  }),
-                ],
-              },
-              new MeasureToolsUiItemsProvider(),
-            ]}
+            uiProviders={uiProviders}
             selectionStorage={unifiedSelectionStorage}
           />
         </div>

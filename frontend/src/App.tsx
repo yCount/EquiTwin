@@ -158,7 +158,7 @@ const App: React.FC = () => {
         <LeftNavBar activeTab={activeTab} setActiveTab={setActiveTab} />
         <main className="app-main">
           <div className="tabs-container">
-            {visitedTabs.has("home") && (
+            {activeTab === "home" && (
               <div 
                 className={`tab-content ${activeTab === "home" ? "active" : "inactive"}`}
                 data-tab="home"
