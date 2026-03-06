@@ -271,6 +271,7 @@ def train_feature_best_models(
     lt_block_minutes: int = 240,
     lt_agg: str = "mean",
     lt_lags: Sequence[int] = (1, 2, 3, 6, 9, 12, 18),
+    save_candidates: bool = True,
 ) -> Dict[str, Any]:
     """
     Train and select the best model for each horizon for one feature and one level.
@@ -409,6 +410,29 @@ def train_feature_best_models(
         }
         meta = {**best_row, **shared_meta, **extra}
         save_model(model, out_root_p / "best" / f"{level}_h{int(h)}", meta)
+
+        # Save all other evaluated candidates so users can select them in the UI.
+        if save_candidates:
+            for cand_row in rows:
+                cand_name = cand_row["model"]
+                if cand_name == best_row["model"]:
+                    continue  # already saved to best/
+                try:
+                    print(f"[candidate] {cand_name} h{h}", flush=True)
+                    cand_model, cand_extra = fit_best_model(
+                        df, ss, horizon=int(h), best_model_name=cand_name
+                    )
+                    cand_meta = {**cand_row, **shared_meta, **cand_extra}
+                    save_model(
+                        cand_model,
+                        out_root_p / f"model_{cand_name}" / f"{level}_h{int(h)}",
+                        cand_meta,
+                    )
+                except Exception as exc:
+                    warnings.warn(
+                        f"[{feature.name}/{level}/h{h}] Could not save candidate '{cand_name}': {exc}",
+                        UserWarning, stacklevel=2,
+                    )
 
         # --- Quantile interval models (Q10 / Q50 / Q90)
         # Saved alongside the point model so the MPC solver can use

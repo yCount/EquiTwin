@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from equitwin_forecasting.feature_buffer import (
     BufferSpec15m,
@@ -68,6 +68,12 @@ class EquiTwinConfig:
     # Sensor group column name and default group_id for single-zone deployments.
     group_col: str = "sensor_id"
     default_group_id: str = "1"
+
+    # Optional per-feature model override: maps feature name → model key
+    # e.g. {"energy": "ridge", "temperature": "hgb"}
+    # If set, loads from artifacts/<feature>/model_<key>/ instead of best/.
+    # Falls back silently to "best" if the candidate dir doesn't exist.
+    model_overrides: Optional[Dict[str, str]] = None
 
 # Assembled stack
 
@@ -163,11 +169,25 @@ def build_equitwin_stack(cfg: EquiTwinConfig) -> EquiTwinStack:
     missing: List[str] = []
 
     for fname in requested:
-        st_spec = PredictorSpec(str(artifacts_root), fname, "st")
-        lt_spec = PredictorSpec(str(artifacts_root), fname, "lt")
+        # Determine which subdir to load from: candidate override or default "best"
+        override_key = (cfg.model_overrides or {}).get(fname)
+        if override_key:
+            cand_subdir = f"model_{override_key}"
+            cand_st = _available_horizons(artifacts_root, fname, "st", hz.st_horizons, subdir=cand_subdir)
+            if cand_st:
+                subdir = cand_subdir
+                print(f"[EquiTwin] {fname}: using override model '{override_key}' ({cand_subdir}/)")
+            else:
+                subdir = "best"
+                print(f"[EquiTwin] {fname}: override '{override_key}' not found, falling back to best")
+        else:
+            subdir = "best"
 
-        st_available = _available_horizons(artifacts_root, fname, "st", hz.st_horizons)
-        lt_available = _available_horizons(artifacts_root, fname, "lt", hz.lt_horizons)
+        st_spec = PredictorSpec(str(artifacts_root), fname, "st", subdir=subdir)
+        lt_spec = PredictorSpec(str(artifacts_root), fname, "lt", subdir=subdir)
+
+        st_available = _available_horizons(artifacts_root, fname, "st", hz.st_horizons, subdir=subdir)
+        lt_available = _available_horizons(artifacts_root, fname, "lt", hz.lt_horizons, subdir=subdir)
 
         if not st_available and not lt_available:
             missing.append(fname)
@@ -217,14 +237,15 @@ def _available_horizons(
     feature: str,
     level: str,
     requested: List[int],
+    subdir: str = "best",
 ) -> List[int]:
     """Return the subset of requested horizons that have a model on disk."""
-    best_dir = root / feature / "best"
-    if not best_dir.is_dir():
+    search_dir = root / feature / subdir
+    if not search_dir.is_dir():
         return []
     found = []
     for h in requested:
-        d = best_dir / f"{level}_h{h}"
+        d = search_dir / f"{level}_h{h}"
         if (d / "model.joblib").exists():
             found.append(h)
     return found

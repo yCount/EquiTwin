@@ -11,9 +11,12 @@ import MainContent, { ContentArea, Section } from "./components/MainContent";
 //  Types
 
 interface FeatureHorizonMeta { model: string | null; mase: number | null; r2: number | null; }
+interface AllModelRow { model: string; horizon: number; mase: number | null; rmse: number | null; r2: number | null; }
 interface FeatureArtifact {
   st: Record<string, FeatureHorizonMeta>;
   lt: Record<string, FeatureHorizonMeta>;
+  all_models_st: AllModelRow[];
+  candidates_saved: string[];
 }
 type ArtifactsMap = Record<string, FeatureArtifact>;
 
@@ -119,6 +122,7 @@ const ControllerTab: React.FC = () => {
   const [activeFeatures, setActiveFeatures] = useState<Set<string>>(
     new Set(FEATURE_DEFS.map(f => f.key))
   );
+  const [modelOverrides, setModelOverrides] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetch("http://localhost:8000/api/artifacts/status")
@@ -180,6 +184,7 @@ const ControllerTab: React.FC = () => {
           speed:          simConfig.speed,
           startHour:      0.0,
           activeFeatures: [...activeFeatures],
+          modelOverrides: Object.keys(modelOverrides).length > 0 ? modelOverrides : undefined,
         },
       }));
     };
@@ -238,7 +243,7 @@ const ControllerTab: React.FC = () => {
         setSimStatus("stopped");
       }
     };
-  }, [simConfig, activeFeatures]);
+  }, [simConfig, activeFeatures, modelOverrides]);
 
   // --- Stop
   const stopSimulation = useCallback(() => {
@@ -408,7 +413,8 @@ const ControllerTab: React.FC = () => {
                 {FEATURE_DEFS.map(({ key, label, unit }) => {
                   const fa  = modelArtifacts[key];
                   const stH1 = fa?.st?.["1"];
-                  const rawModel = stH1?.model ?? null;
+                  const bestModelKey = stH1?.model ?? null;
+                  const rawModel = bestModelKey;
                   const modelName = rawModel
                     ? (rawModel.split(".").pop()?.replace(/Regressor|Classifier|Forecaster/g, "") ?? rawModel)
                     : null;
@@ -421,31 +427,80 @@ const ControllerTab: React.FC = () => {
                     mase < 1.2  ? "warn" : "bad";
                   const isLast = activeFeatures.size === 1 && isActive;
 
+                  // Build unique model options from all_models_st (h1 rows)
+                  const candidateRows = (fa?.all_models_st ?? []).filter(r => r.horizon === 1);
+                  const seenModels = new Set<string>();
+                  const options: AllModelRow[] = [];
+                  for (const r of candidateRows) {
+                    if (!seenModels.has(r.model)) { seenModels.add(r.model); options.push(r); }
+                  }
+                  // Sort: best first, rest by mase asc
+                  options.sort((a, b) => {
+                    if (a.model === bestModelKey) return -1;
+                    if (b.model === bestModelKey) return 1;
+                    return (a.mase ?? 99) - (b.mase ?? 99);
+                  });
+
+                  const savedSet = new Set(fa?.candidates_saved ?? []);
+                  const selectedKey = modelOverrides[key] ?? bestModelKey ?? "";
+
                   return (
                     <div
                       key={key}
                       className={`model-feature-card ${isActive ? "on" : "off"} ${!hasModel ? "no-model" : ""} ${isLast ? "last" : ""}`}
-                      onClick={() => !isLast && hasModel && toggleFeature(key)}
-                      title={
-                        !hasModel ? "No model artifacts loaded" :
-                        isLast    ? "At least one feature must stay active" :
-                        isActive  ? `Disable ${label} in MPC` :
-                                    `Enable ${label} in MPC`
-                      }
                     >
-                      <div className="mfc-top">
-                        <span className="mfc-label">{label}</span>
-                        <span className="mfc-unit">{unit}</span>
+                      <div
+                        className="mfc-toggle-area"
+                        onClick={() => !isLast && hasModel && toggleFeature(key)}
+                        title={
+                          !hasModel ? "No model artifacts loaded" :
+                          isLast    ? "At least one feature must stay active" :
+                          isActive  ? `Disable ${label} in MPC` :
+                                      `Enable ${label} in MPC`
+                        }
+                      >
+                        <div className="mfc-top">
+                          <span className="mfc-label">{label}</span>
+                          <span className="mfc-unit">{unit}</span>
+                        </div>
+                        <div className="mfc-bottom">
+                          <span className="mfc-model">{modelName ?? "—"}</span>
+                          {mase !== null ? (
+                            <span className={`mase-chip ${maseClass}`}>{mase.toFixed(2)}</span>
+                          ) : (
+                            <span className="mase-chip none">—</span>
+                          )}
+                        </div>
+                        <div className={`mfc-toggle-dot ${isActive ? "on" : "off"}`} />
                       </div>
-                      <div className="mfc-bottom">
-                        <span className="mfc-model">{modelName ?? "—"}</span>
-                        {mase !== null ? (
-                          <span className={`mase-chip ${maseClass}`}>{mase.toFixed(2)}</span>
-                        ) : (
-                          <span className="mase-chip none">—</span>
-                        )}
-                      </div>
-                      <div className={`mfc-toggle-dot ${isActive ? "on" : "off"}`} />
+                      {hasModel && options.length > 0 && (
+                        <select
+                          className="mfc-select"
+                          value={selectedKey}
+                          disabled={isRunning}
+                          onClick={e => e.stopPropagation()}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setModelOverrides(prev => {
+                              const next = { ...prev };
+                              if (val === bestModelKey) delete next[key];
+                              else next[key] = val;
+                              return next;
+                            });
+                          }}
+                        >
+                          {options.map(opt => {
+                            const isBest = opt.model === bestModelKey;
+                            const isSaved = isBest || savedSet.has(opt.model);
+                            const maseStr = opt.mase != null ? ` ${opt.mase.toFixed(2)}` : "";
+                            return (
+                              <option key={opt.model} value={opt.model} disabled={!isSaved}>
+                                {opt.model}{isBest ? " (best)" : maseStr}{!isSaved ? " [re-train]" : ""}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      )}
                     </div>
                   );
                 })}

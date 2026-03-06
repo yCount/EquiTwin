@@ -559,6 +559,12 @@ async def simulation_ws(ws: WebSocket):
         active_features = (
             [f for f in _af_raw if f in _KNOWN_FEATURES] if _af_raw else None
         )
+        # Per-feature model overrides: {"energy": "ridge", ...}
+        _mo_raw = cfg.get("modelOverrides", None)
+        model_overrides: Optional[Dict[str, str]] = (
+            {k: v for k, v in _mo_raw.items() if k in _KNOWN_FEATURES and isinstance(v, str)}
+            if isinstance(_mo_raw, dict) else None
+        )
 
         # --- Import simulation helpers (inside the handler to avoid module-level cost)
         from simulate_house import (
@@ -588,6 +594,7 @@ async def simulation_ws(ws: WebSocket):
             _stack = build_equitwin_stack(EquiTwinConfig(
                 artifacts_root=_arts,
                 features=active_features,
+                model_overrides=model_overrides,
             ))
             if _stack.predictors:          # only wire MPC if models are loaded
                 runner  = TickRunner(
@@ -809,7 +816,7 @@ def artifacts_status():
             "n_rows": None,
         }
 
-        # ── best models per horizon ───────────────────────────────────────────
+        #  best models per horizon
         if os.path.isdir(best_dir):
             for entry in sorted(os.listdir(best_dir)):
                 if "_h" not in entry:
@@ -840,7 +847,7 @@ def artifacts_status():
                 except Exception:
                     pass
 
-        # ── quantile coverage / sharpness per horizon ─────────────────────────
+        # quantile coverage / sharpness per horizon
         if os.path.isdir(q_dir):
             for entry in os.listdir(q_dir):
                 # names like  st_h1_q90  st_h1_lgbm_q50  lt_h3_q10
@@ -871,7 +878,7 @@ def artifacts_status():
                 except Exception:
                     pass
 
-        # ── full model comparison tables (all models × all horizons) ──────────
+        # full model comparison tables (all models x all horizons)
         feature_data["all_models_st"] = _read_metrics_csv(
             os.path.join(feat_root, "metrics_st.csv")
         )
@@ -879,7 +886,22 @@ def artifacts_status():
             os.path.join(feat_root, "metrics_lt.csv")
         )
 
-        # ── multi-output summary ──────────────────────────────────────────────
+        #  saved candidate models
+        candidates_saved: List[str] = []
+        try:
+            for entry in os.listdir(feat_root):
+                if not entry.startswith("model_"):
+                    continue
+                cand_name = entry[len("model_"):]
+                # Consider a candidate "saved" if ST h1 joblib exists
+                probe = os.path.join(feat_root, entry, "st_h1", "model.joblib")
+                if os.path.exists(probe):
+                    candidates_saved.append(cand_name)
+        except Exception:
+            pass
+        feature_data["candidates_saved"] = sorted(candidates_saved)
+
+        #  multi-output summary
         if os.path.isdir(mo_dir):
             for entry in os.listdir(mo_dir):
                 # names like  st_all_horizons  lt_all_horizons

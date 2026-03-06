@@ -308,6 +308,37 @@
       &.on  { background: $success; box-shadow: 0 0 5px $success; }
       &.off { background: rgba(255,255,255,0.2); }
     }
+
+    .mfc-toggle-area {
+      cursor: pointer;
+      position: relative;
+    }
+
+    .mfc-select {
+      width: 100%;
+      margin-top: 8px;
+      padding: 4px 6px;
+      font-size: 10px;
+      font-family: $font-family-mono;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 4px;
+      color: $text-main;
+      appearance: none;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s;
+
+      &:hover:not(:disabled) { border-color: rgba($primary, 0.4); }
+      &:focus { border-color: rgba($primary, 0.6); }
+      &:disabled { opacity: 0.4; cursor: default; }
+
+      option {
+        background: #111318;
+        color: $text-main;
+        &:disabled { color: $text-dim; }
+      }
+    }
   }
 
   .mase-chip {
