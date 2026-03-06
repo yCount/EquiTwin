@@ -1,6 +1,4 @@
 """
-generate_synthetic_training_data.py
-─────────────────────────────────────
 Generates a physically realistic synthetic 15-minute timeseries dataset
 for training the EquiTwin forecasting models.
 
@@ -140,14 +138,14 @@ def _simulate(
     day_of_year = timestamps.dayofyear
     dow = timestamps.dayofweek
 
-    # ── Outdoor temperature ──────────────────────────────────────────────────
+    #  Outdoor temperature 
     outdoor = _outdoor_temperature(
         np.array(day_of_year, dtype=float),
         np.array(hour_frac, dtype=float),
         p, rng,
     )
 
-    # ── Occupancy ────────────────────────────────────────────────────────────
+    #  Occupancy 
     occ_profile = _occupancy_profile(
         np.array(hour_frac, dtype=float),
         np.array(dow, dtype=int),
@@ -164,7 +162,7 @@ def _simulate(
         occ[i] = (1 - alpha_occ) * occ[i - 1] + alpha_occ * occ_raw[i]
     occ = np.round(np.clip(occ, 0.0, p.max_occupancy))
 
-    # ── HVAC setpoint schedule ───────────────────────────────────────────────
+    #  HVAC setpoint schedule 
     hvac_on = np.zeros(n, dtype=bool)
     for i in range(n):
         hf = hour_frac[i]
@@ -178,7 +176,7 @@ def _simulate(
 
     setpoint = np.where(hvac_on, p.setpoint_occupied, p.setpoint_unoccupied)
 
-    # ── Indoor Temperature ───────────────────────────────────────────────────
+    #  Indoor Temperature 
     # HVAC drives temp toward setpoint; outdoor leaks through envelope.
     # dT/dt ≈ (T_target - T_indoor) / τ  where T_target blends setpoint + outdoor
     alpha_t = 1.0 - np.exp(-dt_min / p.thermal_tau_min)  # α ≈ 0.15 at 90 min τ
@@ -190,7 +188,7 @@ def _simulate(
     temp += rng.normal(0.0, p.noise_temp, n)
     temp = np.clip(temp, 14.0, 30.0)
 
-    # ── Energy (kW) ──────────────────────────────────────────────────────────
+    #  Energy (kW) 
     occ_fraction = occ / p.max_occupancy
     thermal_delta = np.abs(temp - setpoint)
     hvac_power = np.clip(p.energy_hvac_coeff * thermal_delta, 0.0, p.energy_hvac_max)
@@ -209,7 +207,7 @@ def _simulate(
         energy[i] = (1 - alpha_e) * energy[i - 1] + alpha_e * energy_raw[i]
     energy = np.clip(energy, 0.5, p.energy_base + p.energy_lighting + p.energy_equipment + p.energy_hvac_max + 1.0)
 
-    # ── CO2 (ppm) ────────────────────────────────────────────────────────────
+    #  CO2 (ppm) 
     # Differential equation per step:
     #   C(t+dt) = C(t) + dt * (generation_rate - ventilation_rate * (C(t) - C_amb))
     # generation_rate: ppm/min per person in space_volume
@@ -224,16 +222,16 @@ def _simulate(
     co2 += rng.normal(0.0, p.noise_co2, n)
     co2 = np.clip(co2, 390.0, 3000.0)
 
-    # ── Humidity (%) ─────────────────────────────────────────────────────────
+    #  Humidity (%) 
     humidity = p.humidity_base + p.humidity_per_person * occ + rng.normal(0.0, p.noise_humidity, n)
     humidity = np.clip(humidity, 28.0, 72.0)
 
-    # ── Circuits ─────────────────────────────────────────────────────────────
+    #  Circuits 
     # Split energy into two circuits: HVAC on c0, lighting+equipment on c1
     circuit0 = np.clip(p.energy_base + hvac_power, 0.5, energy)
     circuit1 = np.clip(energy - circuit0, 0.0, energy)
 
-    # ── Weather condition string ──────────────────────────────────────────────
+    #  Weather condition string 
     conditions_pool = ["clear", "partly_cloudy", "overcast", "light_rain", "fog"]
     # Rough seasonal probability weighting: more rain in winter
     month = np.array(timestamps.month, dtype=int)
@@ -245,7 +243,7 @@ def _simulate(
     )
     condition = np.array([conditions_pool[i] for i in cond_idx])
 
-    # ── Sunlight (0..1 fraction, 0 at night) ─────────────────────────────────
+    #  Sunlight (0..1 fraction, 0 at night) 
     # Simple sinusoid between sunrise and sunset
     # Glasgow: summer sunrise ~4am, sunset ~10pm; winter ~8am..4pm
     daylen_hours = 8.0 + 6.0 * np.sin(2 * np.pi * (day_of_year - 80) / 365.25)
