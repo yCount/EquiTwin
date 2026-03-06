@@ -233,6 +233,104 @@
       }
   }
 
+  // === Active Models selector ===
+  .model-select-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .model-feature-card {
+    position: relative;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: $radius-sm;
+    padding: 10px 10px 10px 10px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    overflow: hidden;
+
+    &.on {
+      border-color: rgba($primary, 0.35);
+      background: rgba($primary, 0.07);
+    }
+    &.off {
+      opacity: 0.5;
+    }
+    &.no-model {
+      cursor: default;
+      opacity: 0.35;
+    }
+    &.last {
+      cursor: not-allowed;
+    }
+
+    .mfc-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .mfc-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: $text-main;
+    }
+    .mfc-unit {
+      font-size: 9px;
+      color: $text-dim;
+      font-family: $font-family-mono;
+    }
+    .mfc-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+    }
+    .mfc-model {
+      font-size: 10px;
+      color: $text-dim;
+      font-family: $font-family-mono;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 72px;
+    }
+    .mfc-toggle-dot {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      &.on  { background: $success; box-shadow: 0 0 5px $success; }
+      &.off { background: rgba(255,255,255,0.2); }
+    }
+  }
+
+  .mase-chip {
+    font-size: 9px;
+    font-family: $font-family-mono;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+    &.good { background: rgba($success, 0.15); color: $success; }
+    &.warn { background: rgba($warning, 0.15); color: $warning; }
+    &.bad  { background: rgba($danger,  0.15); color: $danger;  }
+    &.none { color: $text-dim; background: transparent; }
+  }
+
+  .model-select-hint {
+    margin: 8px 0 0;
+    font-size: 10px;
+    color: $text-dim;
+    opacity: 0.6;
+    line-height: 1.4;
+  }
+
   .constraint-list {
       display: flex; flex-direction: column; gap: 8px;
       .constraint-tag {

@@ -8,7 +8,21 @@ import Topbar from "./components/Topbar";
 import RightSidebar, { SidebarSection } from "./components/RightSidebar";
 import MainContent, { ContentArea, Section } from "./components/MainContent";
 
-//  Types 
+//  Types
+
+interface FeatureHorizonMeta { model: string | null; mase: number | null; r2: number | null; }
+interface FeatureArtifact {
+  st: Record<string, FeatureHorizonMeta>;
+  lt: Record<string, FeatureHorizonMeta>;
+}
+type ArtifactsMap = Record<string, FeatureArtifact>;
+
+const FEATURE_DEFS = [
+  { key: "energy",      label: "Energy",      unit: "kW"  },
+  { key: "temperature", label: "Temperature", unit: "°C"  },
+  { key: "occupancy",   label: "Occupancy",   unit: "ppl" },
+  { key: "airquality",  label: "Air Quality", unit: "ppm" },
+] as const;
 
 interface SimConfig {
   setpoint:      number;
@@ -100,6 +114,38 @@ const ControllerTab: React.FC = () => {
   const [hasMpc,      setHasMpc]      = useState(false);
   const [errorMsg,    setErrorMsg]    = useState<string | null>(null);
 
+  // Model selector
+  const [modelArtifacts, setModelArtifacts] = useState<ArtifactsMap>({});
+  const [activeFeatures, setActiveFeatures] = useState<Set<string>>(
+    new Set(FEATURE_DEFS.map(f => f.key))
+  );
+
+  useEffect(() => {
+    fetch("http://localhost:8000/api/artifacts/status")
+      .then(r => r.ok ? r.json() : null)
+      .then((data: ArtifactsMap | null) => {
+        if (!data) return;
+        setModelArtifacts(data);
+        const loaded = new Set(
+          FEATURE_DEFS.map(f => f.key).filter(k => {
+            const fa = data[k];
+            return fa && Object.keys(fa.st).length > 0;
+          })
+        );
+        if (loaded.size > 0) setActiveFeatures(loaded);
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleFeature = useCallback((key: string) => {
+    setActiveFeatures(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) { if (next.size > 1) next.delete(key); }
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
   // Sidebar-only MPC objective weight (local, informational)
   const [comfortWeight, setComfortWeight] = useState(0.6);
 
@@ -126,13 +172,14 @@ const ControllerTab: React.FC = () => {
       ws.send(JSON.stringify({
         type:   "start",
         config: {
-          setpoint:      simConfig.setpoint,
-          nightSetpoint: simConfig.nightSetpoint,
-          nOccupants:    simConfig.nOccupants,
-          ticks:         simConfig.ticks,
-          initTemp:      simConfig.initTemp,
-          speed:         simConfig.speed,
-          startHour:     0.0,
+          setpoint:       simConfig.setpoint,
+          nightSetpoint:  simConfig.nightSetpoint,
+          nOccupants:     simConfig.nOccupants,
+          ticks:          simConfig.ticks,
+          initTemp:       simConfig.initTemp,
+          speed:          simConfig.speed,
+          startHour:      0.0,
+          activeFeatures: [...activeFeatures],
         },
       }));
     };
@@ -191,7 +238,7 @@ const ControllerTab: React.FC = () => {
         setSimStatus("stopped");
       }
     };
-  }, [simConfig]);
+  }, [simConfig, activeFeatures]);
 
   // --- Stop
   const stopSimulation = useCallback(() => {
@@ -353,6 +400,59 @@ const ControllerTab: React.FC = () => {
                   </>
                 )}
               </div>
+            </SidebarSection>
+
+            {/*  Active Models  */}
+            <SidebarSection title="Active Models">
+              <div className="model-select-grid">
+                {FEATURE_DEFS.map(({ key, label, unit }) => {
+                  const fa  = modelArtifacts[key];
+                  const stH1 = fa?.st?.["1"];
+                  const rawModel = stH1?.model ?? null;
+                  const modelName = rawModel
+                    ? (rawModel.split(".").pop()?.replace(/Regressor|Classifier|Forecaster/g, "") ?? rawModel)
+                    : null;
+                  const mase     = stH1?.mase ?? null;
+                  const isActive = activeFeatures.has(key);
+                  const hasModel = !!fa && Object.keys(fa.st).length > 0;
+                  const maseClass =
+                    mase == null ? "none" :
+                    mase < 0.9  ? "good" :
+                    mase < 1.2  ? "warn" : "bad";
+                  const isLast = activeFeatures.size === 1 && isActive;
+
+                  return (
+                    <div
+                      key={key}
+                      className={`model-feature-card ${isActive ? "on" : "off"} ${!hasModel ? "no-model" : ""} ${isLast ? "last" : ""}`}
+                      onClick={() => !isLast && hasModel && toggleFeature(key)}
+                      title={
+                        !hasModel ? "No model artifacts loaded" :
+                        isLast    ? "At least one feature must stay active" :
+                        isActive  ? `Disable ${label} in MPC` :
+                                    `Enable ${label} in MPC`
+                      }
+                    >
+                      <div className="mfc-top">
+                        <span className="mfc-label">{label}</span>
+                        <span className="mfc-unit">{unit}</span>
+                      </div>
+                      <div className="mfc-bottom">
+                        <span className="mfc-model">{modelName ?? "—"}</span>
+                        {mase !== null ? (
+                          <span className={`mase-chip ${maseClass}`}>{mase.toFixed(2)}</span>
+                        ) : (
+                          <span className="mase-chip none">—</span>
+                        )}
+                      </div>
+                      <div className={`mfc-toggle-dot ${isActive ? "on" : "off"}`} />
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="model-select-hint">
+                Toggle features included in the MPC forecast loop.
+              </p>
             </SidebarSection>
 
           </RightSidebar>

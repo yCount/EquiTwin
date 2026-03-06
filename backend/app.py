@@ -554,12 +554,17 @@ async def simulation_ws(ws: WebSocket):
         n_occ       = int(cfg.get("nOccupants",    10))
         init_temp   = float(cfg.get("initTemp",    14.0))
         start_hour  = float(cfg.get("startHour",   0.0))
+        # Features to include in MPC forecasting (None = all)
+        _af_raw     = cfg.get("activeFeatures", None)
+        active_features = (
+            [f for f in _af_raw if f in _KNOWN_FEATURES] if _af_raw else None
+        )
 
         # --- Import simulation helpers (inside the handler to avoid module-level cost)
         from simulate_house import (
             HouseState, ScheduleConfig, get_building_mode,
             commercial_occupancy_at, synthetic_weather, mode_hvac,
-            BASE_LOAD_W, _BMODE_LABEL,
+            BASE_LOAD_W, HVAC_STANDBY_W, _BMODE_LABEL,
         )
         import pandas as pd
 
@@ -571,14 +576,19 @@ async def simulation_ws(ws: WebSocket):
         house    = HouseState(indoor_temp=init_temp, co2=450.0, humidity=40.0)
         sim_start = pd.Timestamp("2025-06-01", tz="UTC") + pd.Timedelta(hours=start_hour)
 
-        # --- Try building the EquiTwin ML stack (fallback if no artifacts)
+        # --- Build TickRunner for this simulation session.
+        # Always build a fresh isolated stack so the simulation's buffer
+        # is independent from the real ForecastService buffer.
         runner   = None
         has_mpc  = False
         try:
             from equitwin_integration.bootstrap import EquiTwinConfig, build_equitwin_stack
             from equitwin_integration.tick_runner import TickRunner, TickRunnerConfig
             _arts = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts")
-            _stack = build_equitwin_stack(EquiTwinConfig(artifacts_root=_arts))
+            _stack = build_equitwin_stack(EquiTwinConfig(
+                artifacts_root=_arts,
+                features=active_features,
+            ))
             if _stack.predictors:          # only wire MPC if models are loaded
                 runner  = TickRunner(
                     _stack,
@@ -643,8 +653,18 @@ async def simulation_ws(ws: WebSocket):
                         },
                     )
 
-                hvac_w     = mode_hvac(house.indoor_temp, sp, band, max_hvac_w, heating_only)
                 mpc_active = output is not None and output.warmed_up and output.error is None
+
+                if mpc_active and "total_act_power" in output.inner_action.u:
+                    # MPC is active: use InnerMPC's total_act_power command.
+                    # InnerMPC outputs total building power (HVAC + base load).
+                    # Extract HVAC-only portion and clamp to mode limits.
+                    mpc_total_w = float(output.inner_action.u["total_act_power"])
+                    hvac_w = max(HVAC_STANDBY_W, min(max_hvac_w, mpc_total_w - BASE_LOAD_W))
+                else:
+                    # Warmup or no artifacts: fall back to proportional thermostat
+                    hvac_w = mode_hvac(house.indoor_temp, sp, band, max_hvac_w, heating_only)
+
                 if mpc_active:
                     mpc_tick_count += 1
 
