@@ -2,8 +2,7 @@
 Generates a physically realistic synthetic 15-minute timeseries dataset
 for training the EquiTwin forecasting models.
 
-Unlike synthesize_dashboard_timeseries.py (which fills gaps in existing data),
-this script generates a COMPLETE dataset from scratch with proper physical
+This script generates a complete dataset from scratch with proper physical
 relationships between variables.
 
 Physical model:
