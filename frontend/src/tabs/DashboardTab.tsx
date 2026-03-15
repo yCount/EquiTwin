@@ -966,10 +966,10 @@ const [level3Active, setLevel3Active] = useState(true);
             />
             <ChartCard
               title="External Weather"
-              subtitle="Outdoor Â°C"
+              subtitle="Outdoor °C"
               data={filteredData.weather}
               color="#f59e0b"
-              unit="Â°C"
+              unit="°C"
               type="weather"
               xDomain={chartXDomain}
               emptyMessage="No weather data available"
