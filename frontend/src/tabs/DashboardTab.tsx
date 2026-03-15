@@ -121,6 +121,11 @@ interface TimeRange {
   end: number | null;
 }
 
+interface TimeBounds {
+  start: number;
+  end: number;
+}
+
 // Weather condition colors
 const WEATHER_COLORS = {
   'sunny': '#f59e0b',
@@ -177,6 +182,41 @@ const mapWeatherCondition = (c?: string): WeatherDataPoint['condition'] => {
   }
 };
 
+const getMaxValue = <T,>(
+  items: T[],
+  getValue: (item: T) => number,
+  fallback = 0
+): number => {
+  if (items.length === 0) return fallback;
+
+  let max = getValue(items[0]);
+  for (let i = 1; i < items.length; i += 1) {
+    const value = getValue(items[i]);
+    if (value > max) max = value;
+  }
+
+  return max;
+};
+
+const getTimeBounds = (...series: ChartDataPoint[][]): TimeBounds | null => {
+  let start = Infinity;
+  let end = -Infinity;
+
+  for (const points of series) {
+    for (const point of points) {
+      const time = point.fullTimestamp.getTime();
+      if (time < start) start = time;
+      if (time > end) end = time;
+    }
+  }
+
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    return null;
+  }
+
+  return { start, end };
+};
+
 const convertApiToSensorData = (api: TimeseriesApiResponse): SensorData => {
   const toChart = (pts: TimeseriesPoint[]): ChartDataPoint[] =>
     pts.map(p => ({ timestamp: "", fullTimestamp: new Date(p.ts), value: p.value }));
@@ -189,7 +229,7 @@ const convertApiToSensorData = (api: TimeseriesApiResponse): SensorData => {
 
   const tempAvg   = avgOf(api.temperature);
   const co2Avg    = avgOf(api.airQuality);
-  const occMax    = api.occupancy.length > 0 ? Math.max(...api.occupancy.map(p => p.value)) : 0;
+  const occMax    = getMaxValue(api.occupancy, (p) => p.value);
   const energyAvg = avgOf(api.energy);
 
   const pct = (actual: number, ideal: number) =>
@@ -249,31 +289,31 @@ const DashboardTab = () => {
       });
   }, [refreshKey]);
 
-  // Build a flat list of all timestamps across every data series so time-range
-  // calculations are not accidentally pinned to whichever series has the
-  // narrowest coverage (e.g. temperature data only existing for Jun-Jul while
-  // energy spans the full DB history).
-  const allSeriesPoints = useMemo((): ChartDataPoint[] => [
-    ...sensorData.temperature,
-    ...sensorData.occupancy,
-    ...sensorData.airQuality,
-    ...sensorData.energyByFloor,
-    ...sensorData.weather,
-  ], [sensorData]);
+  const allSeriesBounds = useMemo(
+    () =>
+      getTimeBounds(
+        sensorData.temperature,
+        sensorData.occupancy,
+        sensorData.airQuality,
+        sensorData.energyByFloor,
+        sensorData.weather
+      ),
+    [sensorData]
+  );
 
   useEffect(() => {
-    if (allSeriesPoints.length === 0) {
+    if (!allSeriesBounds) {
       setTimeRange({ start: null, end: null });
       setTimelineViewRange(null);
       return;
     }
-    const endTime = allSeriesPoints.reduce(
-      (max, p) => Math.max(max, p.fullTimestamp.getTime()), -Infinity
-    );
     const config = getRangeConfig(activeTimeRange);
-    setTimeRange({ start: endTime - config.selectedHours * 3600000, end: endTime });
+    setTimeRange({
+      start: allSeriesBounds.end - config.selectedHours * 3600000,
+      end: allSeriesBounds.end,
+    });
     setTimelineViewRange(null);
-  }, [allSeriesPoints, activeTimeRange]);
+  }, [allSeriesBounds, activeTimeRange]);
 
   const filteredData = useMemo(() => {
     if (!timeRange.start || !timeRange.end) return sensorData;
@@ -295,15 +335,11 @@ const DashboardTab = () => {
   }, [sensorData, timeRange]);
 
   const fullTimeRange = useMemo(() => {
-    if (allSeriesPoints.length === 0) {
+    if (!allSeriesBounds) {
       return { start: Date.now() - 86400000, end: Date.now() };
     }
-    const times = allSeriesPoints.map(p => p.fullTimestamp.getTime());
-    return {
-      start: Math.min(...times),
-      end:   Math.max(...times),
-    };
-  }, [allSeriesPoints]);
+    return allSeriesBounds;
+  }, [allSeriesBounds]);
 
   const chartXDomain = useMemo((): [number, number] => [
     timeRange.start  ?? fullTimeRange.start,
@@ -405,9 +441,9 @@ const [level3Active, setLevel3Active] = useState(true);
     const max = useMemo(() => {
       if (!data || data.length === 0) return '—';
       if (type === 'weather') {
-        return Math.max(...data.map((d: WeatherDataPoint) => d.temperature)).toFixed(1);
+        return getMaxValue(data, (d: WeatherDataPoint) => d.temperature).toFixed(1);
       }
-      return fmt(Math.max(...data.map((d: any) => d.value || 0)));
+      return fmt(getMaxValue(data, (d: any) => d.value || 0));
     }, [data, type, unit]);
 
     // Add numeric timestamp (_tsMs) so XAxis can use type="number" scale="time"

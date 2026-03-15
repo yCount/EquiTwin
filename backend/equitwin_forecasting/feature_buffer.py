@@ -83,7 +83,7 @@ class FeatureBuffer15m:
             x[col] = latest.get(col, None)
             for L in self.lags:
                 idx = len(df) - 1 - L
-                x[f"{col}_lag{L}"] = df.iloc[idx][col] if idx >= 0 else None
+                x[f"{col}_lag{L}"] = df.iloc[idx].get(col, None) if idx >= 0 else None
         return pd.DataFrame([x])
 
 @dataclass(frozen=True)
@@ -104,10 +104,10 @@ class FeatureBuffer4h:
         if df.empty:
             return {c: None for c in cols}
         if self.spec.agg == "last":
-            return {c: df.iloc[-1][c] for c in cols}
+            return {c: df.iloc[-1].get(c, None) for c in cols}
         if self.spec.agg == "sum":
-            return {c: float(pd.to_numeric(df[c], errors="coerce").sum()) for c in cols}
-        return {c: float(pd.to_numeric(df[c], errors="coerce").mean()) for c in cols}
+            return {c: float(pd.to_numeric(df[c], errors="coerce").sum()) if c in df.columns else None for c in cols}
+        return {c: float(pd.to_numeric(df[c], errors="coerce").mean()) if c in df.columns else None for c in cols}
 
     def build_X_t(self, group_id: str, lag_cols: List[str], lt_steps_back: int = 0) -> pd.DataFrame:
         """

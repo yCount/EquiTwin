@@ -43,12 +43,19 @@ PHASE_V          = [231.0, 232.0, 230.0]   # A, B, C phase voltages [V]
 PHASE_SPLIT      = [0.35, 0.35, 0.30]      # fraction of load per phase
 
 CO2_OUTDOOR_PPM  = 420.0    # outdoor CO2 baseline [ppm]
-CO2_PER_PPL_TICK = 12.0     # CO2 added per person per 15-min tick [ppm]
-CO2_VENT_FRAC    = 1 - math.exp(-15 / 120)  # ventilated per tick (tau=120 min)
+CO2_PER_PPL_TICK = 6.0      # CO2 added per person per 15-min tick [ppm]
+CO2_VENT_FRAC    = 1 - math.exp(-15 / 120)  # standby ventilation fraction (tau=120 min)
+                             # Used as default when no MPC vent_rate is provided.
+VENT_BASE_FRAC   = CO2_VENT_FRAC             # alias — matches hierarchical.py _VENT_BASE_FRAC
+VENT_MAX_FRAC    = 0.40                      # maximum ventilation fraction at full fan
 
 HUM_BASE_PCT     = 45.0     # baseline indoor humidity [%RH]
-HUM_PER_PPL_TICK = 0.3      # humidity added per person per tick [%RH]
+HUM_PER_PPL_TICK = 0.1      # humidity added per person per tick [%RH]
+                             # (reduced from 0.3 so dehumidification can overcome occupancy load;
+                             #  real-world moisture generation varies widely with activity level)
 HUM_DECAY_FRAC   = 1 - math.exp(-15 / 180)  # humidity decay per tick (tau=3 h)
+HUM_DEHUMID_MIN  = 0.3      # %RH removed per tick at cooling threshold (500 W)
+HUM_DEHUMID_MAX  = 1.5      # %RH removed per tick at maximum cooling power
 
 DT_S             = 900.0    # seconds per tick (15 min)
 
@@ -209,8 +216,14 @@ class HouseState:
         outdoor_temp: float,
         n_people:     int,
         temp_target:  float,
+        vent_rate:    Optional[float] = None,
     ) -> None:
-        """Advance physics by one 15-minute tick."""
+        """Advance physics by one 15-minute tick.
+
+        vent_rate: independent ventilation fraction [0, VENT_MAX_FRAC].
+                   None → use standby baseline (CO2_VENT_FRAC).
+                   Controlled directly by the MPC; decoupled from HVAC power.
+        """
         self.n_people    = n_people
         self.hvac_power_w = hvac_w
 
@@ -227,20 +240,23 @@ class HouseState:
         )
         self.indoor_temp = round(self.indoor_temp + dT, 2)
 
-        # CO2
+        # CO2 — ventilation is now independent of HVAC power
+        eff_vent_frac = vent_rate if vent_rate is not None else CO2_VENT_FRAC
         self.co2 += n_people * CO2_PER_PPL_TICK
-        self.co2 -= CO2_VENT_FRAC * (self.co2 - CO2_OUTDOOR_PPM)
+        self.co2 -= eff_vent_frac * (self.co2 - CO2_OUTDOOR_PPM)
         self.co2  = max(CO2_OUTDOOR_PPM, round(self.co2, 1))
 
-        # Humidity
+        # Humidity — decay toward baseline; ventilation above standby brings
+        # in drier outdoor air for mild dehumidification
         self.humidity += n_people * HUM_PER_PPL_TICK
-        if hvac_w > 500 and self.indoor_temp >= temp_target:
-            self.humidity -= 0.5           # dehumidify during cooling
+        if vent_rate is not None and vent_rate > VENT_BASE_FRAC:
+            self.humidity -= (vent_rate - VENT_BASE_FRAC) * 2.0
         self.humidity -= HUM_DECAY_FRAC * (self.humidity - HUM_BASE_PCT)
         self.humidity  = max(20.0, min(95.0, round(self.humidity, 1)))
 
-        # Energy
-        total_w = hvac_w + BASE_LOAD_W
+        # Energy — include ventilation fan draw
+        vent_fan_w = (vent_rate if vent_rate is not None else VENT_BASE_FRAC) / VENT_MAX_FRAC * 200.0
+        total_w = hvac_w + BASE_LOAD_W + vent_fan_w
         self.cumulative_kwh += total_w * DT_S / 3_600_000.0
 
     def to_sensor_row(
@@ -380,6 +396,10 @@ def _print_tick(
         if refs.get("outdoor_temp_ref_lt"):
             first_step = min(refs["outdoor_temp_ref_lt"])
             parts.append(f"T_out_ref={refs['outdoor_temp_ref_lt'][first_step]:.1f}C")
+        inner = output.inner_action.info or {}
+        if inner.get("solver") == "SLSQP":
+            conv = "ok" if inner.get("converged") else "nc"
+            parts.append(f"QP[{conv},it={inner.get('n_iter',0)}]")
         refs_str = "  ".join(parts)
     else:
         fc_e = f"{'warming':>8}"
@@ -568,16 +588,25 @@ def main() -> None:
                 "temp_target":     setpoint,
                 "temp":            house.indoor_temp,
                 "total_act_power": house.hvac_power_w + BASE_LOAD_W,
+                "heating_only":    heating_only,
             },
         )
 
-        # 5. Compute HVAC power using mode-aware proportional controller.
-        #    The InnerMPC's raw output is informational (skeleton); the
-        #    OuterMPC refs (E_budget, T_ref_lt) are visible in the display.
-        hvac_w = mode_hvac(house.indoor_temp, setpoint, band, max_hvac_w, heating_only)
+        # 5. Compute HVAC power.
+        #    When MPC is active use its optimised command (receding-horizon QP).
+        #    Clip to mode limits so night-cap and heating-only rules are respected.
+        #    Fall back to the mode-aware proportional controller during warm-up.
+        mpc_active = output.warmed_up and output.error is None
+        if mpc_active and output.inner_action.u.get("hvac_power_w") is not None:
+            mpc_hvac = float(output.inner_action.u["hvac_power_w"])
+            if heating_only and house.indoor_temp >= setpoint:
+                hvac_w = HVAC_STANDBY_W
+            else:
+                hvac_w = float(np.clip(mpc_hvac, HVAC_STANDBY_W, max_hvac_w))
+        else:
+            hvac_w = mode_hvac(house.indoor_temp, setpoint, band, max_hvac_w, heating_only)
 
         # 6. Build display mode string
-        mpc_active = output.warmed_up and output.error is None
         if mpc_active:
             mpc_tick_count += 1
         display_mode = f"{_BMODE_LABEL[b_mode]}{'+'  if mpc_active else ' '}"
@@ -587,11 +616,15 @@ def main() -> None:
                     setpoint, hvac_w, output)
 
         # 8. Advance house physics
+        vent_rate = None
+        if mpc_active and output.inner_action.u.get("vent_rate") is not None:
+            vent_rate = float(output.inner_action.u["vent_rate"])
         house.step(
             hvac_w=hvac_w,
             outdoor_temp=outdoor_temp_phys,
             n_people=n_people,
             temp_target=setpoint,
+            vent_rate=vent_rate,
         )
 
         if args.speed > 0:

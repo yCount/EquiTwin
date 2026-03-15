@@ -554,6 +554,18 @@ async def simulation_ws(ws: WebSocket):
         n_occ       = int(cfg.get("nOccupants",    10))
         init_temp   = float(cfg.get("initTemp",    14.0))
         start_hour  = float(cfg.get("startHour",   0.0))
+        co2_target  = float(cfg.get("co2Target",   800.0))   # ppm — CO2 reference for QP air quality cost
+        hum_target  = float(cfg.get("humidityTarget", 50.0)) # %RH — kept for UI display
+        # QP cost weight overrides (UI sends integer "dial" values; scaled here)
+        #   wSmooth  × 1e-5 → W_smooth  (0–100 dial, default 5  → 5e-5)
+        #   wEnergy  × 1e-5 → W_energy  (0–100 dial, default 30 → 3e-4)
+        #   wAirqual × 0.01 → W_airqual (0–50  dial, default 8  → 0.08)
+        #   wComfort and qTerminal passed as-is
+        w_comfort  = float(cfg.get("wComfort",  200.0))
+        w_airqual  = float(cfg.get("wAirqual",  8.0))   * 0.01
+        w_energy   = float(cfg.get("wEnergy",   30.0))  * 1e-5
+        w_smooth   = float(cfg.get("wSmooth",   5.0))   * 1e-5
+        q_terminal = float(cfg.get("qTerminal", 3.0))
         # Features to include in MPC forecasting (None = all)
         _af_raw     = cfg.get("activeFeatures", None)
         active_features = (
@@ -599,14 +611,17 @@ async def simulation_ws(ws: WebSocket):
             if _stack.predictors:          # only wire MPC if models are loaded
                 runner  = TickRunner(
                     _stack,
-                    TickRunnerConfig(group_id="1", temp_target=setpoint, min_warm_rows=70),
+                    # 13 = max ST lag (12) + 1: first tick where all lag features
+                    # are real data. Before this, lags are NaN → SimpleImputer uses
+                    # training-time means → predictions are generic, not building-specific.
+                    TickRunnerConfig(group_id="1", temp_target=setpoint, min_warm_rows=13),
                     weather_client=_stack.weather_client,
                 )
                 has_mpc = True
         except FileNotFoundError:
             pass   # no artifacts — simulation runs as a pure proportional thermostat
 
-        await ws.send_json({"type": "started", "ticks": ticks, "has_mpc": has_mpc})
+        await ws.send_json({"type": "started", "ticks": ticks, "has_mpc": has_mpc, "warm_rows": 13})
 
         # --- Phase 2: background task listens for "stop"; main loop runs the sim
         stop_event = asyncio.Event()
@@ -657,6 +672,14 @@ async def simulation_ws(ws: WebSocket):
                             "temp_target":     sp,
                             "temp":            house.indoor_temp,
                             "total_act_power": house.hvac_power_w + BASE_LOAD_W,
+                            "heating_only":    heating_only,
+                            "co2_target":      co2_target,
+                            "hum_target":      hum_target,
+                            "w_comfort":       w_comfort,
+                            "w_airqual":       w_airqual,
+                            "w_energy":        w_energy,
+                            "w_smooth":        w_smooth,
+                            "q_terminal":      q_terminal,
                         },
                     )
 
@@ -695,6 +718,9 @@ async def simulation_ws(ws: WebSocket):
                     "energy_budget_lt":   None,
                     "temp_ref_lt":        None,
                     "error":              output.error if output else None,
+                    # Active user targets (always present so UI can render reference lines)
+                    "co2_target":         round(co2_target),
+                    "hum_target":         round(hum_target, 1),
                 }
 
                 if mpc_active and output:
@@ -710,13 +736,61 @@ async def simulation_ws(ws: WebSocket):
                         tick_data["temp_ref_lt"] = {
                             str(k): round(float(v), 1) for k, v in refs["temp_ref_lt"].items()
                         }
+                    if refs.get("co2_ref_lt"):
+                        tick_data["co2_ref_lt"] = {
+                            str(k): round(float(v), 1) for k, v in refs["co2_ref_lt"].items()
+                        }
+                    if refs.get("t_star_lt"):
+                        tick_data["t_star_lt"] = {
+                            str(k): round(float(v), 1) for k, v in refs["t_star_lt"].items()
+                        }
+                    if refs.get("occupancy_ref_lt"):
+                        tick_data["occupancy_ref_lt"] = {
+                            str(k): round(float(v), 1) for k, v in refs["occupancy_ref_lt"].items()
+                        }
+                    # QP solver diagnostics from InnerMPC info dict
+                    inner_info = output.inner_action.info or {}
+                    tick_data["qp_solver"] = inner_info.get("solver", "none")
+                    if inner_info.get("solver") == "SLSQP":
+                        tick_data["qp_converged"]  = bool(inner_info.get("converged", False))
+                        tick_data["qp_iter"]       = int(inner_info.get("n_iter", 0))
+                        t_star_seq = inner_info.get("T_star_per_step") or []
+                        tick_data["t_star_now"]    = round(float(t_star_seq[0]), 1) if t_star_seq else None
+                        q_t_seq = inner_info.get("Q_T_per_step") or []
+                        tick_data["q_t_now"]       = round(float(q_t_seq[0]), 3) if q_t_seq else None
+                        tick_data["e_budget_wh"]   = round(float(inner_info.get("E_budget_wh", 0)), 1)
+                        tick_data["u_max_w"]       = round(float(inner_info.get("u_max_applied_w", 0)), 1)
+                        u_seq = inner_info.get("u_sequence_w") or []
+                        tick_data["u_sequence_w"]  = u_seq[:8]
+                        v_seq = inner_info.get("v_sequence") or []
+                        tick_data["v_sequence"]    = [round(v * 100, 1) for v in v_seq[:8]]
+                        t_pred = inner_info.get("T_pred_trajectory") or []
+                        tick_data["t_pred_st"]     = t_pred[:8]
+                        t_star_all = inner_info.get("T_star_per_step") or []
+                        tick_data["t_star_st"]     = t_star_all[:8]
+                        # Echo back the actual weights used so UI can verify tuning is live
+                        tick_data["applied_w_comfort"]  = inner_info.get("W_comfort")
+                        tick_data["applied_w_airqual"]  = inner_info.get("W_airqual")
+                        tick_data["applied_w_energy"]   = inner_info.get("W_energy")
+                        tick_data["applied_w_smooth"]   = inner_info.get("W_smooth")
+                        tick_data["applied_q_terminal"] = inner_info.get("Q_terminal")
+                    elif inner_info.get("solver") == "proportional_fallback":
+                        # Surface the fallback reason so the user can diagnose
+                        tick_data["qp_error"] = inner_info.get("qp_error") or inner_info.get("reason", "fallback")
+                    # Ventilation rate (available from both SLSQP and fallback)
+                    if output.inner_action.u.get("vent_rate") is not None:
+                        tick_data["vent_rate_pct"] = round(float(output.inner_action.u["vent_rate"]) * 100, 1)
 
                 await ws.send_json(tick_data)
 
                 # Advance physics AFTER sending so tick 0 shows the initial state
+                vent_rate = None
+                if mpc_active and output and output.inner_action.u.get("vent_rate") is not None:
+                    vent_rate = float(output.inner_action.u["vent_rate"])
                 house.step(
                     hvac_w=hvac_w, outdoor_temp=t_out,
                     n_people=n_people, temp_target=sp,
+                    vent_rate=vent_rate,
                 )
 
                 if speed > 0:
