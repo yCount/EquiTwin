@@ -258,7 +258,11 @@ class WeatherClient:
             df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
             return df
 
-        except Exception:
+        except Exception as exc:
+            print(
+                f"[WeatherClient] Historical archive fetch failed for "
+                f"{start_date}..{end_date}: {exc}"
+            )
             return _EMPTY
 
     # Training join utility

@@ -172,8 +172,11 @@ interface TimeseriesApiResponse {
 
 const mapWeatherCondition = (c?: string): WeatherDataPoint['condition'] => {
   switch (c) {
+    case 'clear':        return 'sunny';
     case 'sunny':        return 'sunny';
     case 'mostly_sunny': return 'partly-cloudy';
+    case 'partly_cloudy': return 'partly-cloudy';
+    case 'overcast':     return 'cloudy';
     case 'rain':         return 'rainy';
     case 'snow':         return 'snowy';
     case 'thunderstorm': return 'rainy';
