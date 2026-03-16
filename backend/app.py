@@ -13,8 +13,11 @@ import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, WebSocket, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette import status
 from typing import Any, Dict, List, Optional
 from sqlalchemy import create_engine, text
+from ingestion import IngestionService, start_optional_pollers
 from models import (
     EnergyPoint, AirPoint, OccPoint, WeatherPoint,
     MpcRequest, MpcSuggestion,
@@ -62,6 +65,8 @@ async def lifespan(app: FastAPI):
     )
     db_url = os.environ.get("DATABASE_URL")
     app.state.forecast = None
+    app.state.ingestion = None
+    app.state.ingestion_pollers = []
 
     try:
         from equitwin_dnm_integration_point import build_forecast_service, warmup_from_db
@@ -86,8 +91,25 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         print(f"[EquiTwin] ForecastService init failed: {exc}. MPC endpoints will return HTTP 503.")
 
+    if db_url:
+        try:
+            app.state.ingestion = IngestionService(
+                _get_db_engine(),
+                forecast_service=app.state.forecast,
+                default_group_id=os.environ.get("INGESTION_GROUP_ID", "1"),
+            )
+            app.state.ingestion_pollers = start_optional_pollers(app.state.ingestion)
+            if app.state.ingestion_pollers:
+                print(f"[EquiTwin] Optional ingestion pollers started: {len(app.state.ingestion_pollers)}")
+        except Exception as exc:
+            print(f"[EquiTwin] Ingestion init failed: {exc}")
+
     yield   # app runs here
-    # Shutdown — nothing to tear down
+    for task in getattr(app.state, "ingestion_pollers", []):
+        task.cancel()
+    if getattr(app.state, "ingestion_pollers", None):
+        await asyncio.gather(*app.state.ingestion_pollers, return_exceptions=True)
+    # Shutdown — nothing else to tear down
 
 
 app = FastAPI(lifespan=lifespan)
@@ -96,6 +118,19 @@ app.add_middleware(
     allow_origins=["http://localhost:3000"],  # dev
     allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
+
+
+def get_ingestion_service(request: Request) -> IngestionService:
+    svc = getattr(request.app.state, "ingestion", None)
+    if svc is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Ingestion is unavailable. Set DATABASE_URL and restart the backend "
+                "to initialise the optional ingestion tables."
+            ),
+        )
+    return svc
 
 # ---- REST -------------------------------------------------------------------
 @app.post("/mpc/optimize", response_model=List[MpcSuggestion])
@@ -109,6 +144,103 @@ def forecast_energy_endpoint(horizon_minutes: int = 120):
 @app.get("/kpis")
 def kpis():
     return compute_kpis()
+
+
+@app.get("/api/ingestion/status")
+def ingestion_status(svc: IngestionService = Depends(get_ingestion_service)):
+    return svc.status()
+
+
+@app.post("/data/aq/push", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/air-quality/push", status_code=status.HTTP_201_CREATED)
+async def ingest_air_quality_push(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    try:
+        payload = await request.json()
+        return svc.ingest_air_quality_payload(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/data/temp", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/temperature", status_code=status.HTTP_201_CREATED)
+async def ingest_temperature_push(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    try:
+        payload = await request.json()
+        return svc.ingest_temperature_humidity_payload(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/data/lsg01", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/lsg01", status_code=status.HTTP_201_CREATED)
+async def ingest_lsg01_push(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    try:
+        payload = await request.json()
+        return svc.ingest_lsg01_payload(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/data/em", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/energy", status_code=status.HTTP_201_CREATED)
+async def ingest_energy(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    try:
+        payload = await request.json()
+        return svc.ingest_energy_payload(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/data/oc", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/occupancy/raw", status_code=status.HTTP_201_CREATED)
+async def store_occupancy_raw(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    payload = await request.json()
+    return svc.store_raw_payload(payload, source_kind="occupancy_raw")
+
+
+@app.post("/data/oc/parsed", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/occupancy/parsed", status_code=status.HTTP_201_CREATED)
+async def ingest_occupancy_parsed(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    try:
+        payload = await request.json()
+        result = svc.ingest_occupancy_batch(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    if result["errors"]:
+        return JSONResponse(status_code=status.HTTP_207_MULTI_STATUS, content=result)
+    return result
+
+
+@app.post("/data/radar", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/radar", status_code=status.HTTP_201_CREATED)
+async def ingest_radar(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    try:
+        payload = await request.json()
+        return svc.ingest_radar_payload(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 # ---- Database table viewer --------------------------------------------------
