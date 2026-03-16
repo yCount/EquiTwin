@@ -419,6 +419,137 @@ class IngestionService:
             "polling_enabled": _env_flag("INGESTION_POLLING_ENABLED"),
         }
 
+    def _latest_raw_payload(self, conn) -> Dict[str, Any]:
+        row = conn.execute(
+            select(self.raw_payloads)
+            .order_by(self.raw_payloads.c.received_at.desc(), self.raw_payloads.c.id.desc())
+            .limit(1)
+        ).mappings().first()
+        return dict(row) if row else {}
+
+    def _card_status(self, polling_enabled: bool, value: Any) -> str:
+        if not polling_enabled:
+            return "inactive"
+        return "active" if value is not None else "pending"
+
+    @staticmethod
+    def _deviation_percent(actual: float, ideal: float) -> float:
+        return round(((actual - ideal) / ideal) * 100.0, 1) if ideal else 0.0
+
+    def _deviation_status(self, pct: Optional[float]) -> str:
+        if pct is None:
+            return "pending"
+        abs_pct = abs(pct)
+        if abs_pct > 20:
+            return "critical"
+        if abs_pct > 10:
+            return "warning"
+        return "good"
+
+    def get_home_snapshot(self) -> Dict[str, Any]:
+        polling_enabled = _env_flag("INGESTION_POLLING_ENABLED", False)
+        with self.engine.begin() as conn:
+            latest_match = self._latest_match(conn, self.default_group_id)
+            latest_raw = self._latest_raw_payload(conn)
+
+        state = "inactive"
+        if polling_enabled:
+            state = "active" if latest_match else "pending"
+
+        temperature = _as_float(latest_match.get("temp")) if latest_match else None
+        air_quality = _as_float(latest_match.get("co2")) if latest_match else None
+        occupancy = _as_int(latest_match.get("num_targets")) if latest_match else None
+        energy_watts = _as_float(latest_match.get("total_act_power")) if latest_match else None
+        energy_kw = round(energy_watts / 1000.0, 2) if energy_watts is not None else None
+
+        temperature_dev = None
+        if temperature is not None:
+            if temperature < 21:
+                temperature_dev = self._deviation_percent(temperature, 21)
+            elif temperature > 24:
+                temperature_dev = self._deviation_percent(temperature, 24)
+            else:
+                temperature_dev = 0.0
+
+        air_quality_dev = (
+            0.0 if air_quality is not None and air_quality <= 650
+            else self._deviation_percent(air_quality, 650) if air_quality is not None
+            else None
+        )
+
+        occupancy_dev = (
+            0.0 if occupancy is not None and occupancy <= 50
+            else self._deviation_percent(float(occupancy), 50.0) if occupancy is not None
+            else None
+        )
+
+        energy_upper = max(2.5, 2.2 + max(float(occupancy or 0), 0.0) * 0.05)
+        energy_dev = (
+            0.0 if energy_kw is not None and energy_kw <= energy_upper
+            else self._deviation_percent(energy_kw, energy_upper) if energy_kw is not None
+            else None
+        )
+
+        deviation_candidates = [
+            abs(val)
+            for val in (temperature_dev, air_quality_dev, occupancy_dev, energy_dev)
+            if val is not None
+        ]
+        overall_deviation = max(deviation_candidates) if deviation_candidates else None
+        overall_status = self._deviation_status(overall_deviation)
+
+        latest_update = latest_match.get("timestamp") if latest_match else latest_raw.get("received_at")
+        pending_reason = None
+        if polling_enabled and not latest_match:
+            pending_reason = "Waiting for first ingested values and the next 15-minute clock tick."
+
+        return {
+            "state": state,
+            "polling_enabled": polling_enabled,
+            "last_update": latest_update.isoformat() if latest_update else None,
+            "pending_reason": pending_reason,
+            "cards": {
+                "temperature": {
+                    "label": "Temperature",
+                    "status": self._card_status(polling_enabled, temperature),
+                    "value": round(temperature, 1) if temperature is not None else None,
+                    "unit": "degC",
+                    "deviation": temperature_dev,
+                    "deviation_status": self._deviation_status(temperature_dev),
+                },
+                "airQuality": {
+                    "label": "Air Quality",
+                    "status": self._card_status(polling_enabled, air_quality),
+                    "value": round(air_quality) if air_quality is not None else None,
+                    "unit": "ppm",
+                    "deviation": air_quality_dev,
+                    "deviation_status": self._deviation_status(air_quality_dev),
+                },
+                "occupancy": {
+                    "label": "Occupancy",
+                    "status": self._card_status(polling_enabled, occupancy),
+                    "value": occupancy,
+                    "unit": "ppl",
+                    "deviation": occupancy_dev,
+                    "deviation_status": self._deviation_status(occupancy_dev),
+                },
+                "energyLoad": {
+                    "label": "Energy Load",
+                    "status": self._card_status(polling_enabled, energy_kw),
+                    "value": energy_kw,
+                    "unit": "kW",
+                    "deviation": energy_dev,
+                    "deviation_status": self._deviation_status(energy_dev),
+                },
+                "deviation": {
+                    "label": "Deviation",
+                    "status": "inactive" if not polling_enabled else ("pending" if overall_deviation is None else overall_status),
+                    "value": overall_deviation,
+                    "unit": "%",
+                },
+            },
+        }
+
     def _filter_values(self, table: Table, values: Mapping[str, Any]) -> Dict[str, Any]:
         cols = set(table.c.keys())
         return {k: v for k, v in values.items() if k in cols}

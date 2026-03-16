@@ -36,6 +36,31 @@ import {
   DownloadIcon,
 } from "./components/Icons";
 
+type LiveCardStatus = "active" | "pending" | "inactive";
+
+interface LiveCardData {
+  label: string;
+  status: LiveCardStatus | "good" | "warning" | "critical";
+  value: number | null;
+  unit: string;
+  deviation?: number | null;
+  deviation_status?: "pending" | "good" | "warning" | "critical";
+}
+
+interface HomeSummaryResponse {
+  state: LiveCardStatus;
+  polling_enabled: boolean;
+  last_update: string | null;
+  pending_reason: string | null;
+  cards: {
+    temperature: LiveCardData;
+    airQuality: LiveCardData;
+    occupancy: LiveCardData;
+    energyLoad: LiveCardData;
+    deviation: LiveCardData;
+  };
+}
+
 interface HomeTabProps {
   iTwinId: string | undefined;
   iModelId: string | undefined;
@@ -47,6 +72,27 @@ interface HomeTabProps {
 
 const MODEL_ID_1 = "0x200000001c0";
 const MODEL_ID_2 = "0x3000000008b";
+const HOME_SUMMARY_URL = "http://localhost:8000/api/home/summary";
+const HOME_POLL_MS = 5000;
+
+const inactiveSnapshot: HomeSummaryResponse = {
+  state: "inactive",
+  polling_enabled: false,
+  last_update: null,
+  pending_reason: "Ingestion polling is inactive.",
+  cards: {
+    temperature: { label: "Temperature", status: "inactive", value: null, unit: "degC" },
+    airQuality: { label: "Air Quality", status: "inactive", value: null, unit: "ppm" },
+    occupancy: { label: "Occupancy", status: "inactive", value: null, unit: "ppl" },
+    energyLoad: { label: "Energy Load", status: "inactive", value: null, unit: "kW" },
+    deviation: { label: "Deviation", status: "inactive", value: null, unit: "%" },
+  },
+};
+
+const weatherCard = {
+  value: "External",
+  unit: "feed",
+};
 
 const HomeTab: React.FC<HomeTabProps> = ({
   iTwinId,
@@ -60,15 +106,61 @@ const HomeTab: React.FC<HomeTabProps> = ({
   const [iModelConnection, setIModelConnection] = useState<IModelConnection | null>(null);
   const [category1Visible, setCategory1Visible] = useState(true);
   const [category2Visible, setCategory2Visible] = useState(true);
+  const [homeSummary, setHomeSummary] = useState<HomeSummaryResponse>(inactiveSnapshot);
 
-  const sensorData = {
-    weatherForecast: { value: "Sunny", unit: "25°C" },
-    occupancy: { value: "22", unit: "ppl" },
-    airQuality: { value: "45", unit: "AQI" },
-    temperature: { value: "22.5", unit: "°C" },
-    deviation: { value: "2.3", unit: "%" },
-    energyUsage: { value: "1,247", unit: "kWh" },
+  const formatCardValue = (card: LiveCardData) => {
+    if (card.value == null) return "--";
+    if (card.unit === "degC") return card.value.toFixed(1);
+    if (card.unit === "kW") return card.value.toFixed(2);
+    if (card.unit === "%") return card.value.toFixed(1);
+    return Math.round(card.value).toString();
   };
+
+  const formatCardUnit = (unit: string) => {
+    if (unit === "degC") return "°C";
+    return unit;
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadHomeSummary = async () => {
+      try {
+        const response = await fetch(HOME_SUMMARY_URL);
+        if (!response.ok) {
+          if (response.status === 503) {
+            if (!cancelled) setHomeSummary(inactiveSnapshot);
+            return;
+          }
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const payload = (await response.json()) as HomeSummaryResponse;
+        if (!cancelled) {
+          setHomeSummary(payload);
+        }
+      } catch (_error) {
+        if (!cancelled) {
+          setHomeSummary(inactiveSnapshot);
+        }
+      }
+    };
+
+    loadHomeSummary();
+    const timer = window.setInterval(loadHomeSummary, HOME_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const energyCard = homeSummary.cards.energyLoad;
+  const deviationCard = homeSummary.cards.deviation;
+  const topbarIndicator =
+    homeSummary.state === "active"
+      ? { label: "Real-time ingestion active", dotClassName: "status-dot online", style: undefined }
+      : homeSummary.state === "pending"
+        ? { label: "Ingestion pending", dotClassName: "status-dot", style: { background: "#f59e0b" } }
+        : { label: "Ingestion inactive", dotClassName: "status-dot", style: { background: "#ef4444" } };
 
   const handleCaptureScreenshot = () => { console.log("Capturing screenshot..."); };
   const handleExportState = () => { console.log("Exporting current state..."); };
@@ -238,6 +330,10 @@ const HomeTab: React.FC<HomeTabProps> = ({
         subtitle="Real-time Building Visualisation & Telemetry"
         rightContent={
           <>
+            <div className="topbar-status">
+              <span className={topbarIndicator.dotClassName} style={topbarIndicator.style} />
+              <span>{topbarIndicator.label}</span>
+            </div>
             <button className="topbar-btn" onClick={handleCaptureScreenshot}>
               <CameraIcon />
               Capture
@@ -289,62 +385,73 @@ const HomeTab: React.FC<HomeTabProps> = ({
                     <SunIcon />
                   </div>
                   <div className="label">Weather</div>
+                  <span className="status-badge external">external</span>
                   <div className="value-group">
-                    <span className="val">{sensorData.weatherForecast.value}</span>
+                    <span className="val">{weatherCard.value}</span>
+                    <span className="unit">{weatherCard.unit}</span>
                   </div>
                 </div>
-                <div className="sensor-card temp">
+                <div className={`sensor-card temp ${homeSummary.cards.temperature.status}`}>
                   <div className="icon-box">
                     <TemperatureIcon />
                   </div>
                   <div className="label">Temperature</div>
+                  <span className={`status-badge ${homeSummary.cards.temperature.status}`}>{homeSummary.cards.temperature.status}</span>
                   <div className="value-group">
-                    <span className="val">{sensorData.temperature.value}</span>
-                    <span className="unit">{sensorData.temperature.unit}</span>
+                    <span className="val">{formatCardValue(homeSummary.cards.temperature)}</span>
+                    <span className="unit">{formatCardUnit(homeSummary.cards.temperature.unit)}</span>
                   </div>
                 </div>
-                <div className="sensor-card air">
+                <div className={`sensor-card air ${homeSummary.cards.airQuality.status}`}>
                   <div className="icon-box">
                     <AirQualityIcon />
                   </div>
                   <div className="label">Air Quality</div>
+                  <span className={`status-badge ${homeSummary.cards.airQuality.status}`}>{homeSummary.cards.airQuality.status}</span>
                   <div className="value-group">
-                    <span className="val">{sensorData.airQuality.value}</span>
-                    <span className="unit">{sensorData.airQuality.unit}</span>
+                    <span className="val">{formatCardValue(homeSummary.cards.airQuality)}</span>
+                    <span className="unit">{formatCardUnit(homeSummary.cards.airQuality.unit)}</span>
                   </div>
                 </div>
-                <div className="sensor-card occupancy">
+                <div className={`sensor-card occupancy ${homeSummary.cards.occupancy.status}`}>
                   <div className="icon-box">
                     <OccupancyIcon />
                   </div>
                   <div className="label">Occupancy</div>
+                  <span className={`status-badge ${homeSummary.cards.occupancy.status}`}>{homeSummary.cards.occupancy.status}</span>
                   <div className="value-group">
-                    <span className="val">{sensorData.occupancy.value}</span>
-                    <span className="unit">{sensorData.occupancy.unit}</span>
+                    <span className="val">{formatCardValue(homeSummary.cards.occupancy)}</span>
+                    <span className="unit">{formatCardUnit(homeSummary.cards.occupancy.unit)}</span>
                   </div>
                 </div>
               </div>
             </SidebarSection>
 
             <SidebarSection title="System Vitals" defaultExpanded={true}>
-              <div className="summary-card normal">
+              <div className={`summary-card ${energyCard.deviation_status === "warning" || energyCard.deviation_status === "critical" ? "alert" : "normal"} ${energyCard.status}`}>
                 <div className="icon-box">
                   <EnergyIcon />
                 </div>
                 <div className="content">
                   <div className="label">Energy Load</div>
-                  <span className="val">{sensorData.energyUsage.value}</span>
-                  <span className="unit">{sensorData.energyUsage.unit}</span>
+                  <span className={`status-badge ${energyCard.status}`}>{energyCard.status}</span>
+                  <div>
+                    <span className="val">{formatCardValue(energyCard)}</span>
+                    <span className="unit">{formatCardUnit(energyCard.unit)}</span>
+                  </div>
                 </div>
               </div>
-              <div className="summary-card alert">
+              <div className={`summary-card ${deviationCard.status === "warning" || deviationCard.status === "critical" ? "alert" : "normal"} ${deviationCard.status}`}>
                 <div className="icon-box">
                   <DeviationIcon />
                 </div>
                 <div className="content">
                   <div className="label">Deviation</div>
-                  <span className="val">{sensorData.deviation.value}</span>
-                  <span className="unit">{sensorData.deviation.unit}</span>
+                  <span className={`status-badge ${deviationCard.status}`}>{deviationCard.status}</span>
+                  <div>
+                    <span className="val">{formatCardValue(deviationCard)}</span>
+                    <span className="unit">{formatCardUnit(deviationCard.unit)}</span>
+                  </div>
                 </div>
               </div>
             </SidebarSection>

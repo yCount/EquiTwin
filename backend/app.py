@@ -151,6 +151,11 @@ def ingestion_status(svc: IngestionService = Depends(get_ingestion_service)):
     return svc.status()
 
 
+@app.get("/api/home/summary")
+def home_summary(svc: IngestionService = Depends(get_ingestion_service)):
+    return svc.get_home_snapshot()
+
+
 @app.post("/data/aq/push", status_code=status.HTTP_201_CREATED)
 @app.post("/api/ingest/air-quality/push", status_code=status.HTTP_201_CREATED)
 async def ingest_air_quality_push(
