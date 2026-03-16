@@ -71,7 +71,7 @@ interface DbResponse {
 const DB_API = "http://localhost:8000";
 
 const DB_DEFAULT_COLS = [
-  "id", "timestamp", "event_label", "net_occupancy",
+  "id", "timestamp", "net_occupancy",
   "temp", "humidity", "co2", "total_act_power",
   "num_targets", "entries", "exits",
 ];
