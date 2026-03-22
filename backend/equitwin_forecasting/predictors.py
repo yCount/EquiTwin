@@ -80,13 +80,121 @@ def _align_columns(X: pd.DataFrame, model) -> pd.DataFrame:
         return X
 
 
+def _expected_column_groups(model) -> tuple[list[str], list[str]]:
+    try:
+        ct = getattr(model, "named_steps", {}).get("pre")
+        if ct is None:
+            return [], []
+
+        num_cols: List[str] = []
+        cat_cols: List[str] = []
+        for name, _, cols in ct.transformers_:
+            if name == "remainder":
+                continue
+            col_list = [c for c in cols if isinstance(c, str)]
+            if name == "cat":
+                cat_cols.extend(col_list)
+            else:
+                num_cols.extend(col_list)
+        return num_cols, cat_cols
+    except Exception:
+        return [], []
+
+
+def _fill_values_by_column(model) -> tuple[dict[str, float], dict[str, Any]]:
+    num_fill: dict[str, float] = {}
+    cat_fill: dict[str, Any] = {}
+    try:
+        ct = getattr(model, "named_steps", {}).get("pre")
+        if ct is None:
+            return num_fill, cat_fill
+
+        for name, trans, cols in ct.transformers_:
+            if name == "remainder":
+                continue
+            col_list = [c for c in cols if isinstance(c, str)]
+            if not col_list or not hasattr(trans, "named_steps"):
+                continue
+            imp = trans.named_steps.get("imp")
+            stats = getattr(imp, "statistics_", None)
+            if stats is None or len(stats) != len(col_list):
+                continue
+            if name == "cat":
+                for col, stat in zip(col_list, stats):
+                    cat_fill[col] = "" if stat is None else stat
+            else:
+                for col, stat in zip(col_list, stats):
+                    try:
+                        num_fill[col] = float(stat)
+                    except (TypeError, ValueError):
+                        num_fill[col] = 0.0
+    except Exception:
+        pass
+    return num_fill, cat_fill
+
+
+def _sanitize_inference_frame(X: pd.DataFrame, model) -> pd.DataFrame:
+    out = _align_columns(X, model).copy()
+    num_cols, cat_cols = _expected_column_groups(model)
+    num_fill, cat_fill = _fill_values_by_column(model)
+
+    for c in num_cols:
+        if c not in out.columns:
+            out[c] = num_fill.get(c, 0.0)
+        out[c] = pd.to_numeric(out[c], errors="coerce").fillna(num_fill.get(c, 0.0))
+
+    for c in cat_cols:
+        if c not in out.columns:
+            out[c] = cat_fill.get(c, "")
+        out[c] = out[c].astype(object).where(pd.notna(out[c]), cat_fill.get(c, ""))
+
+    return out
+
+
+def _set_n_jobs_1(estimator) -> None:
+    """
+    Recursively set n_jobs=1 on any estimator that supports it.
+
+    Models saved with n_jobs=-1 (RF, LGBM, XGB, VotingRegressor, etc.) trigger
+    a sklearn ≥1.3 UserWarning during predict() because joblib's `delayed` is
+    used without sklearn's `Parallel` context.  For single-row MPC predictions
+    parallelism provides no speedup, so n_jobs=1 eliminates both the warning
+    and the thread-pool overhead.
+    """
+    try:
+        if hasattr(estimator, "n_jobs"):
+            estimator.n_jobs = 1
+        # Pipeline
+        if hasattr(estimator, "named_steps"):
+            for step in estimator.named_steps.values():
+                _set_n_jobs_1(step)
+        # ColumnTransformer
+        if hasattr(estimator, "transformers_"):
+            for _, trans, _ in estimator.transformers_:
+                if trans not in ("drop", "passthrough"):
+                    _set_n_jobs_1(trans)
+        # MultiOutputRegressor / VotingRegressor sub-estimators (fitted)
+        if hasattr(estimator, "estimators_"):
+            for sub in estimator.estimators_:
+                _set_n_jobs_1(sub)
+        # MultiOutputRegressor base estimator (unfitted clone copy)
+        if hasattr(estimator, "estimator"):
+            _set_n_jobs_1(estimator.estimator)
+    except Exception:
+        pass
+
+
 def _patch_loaded_model(model) -> None:
     """
     Fix sklearn version-mismatch: models trained on sklearn ≥1.7 store
     SimpleImputer.statistics_ as dtype('O').  sklearn 1.6.x _validate_input
     requires statistics_ dtype to match the input data dtype, so numeric
     imputers (transformer name != 'cat') need their statistics_ cast to float64.
+
+    Also sets n_jobs=1 on all sub-estimators to avoid sklearn ≥1.3 parallelism
+    warnings during single-row MPC predictions.
     """
+    _set_n_jobs_1(model)
     try:
         ct = getattr(model, "named_steps", {}).get("pre")
         if ct is None:
@@ -125,7 +233,12 @@ class HorizonModelBank:
             self.meta[h] = json.loads(meta_path.read_text()) if meta_path.exists() else {}
 
     def predict(self, X_t: pd.DataFrame) -> Dict[int, np.ndarray]:
-        return {h: self.models[h].predict(_align_columns(X_t, self.models[h])) for h in self.horizons}
+        out: Dict[int, np.ndarray] = {}
+        for h in self.horizons:
+            model = self.models[h]
+            X_in = _sanitize_inference_frame(X_t, model)
+            out[h] = model.predict(X_in)
+        return out
 
 @dataclass(frozen=True)
 class TwoLevelPredictor:

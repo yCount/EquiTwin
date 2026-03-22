@@ -436,7 +436,7 @@ def mpc_status(request: Request):
     return ForecastStatusResponse(
         status="ready" if svc.is_ready else "warming_up",
         buffer_size=svc.buffer_size,
-        min_warm_rows=64,
+        min_warm_rows=1,
         is_ready=svc.is_ready,
         loaded_features=svc.loaded_features(),
     )
@@ -449,8 +449,8 @@ def mpc_tick(req: MpcTickRequest, request: Request):
     hierarchical MPC (OuterMPC 4h + InnerMPC 15m), and return the HVAC
     control action together with a summary of the forecast bundle.
 
-    The buffer warms up after 64 ticks (~16 h).  Check ``warmed_up`` before
-    acting on the "action" field.
+    Forecasting starts from the first ingested row. Long-term features fill in
+    as more history arrives.
     """
     svc = getattr(request.app.state, "forecast", None)
     if svc is None:
@@ -493,7 +493,7 @@ def get_forecast(request: Request):
     Return the most recent ST + LT forecast bundle without ingesting a new row.
     Useful for polling from the frontend to display prediction charts.
 
-    Returns ``status: "warming_up"`` until the buffer has ≥ 64 rows.
+    Returns ``status: "warming_up"`` only until the first row is ingested.
     """
     svc = getattr(request.app.state, "forecast", None)
     if svc is None:
@@ -504,7 +504,7 @@ def get_forecast(request: Request):
         return {
             "status": "warming_up",
             "buffer_size": svc.buffer_size,
-            "min_warm_rows": 64,
+            "min_warm_rows": 1,
             "features": {},
         }
 
@@ -557,15 +557,15 @@ async def simulation_ws(ws: WebSocket):
         co2_target  = float(cfg.get("co2Target",   800.0))   # ppm — CO2 reference for QP air quality cost
         hum_target  = float(cfg.get("humidityTarget", 50.0)) # %RH — kept for UI display
         # QP cost weight overrides (UI sends integer "dial" values; scaled here)
-        #   wSmooth  × 1e-5 → W_smooth  (0–100 dial, default 5  → 5e-5)
-        #   wEnergy  × 1e-5 → W_energy  (0–100 dial, default 30 → 3e-4)
+        #   wSmooth  × 1e-5 → W_smooth  (0–100 dial, default 20 → 2e-4)
+        #   wEnergy  × 5e-3 → W_energy  (0–100 dial, default 15 → 7.5e-2)
         #   wAirqual × 0.01 → W_airqual (0–50  dial, default 8  → 0.08)
         #   wComfort and qTerminal passed as-is
-        w_comfort  = float(cfg.get("wComfort",  200.0))
+        w_comfort  = float(cfg.get("wComfort",  120.0))
         w_airqual  = float(cfg.get("wAirqual",  8.0))   * 0.01
-        w_energy   = float(cfg.get("wEnergy",   30.0))  * 1e-5
-        w_smooth   = float(cfg.get("wSmooth",   5.0))   * 1e-5
-        q_terminal = float(cfg.get("qTerminal", 3.0))
+        w_energy   = float(cfg.get("wEnergy",   15.0))  * 5e-3
+        w_smooth   = float(cfg.get("wSmooth",   20.0))  * 1e-5
+        q_terminal = float(cfg.get("qTerminal", 1.5))
         # Features to include in MPC forecasting (None = all)
         _af_raw     = cfg.get("activeFeatures", None)
         active_features = (
@@ -611,17 +611,14 @@ async def simulation_ws(ws: WebSocket):
             if _stack.predictors:          # only wire MPC if models are loaded
                 runner  = TickRunner(
                     _stack,
-                    # 13 = max ST lag (12) + 1: first tick where all lag features
-                    # are real data. Before this, lags are NaN → SimpleImputer uses
-                    # training-time means → predictions are generic, not building-specific.
-                    TickRunnerConfig(group_id="1", temp_target=setpoint, min_warm_rows=13),
+                    TickRunnerConfig(group_id="1", temp_target=setpoint, min_warm_rows=1),
                     weather_client=_stack.weather_client,
                 )
                 has_mpc = True
         except FileNotFoundError:
             pass   # no artifacts — simulation runs as a pure proportional thermostat
 
-        await ws.send_json({"type": "started", "ticks": ticks, "has_mpc": has_mpc, "warm_rows": 13})
+        await ws.send_json({"type": "started", "ticks": ticks, "has_mpc": has_mpc, "warm_rows": 0})
 
         # --- Phase 2: background task listens for "stop"; main loop runs the sim
         stop_event = asyncio.Event()
@@ -671,7 +668,9 @@ async def simulation_ws(ws: WebSocket):
                         state={
                             "temp_target":     sp,
                             "temp":            house.indoor_temp,
-                            "total_act_power": house.hvac_power_w + BASE_LOAD_W,
+                            "total_act_power": float(sensor_row.get("total_act_power", house.hvac_power_w + BASE_LOAD_W)),
+                            "hvac_power_w":    float(house.hvac_power_w),
+                            "vent_rate":       float(house.vent_rate),
                             "heating_only":    heating_only,
                             "co2_target":      co2_target,
                             "hum_target":      hum_target,
@@ -685,12 +684,18 @@ async def simulation_ws(ws: WebSocket):
 
                 mpc_active = output is not None and output.warmed_up and output.error is None
 
-                if mpc_active and "total_act_power" in output.inner_action.u:
-                    # MPC is active: use InnerMPC's total_act_power command.
-                    # InnerMPC outputs total building power (HVAC + base load).
-                    # Extract HVAC-only portion and clamp to mode limits.
-                    mpc_total_w = float(output.inner_action.u["total_act_power"])
-                    hvac_w = max(HVAC_STANDBY_W, min(max_hvac_w, mpc_total_w - BASE_LOAD_W))
+                if mpc_active and "hvac_power_w" in output.inner_action.u:
+                    # MPC returns HVAC actuator power directly. Keep that separate
+                    # from base load and ventilation fan power so the physics loop
+                    # does not double-count ventilation energy.
+                    mpc_hvac_w = float(output.inner_action.u["hvac_power_w"])
+                    # In heating-only modes (POST/NIGHT), never cool the building:
+                    # if indoor temp is already at or above the setpoint just idle
+                    # at standby so the physics model applies zero thermal effect.
+                    if heating_only and house.indoor_temp >= sp:
+                        hvac_w = HVAC_STANDBY_W
+                    else:
+                        hvac_w = max(HVAC_STANDBY_W, min(max_hvac_w, mpc_hvac_w))
                 else:
                     # Warmup or no artifacts: fall back to proportional thermostat
                     hvac_w = mode_hvac(house.indoor_temp, sp, band, max_hvac_w, heating_only)
@@ -705,7 +710,7 @@ async def simulation_ws(ws: WebSocket):
                     "sim_time":           sim_ts.isoformat(),
                     "mode":               _BMODE_LABEL.get(b_mode, str(b_mode)).strip(),
                     "mpc_active":         mpc_active,
-                    "warming_up":         output is not None and not output.warmed_up,
+                    "warming_up":         False,
                     "indoor_temp":        round(house.indoor_temp, 1),
                     "outdoor_temp":       round(t_out, 1),
                     "setpoint":           round(sp, 1),
@@ -758,16 +763,17 @@ async def simulation_ws(ws: WebSocket):
                         tick_data["t_star_now"]    = round(float(t_star_seq[0]), 1) if t_star_seq else None
                         q_t_seq = inner_info.get("Q_T_per_step") or []
                         tick_data["q_t_now"]       = round(float(q_t_seq[0]), 3) if q_t_seq else None
+                        tick_data["q_t_st"]        = q_t_seq
                         tick_data["e_budget_wh"]   = round(float(inner_info.get("E_budget_wh", 0)), 1)
                         tick_data["u_max_w"]       = round(float(inner_info.get("u_max_applied_w", 0)), 1)
                         u_seq = inner_info.get("u_sequence_w") or []
-                        tick_data["u_sequence_w"]  = u_seq[:8]
+                        tick_data["u_sequence_w"]  = u_seq
                         v_seq = inner_info.get("v_sequence") or []
-                        tick_data["v_sequence"]    = [round(v * 100, 1) for v in v_seq[:8]]
+                        tick_data["v_sequence"]    = [round(v * 100, 1) for v in v_seq]
                         t_pred = inner_info.get("T_pred_trajectory") or []
-                        tick_data["t_pred_st"]     = t_pred[:8]
+                        tick_data["t_pred_st"]     = t_pred
                         t_star_all = inner_info.get("T_star_per_step") or []
-                        tick_data["t_star_st"]     = t_star_all[:8]
+                        tick_data["t_star_st"]     = t_star_all
                         # Echo back the actual weights used so UI can verify tuning is live
                         tick_data["applied_w_comfort"]  = inner_info.get("W_comfort")
                         tick_data["applied_w_airqual"]  = inner_info.get("W_airqual")
@@ -790,7 +796,9 @@ async def simulation_ws(ws: WebSocket):
                 house.step(
                     hvac_w=hvac_w, outdoor_temp=t_out,
                     n_people=n_people, temp_target=sp,
+                    sunlight=sunlight,
                     vent_rate=vent_rate,
+                    heating_only=heating_only,
                 )
 
                 if speed > 0:

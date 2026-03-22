@@ -121,8 +121,8 @@ def build_equitwin_stack(cfg: EquiTwinConfig) -> EquiTwinStack:
 
     # Weather client (reads WEATHER_LAT / WEATHER_LON from env)
     weather_client = None
-    lat_str = 55.8617
-    lon_str = -4.2583
+    lat_str = os.environ.get("WEATHER_LAT", "55.8617")
+    lon_str = os.environ.get("WEATHER_LON", "-4.2583")
     if lat_str and lon_str:
         try:
             from core.weather_client import WeatherClient
