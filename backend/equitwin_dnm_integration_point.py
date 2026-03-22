@@ -109,7 +109,7 @@ class ForecastService:
             TickRunnerConfig(
                 group_id=group_id,
                 temp_target=21.0,
-                min_warm_rows=64,       # 64 × 15 min = 16 h warm-up
+                min_warm_rows=1,
             ),
         )
         self._last_bundle: Optional[ForecastBundle] = None
@@ -138,18 +138,13 @@ class ForecastService:
         """
         Return ST + LT forecasts for all features.
 
-        Returns None if the buffer is still warming up (< 64 ticks).
-        Logs a warning so the MPC service can fall back to rule-based logic.
+        ST forecasts are attempted as soon as at least one row exists.
+        LT forecasts remain optional until enough history exists.
         """
         g = group_id or self._group_id
         hist_len = len(self._stack.buf15.history(g))
 
-        if hist_len < 64:
-            logger.warning(
-                "ForecastService: buffer not ready (%d/64 ticks). "
-                "MPC will fall back to rule-based control.",
-                hist_len,
-            )
+        if hist_len < 1:
             return None
 
         try:
@@ -222,8 +217,8 @@ class ForecastService:
 
     @property
     def is_ready(self) -> bool:
-        """True once the buffer has enough history for LT features."""
-        return self.buffer_size >= 64
+        """True once at least one row is available for ST forecasting."""
+        return self.buffer_size >= 1
 
     def loaded_features(self) -> List[str]:
         """Names of features for which model banks were successfully loaded."""

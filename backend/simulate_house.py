@@ -39,6 +39,9 @@ TAU_THERMAL_S    = 3 * 3600 # thermal time constant 3 h [s]
 C_THERMAL_WH_C   = 800.0    # thermal capacitance [Wh/°C] — heavier construction
 COP_HEAT         = 3.2      # heating coefficient of performance
 COP_COOL         = 2.6      # cooling COP
+META_W_PPL       = 70.0     # metabolic heat per occupant [W]
+BASE_LOAD_HEAT_FRAC = 0.55  # share of internal electric load that warms the zone
+SOLAR_GAIN_W_PER_WM2 = 0.12 # lumped solar heat gain [W] per W/m² sunlight
 PHASE_V          = [231.0, 232.0, 230.0]   # A, B, C phase voltages [V]
 PHASE_SPLIT      = [0.35, 0.35, 0.30]      # fraction of load per phase
 
@@ -100,6 +103,8 @@ class ScheduleConfig:
     work_setpoint:  float = 21.0  # comfort target  [°C]
     night_setpoint: float = 15.0  # frost-protection minimum  [°C]
     n_occupants:    int   = 10    # headcount during WORKSHIFT
+    arrival_ramp_h: float = 1.5   # gradual arrivals before work_start
+    departure_ramp_h: float = 1.0 # gradual departures before work_end
 
     # Proportional-band widths [°C]
     pre_band:   float = 1.5
@@ -156,14 +161,24 @@ def commercial_occupancy_at(
 ) -> Tuple[int, int, int]:
     """
     Return (n_people, entries, exits) for a commercial building.
-    All occupants arrive at work_start and leave at work_end.
-    Building is empty during PRE, POST, and NIGHT.
+    Occupancy ramps in before work_start and ramps out before work_end
+    instead of teleporting all people at one tick boundary.
     """
     hour      = (start_hour + tick * 15 / 60) % 24
     prev_hour = (start_hour + (tick - 1) * 15 / 60) % 24
 
     def _n(h: float) -> int:
-        return cfg.n_occupants if cfg.work_start <= h < cfg.work_end else 0
+        if h < cfg.work_start - cfg.arrival_ramp_h:
+            return 0
+        if h < cfg.work_start:
+            frac = (h - (cfg.work_start - cfg.arrival_ramp_h)) / max(cfg.arrival_ramp_h, 1e-6)
+            return int(round(cfg.n_occupants * frac))
+        if h < cfg.work_end - cfg.departure_ramp_h:
+            return cfg.n_occupants
+        if h < cfg.work_end:
+            frac = 1.0 - ((h - (cfg.work_end - cfg.departure_ramp_h)) / max(cfg.departure_ramp_h, 1e-6))
+            return int(round(cfg.n_occupants * max(0.0, frac)))
+        return 0
 
     n_now   = _n(hour)
     n_prev  = _n(prev_hour)
@@ -208,6 +223,7 @@ class HouseState:
     humidity:         float = 45.0
     cumulative_kwh:   float = 0.0
     hvac_power_w:     float = 0.0    # current electrical draw of HVAC
+    vent_rate:        float = VENT_BASE_FRAC
     n_people:         int   = 2
 
     def step(
@@ -216,32 +232,53 @@ class HouseState:
         outdoor_temp: float,
         n_people:     int,
         temp_target:  float,
+        sunlight:     float = 0.0,
         vent_rate:    Optional[float] = None,
+        heating_only: bool = False,
     ) -> None:
         """Advance physics by one 15-minute tick.
 
-        vent_rate: independent ventilation fraction [0, VENT_MAX_FRAC].
-                   None → use standby baseline (CO2_VENT_FRAC).
-                   Controlled directly by the MPC; decoupled from HVAC power.
+        vent_rate:    independent ventilation fraction [0, VENT_MAX_FRAC].
+                      None → use standby baseline (CO2_VENT_FRAC).
+                      Controlled directly by the MPC; decoupled from HVAC power.
+        heating_only: if True the HVAC can only heat (POST / NIGHT mode).
+                      When indoor_temp >= temp_target the unit idles at standby
+                      (fan only) so q_hvac = 0 — no thermal extraction.
+                      Without this flag the physics model would incorrectly apply
+                      COP_COOL × hvac_w of cooling even in standby (80 W × 2.6
+                      = 208 W extracted), causing the temperature to drift down
+                      and the MPC to over-heat on the next tick.
         """
         self.n_people    = n_people
         self.hvac_power_w = hvac_w
+        self.vent_rate = vent_rate if vent_rate is not None else VENT_BASE_FRAC
+        thermal_hvac_w = max(0.0, hvac_w - HVAC_STANDBY_W)
 
         # Thermal
         # Q_hvac: positive = heating, negative = cooling  [W]
         if self.indoor_temp < temp_target:
-            q_hvac = hvac_w * COP_HEAT
+            q_hvac = thermal_hvac_w * COP_HEAT
+        elif not heating_only:
+            q_hvac = -thermal_hvac_w * COP_COOL
         else:
-            q_hvac = -hvac_w * COP_COOL
+            # Fan-only standby in heating-only mode — no thermal extraction.
+            q_hvac = 0.0
+
+        vent_fan_w = self.vent_rate / VENT_MAX_FRAC * 200.0
+        q_internal = (
+            BASE_LOAD_W * BASE_LOAD_HEAT_FRAC
+            + n_people * META_W_PPL
+            + max(0.0, sunlight) * SOLAR_GAIN_W_PER_WM2
+        )
 
         dT = (
             DT_S / TAU_THERMAL_S * (outdoor_temp - self.indoor_temp)
-            + (q_hvac * DT_S / 3600.0) / C_THERMAL_WH_C
+            + ((q_hvac + q_internal) * DT_S / 3600.0) / C_THERMAL_WH_C
         )
         self.indoor_temp = round(self.indoor_temp + dT, 2)
 
         # CO2 — ventilation is now independent of HVAC power
-        eff_vent_frac = vent_rate if vent_rate is not None else CO2_VENT_FRAC
+        eff_vent_frac = self.vent_rate
         self.co2 += n_people * CO2_PER_PPL_TICK
         self.co2 -= eff_vent_frac * (self.co2 - CO2_OUTDOOR_PPM)
         self.co2  = max(CO2_OUTDOOR_PPM, round(self.co2, 1))
@@ -249,13 +286,12 @@ class HouseState:
         # Humidity — decay toward baseline; ventilation above standby brings
         # in drier outdoor air for mild dehumidification
         self.humidity += n_people * HUM_PER_PPL_TICK
-        if vent_rate is not None and vent_rate > VENT_BASE_FRAC:
-            self.humidity -= (vent_rate - VENT_BASE_FRAC) * 2.0
+        if self.vent_rate > VENT_BASE_FRAC:
+            self.humidity -= (self.vent_rate - VENT_BASE_FRAC) * 2.0
         self.humidity -= HUM_DECAY_FRAC * (self.humidity - HUM_BASE_PCT)
         self.humidity  = max(20.0, min(95.0, round(self.humidity, 1)))
 
-        # Energy — include ventilation fan draw
-        vent_fan_w = (vent_rate if vent_rate is not None else VENT_BASE_FRAC) / VENT_MAX_FRAC * 200.0
+        # Energy – include ventilation fan draw
         total_w = hvac_w + BASE_LOAD_W + vent_fan_w
         self.cumulative_kwh += total_w * DT_S / 3_600_000.0
 
@@ -271,7 +307,8 @@ class HouseState:
         exits:             int,
     ) -> Dict[str, Any]:
         """Build a sensor-row dict matching the EquiTwin signal schema."""
-        total_w        = self.hvac_power_w + BASE_LOAD_W
+        vent_fan_w     = self.vent_rate / VENT_MAX_FRAC * 200.0
+        total_w        = self.hvac_power_w + BASE_LOAD_W + vent_fan_w
         total_aprt_w   = total_w * 1.05          # power factor ~0.95
         total_current  = total_w / (PHASE_V[0] * math.sqrt(3))
         per_phase_w    = [total_w * f for f in PHASE_SPLIT]
@@ -624,7 +661,9 @@ def main() -> None:
             outdoor_temp=outdoor_temp_phys,
             n_people=n_people,
             temp_target=setpoint,
+            sunlight=sunlight,
             vent_rate=vent_rate,
+            heating_only=heating_only,
         )
 
         if args.speed > 0:

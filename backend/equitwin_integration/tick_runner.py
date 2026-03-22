@@ -17,6 +17,10 @@ from equitwin_mpc.types import InnerAction, OuterPlan
 
 from equitwin_integration.bootstrap import EquiTwinConfig, EquiTwinStack
 
+_DT_H = 15.0 / 60.0   # 0.25 h per tick
+_BLOCK_TICKS = 16      # 16 × 15 min = 4 h outer block
+_BASE_LOAD_W = 380.0   # must stay in sync with equitwin_mpc/hierarchical.py
+
 # Config
 
 @dataclass
@@ -27,12 +31,13 @@ class TickRunnerConfig:
     group_id      : sensor_id to use when pulling forecasts (single-zone default).
     temp_target   : Default comfort temperature setpoint [°C]. Can be overridden
                     per tick via the 'state' dict.
-    min_warm_rows : Minimum 15m rows that must be in the buffer before forecasts
-                    are attempted. Set to (max_st_lag + 1) at minimum.
+    min_warm_rows : Deprecated compatibility field. Forecasts are attempted
+                    immediately; missing lags are handled by the predictor
+                    pipelines and LT forecasts degrade gracefully.
     """
     group_id: str = "1"
     temp_target: float = 21.0
-    min_warm_rows: int = 64  # 64 × 15m = 16h of history for lt_lags=[1,2,3]
+    min_warm_rows: int = 1
 
 # Output
 
@@ -68,8 +73,14 @@ class TickRunner:
 
         hz = stack.hz
         self._outer_mpc = OuterMPC(lt_steps=hz.lt_horizons)
-        self._inner_mpc = InnerMPC(st_steps=hz.st_horizons)
+        self._inner_mpc = InnerMPC(
+            st_steps=hz.st_horizons,
+            control_horizon_steps=max(_BLOCK_TICKS, max(hz.st_horizons)),
+        )
         self._tick_count: int = 0
+        # Bug 1 fix: 4h block energy tracking
+        self._steps_in_block: int = 0
+        self._block_energy_consumed_wh: float = 0.0
 
     # Public API
 
@@ -104,39 +115,47 @@ class TickRunner:
         # 2. Build effective state (merge sensor_row + explicit state overrides)
         eff_state = _build_state(enriched_row, state, self.cfg)
 
-        # 3. Check warm-up
-        buf = self.stack.buf15
-        g = self.cfg.group_id
-        history = buf.history(g)
-        if len(history) < self.cfg.min_warm_rows:
-            remaining = self.cfg.min_warm_rows - len(history)
-            return ControlOutput(
-                inner_action=InnerAction(u={}, info={}),
-                outer_plan=OuterPlan(refs={}),
-                bundle=ForecastBundle(by_feature={}),
-                warmed_up=False,
-                error=f"Warming up: need {remaining} more ticks ({remaining * 15} min).",
-            )
-
-        # 4. Forecast
+        # 3. Forecast
         try:
-            bundle = self.stack.coordinator.forecast_now(g)
+            bundle = self.stack.coordinator.forecast_now(self.cfg.group_id)
         except Exception as exc:
             return ControlOutput(
                 inner_action=InnerAction(u={}, info={}),
                 outer_plan=OuterPlan(refs={}),
                 bundle=ForecastBundle(by_feature={}),
-                warmed_up=True,
+                warmed_up=False,
                 error=f"Forecast failed: {exc}",
             )
 
-        # 5. MPC
+        # 4. MPC
         try:
             weather_forecast = None
             if self._weather_client is not None:
                 weather_forecast = self._weather_client.get_forecast(hours=24)
             outer_plan = self._outer_mpc.solve(bundle, eff_state, weather_forecast=weather_forecast)
+
+            # Bug 1 fix: compute remaining HVAC+vent energy budget for the current block.
+            # Subtract BASE_LOAD_W first (always-on load is not controlled by MPC).
+            # energy_budget_lt[1] = total avg power (W) for next 4h block including base load.
+            energy_budget_lt = outer_plan.refs.get("energy_budget_lt") or {}
+            if energy_budget_lt and 1 in energy_budget_lt:
+                hvac_avg_w = max(0.0, float(energy_budget_lt[1]) - _BASE_LOAD_W)
+                block_budget_wh = hvac_avg_w * 4.0  # HVAC-only avg × 4h
+                remaining_wh = max(0.0, block_budget_wh - self._block_energy_consumed_wh)
+                eff_state["remaining_energy_budget_wh"] = remaining_wh
+
+            eff_state["outer_block_phase"] = self._steps_in_block
             inner_action = self._inner_mpc.solve(bundle, eff_state, outer_plan)
+
+            # Bug 1 fix: accumulate energy consumed; reset counter at block boundary.
+            hvac_w = float(inner_action.u.get("hvac_power_w", 0.0))
+            vent_w = float(inner_action.u.get("vent_fan_w", 0.0))
+            self._block_energy_consumed_wh += (hvac_w + vent_w) * _DT_H
+            self._steps_in_block += 1
+            if self._steps_in_block >= _BLOCK_TICKS:
+                self._steps_in_block = 0
+                self._block_energy_consumed_wh = 0.0
+
         except Exception as exc:
             return ControlOutput(
                 inner_action=InnerAction(u={}, info={}),
@@ -204,7 +223,7 @@ def _build_state(
     """Merge sensor row into state dict, then apply explicit overrides."""
     passthrough_keys = {
         "total_act_power", "total_current", "total_aprt_power",
-        "temp", "humidity", "co2", "num_targets",
+        "temp", "humidity", "co2", "num_targets", "outdoor_temp", "sunlight",
     }
     state: Dict[str, Any] = {"temp_target": cfg.temp_target}
     for k in passthrough_keys:

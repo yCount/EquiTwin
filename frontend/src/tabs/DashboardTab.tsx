@@ -220,22 +220,12 @@ const getTimeBounds = (...series: ChartDataPoint[][]): TimeBounds | null => {
   return { start, end };
 };
 
-const clampNumber = (value: number, min: number, max: number): number =>
-  Math.min(max, Math.max(min, value));
-
-const getPercentile = (values: number[], percentile: number): number | null => {
-  if (values.length === 0) return null;
-
-  const sorted = [...values].sort((a, b) => a - b);
-  const index = (sorted.length - 1) * percentile;
-  const lower = Math.floor(index);
-  const upper = Math.ceil(index);
-
-  if (lower === upper) return sorted[lower];
-
-  const weight = index - lower;
-  return sorted[lower] * (1 - weight) + sorted[upper] * weight;
-};
+const IDEAL_CONDITIONS = {
+  temperature: { min: 21, max: 24, target: 22.5 },
+  occupancy: { upper: 50 },
+  airQuality: { upper: 800 },
+  energy: { upper: 3.5 },
+} as const;
 
 const buildDeviations = (data: Pick<SensorData, "temperature" | "occupancy" | "airQuality" | "energyByFloor">): DeviationDataPoint[] => {
   const averageValue = <T,>(items: T[], getValue: (item: T) => number): number | null => {
@@ -259,53 +249,25 @@ const buildDeviations = (data: Pick<SensorData, "temperature" | "occupancy" | "a
   const deviationStatus = (pct: number): DeviationDataPoint["status"] =>
     Math.abs(pct) > 20 ? "critical" : Math.abs(pct) > 10 ? "warning" : "good";
 
-  const temperatureValues = data.temperature.map((point) => point.value);
-  const occupancyValues = data.occupancy.map((point) => point.value);
-  const airQualityValues = data.airQuality.map((point) => point.value);
-  const energyValues = data.energyByFloor.map((point) => point.value);
-
   const temperatureActual = averageValue(data.temperature, (point) => point.value) ?? 22;
   const occupancyActual = getMaxValue(data.occupancy, (point) => point.value, 20);
   const airQualityActual = averageValue(data.airQuality, (point) => point.value) ?? 600;
   const energyActual = averageValue(data.energyByFloor, (point) => point.value) ?? 5.0;
 
-  const occupancyAverage = averageValue(data.occupancy, (point) => point.value) ?? 0;
-  const occupancyP95 = getPercentile(occupancyValues, 0.95) ?? occupancyActual;
-  const airQualityP75 = getPercentile(airQualityValues, 0.75) ?? airQualityActual;
-  const energyP60 = getPercentile(energyValues, 0.6) ?? energyActual;
-
-  const temperatureIdealMin = 21;
-  const temperatureIdealMax = 24;
-  const occupancyIdealUpper = clampNumber(
-    Math.max(
-      50,
-      occupancyAverage + 20,
-      occupancyP95 * 1.35
-    ),
-    50,
-    200
-  );
-  const airQualityIdealUpper = clampNumber(Math.max(650, airQualityP75 * 1.05), 650, 900);
-  const energyIdealUpper = clampNumber(
-    Math.max(2.5, energyP60 * 0.95, 2.2 + occupancyAverage * 0.05),
-    2.5,
-    9.0
-  );
-
   const temperatureDeviation = deviationFromBand(
     temperatureActual,
-    temperatureIdealMin,
-    temperatureIdealMax
+    IDEAL_CONDITIONS.temperature.min,
+    IDEAL_CONDITIONS.temperature.max
   );
-  const occupancyDeviation = deviationFromUpperBound(occupancyActual, occupancyIdealUpper);
-  const airQualityDeviation = deviationFromUpperBound(airQualityActual, airQualityIdealUpper);
-  const energyDeviation = deviationFromUpperBound(energyActual, energyIdealUpper);
+  const occupancyDeviation = deviationFromUpperBound(occupancyActual, IDEAL_CONDITIONS.occupancy.upper);
+  const airQualityDeviation = deviationFromUpperBound(airQualityActual, IDEAL_CONDITIONS.airQuality.upper);
+  const energyDeviation = deviationFromUpperBound(energyActual, IDEAL_CONDITIONS.energy.upper);
 
   return [
     {
       metric: "Temperature",
       actual: +temperatureActual.toFixed(1),
-      ideal: +(((temperatureIdealMin + temperatureIdealMax) / 2).toFixed(1)),
+      ideal: IDEAL_CONDITIONS.temperature.target,
       deviation: temperatureDeviation,
       status: deviationStatus(temperatureDeviation),
       impact: "Comfort",
@@ -313,7 +275,7 @@ const buildDeviations = (data: Pick<SensorData, "temperature" | "occupancy" | "a
     {
       metric: "Occupancy",
       actual: occupancyActual,
-      ideal: +occupancyIdealUpper.toFixed(0),
+      ideal: IDEAL_CONDITIONS.occupancy.upper,
       deviation: occupancyDeviation,
       status: deviationStatus(occupancyDeviation),
       impact: "Capacity",
@@ -321,7 +283,7 @@ const buildDeviations = (data: Pick<SensorData, "temperature" | "occupancy" | "a
     {
       metric: "Air Quality",
       actual: +airQualityActual.toFixed(0),
-      ideal: +airQualityIdealUpper.toFixed(0),
+      ideal: IDEAL_CONDITIONS.airQuality.upper,
       deviation: airQualityDeviation,
       status: deviationStatus(airQualityDeviation),
       impact: "Health",
@@ -329,7 +291,7 @@ const buildDeviations = (data: Pick<SensorData, "temperature" | "occupancy" | "a
     {
       metric: "Energy",
       actual: +energyActual.toFixed(2),
-      ideal: +energyIdealUpper.toFixed(2),
+      ideal: IDEAL_CONDITIONS.energy.upper,
       deviation: energyDeviation,
       status: deviationStatus(energyDeviation),
       impact: "Cost",
