@@ -36,6 +36,15 @@
   align-items: center;
   text-align: center;
   @include hover-lift; // Shared hover animation
+
+  &.inactive {
+    opacity: 0.6;
+    border-top-color: rgba($danger, 0.4) !important;
+  }
+
+  &.pending {
+    border-top-color: rgba($warning, 0.5) !important;
+  }
   
   .icon-box {
     width: 36px;
@@ -79,6 +88,10 @@
     font-weight: $font-weight-semibold;
   }
 
+  .status-badge {
+    margin-bottom: $spacing-sm;
+  }
+
   .value-group {
     display: flex;
     align-items: baseline;
@@ -96,6 +109,13 @@
       color: $text-dim;
     }
   }
+
+  .card-footnote {
+    margin-top: $spacing-sm;
+    font-size: 11px;
+    line-height: 1.35;
+    color: $text-dim;
+  }
 }
 
 // 3. Wide Summary Cards
@@ -106,6 +126,14 @@
   align-items: center;
   gap: $spacing-lg;
   margin-bottom: $spacing-md;
+
+  &.inactive {
+    opacity: 0.6;
+  }
+
+  &.pending {
+    border-left-color: rgba($warning, 0.7);
+  }
   
   .icon-box {
     width: 42px;
@@ -136,6 +164,10 @@
       color: $text-dim; 
       font-weight: $font-weight-bold;
     }
+    .status-badge {
+      margin: 6px 0 8px;
+      width: fit-content;
+    }
     .val {
       font-family: $font-family-mono;
       font-weight: $font-weight-bold;
@@ -143,6 +175,12 @@
       font-size: $font-size-lg;
     }
     .unit { font-size: $font-size-xs; color: $text-dim; margin-left: 4px; }
+    .summary-footnote {
+      margin-top: $spacing-sm;
+      font-size: 11px;
+      line-height: 1.35;
+      color: $text-dim;
+    }
   }
 }
 

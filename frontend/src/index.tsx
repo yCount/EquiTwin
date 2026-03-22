@@ -13,53 +13,26 @@ import { Auth } from "./Auth";
 import { ThemeProvider } from "./ThemeContext";
 import * as serviceWorker from "./serviceWorker";
 
-// Debugging: catch unhandled promise rejections and log them into the debugger
+// Log unhandled promise rejections to the console without triggering the
+// CRA dev-server overlay for benign iTwin-internal empty rejections.
 window.addEventListener("unhandledrejection", (event) => {
-  try {
-    console.groupCollapsed("UNHANDLED PROMISE REJECTION");
-    console.error("event.reason (raw):", event.reason);
-
-    // If it's an Error object, print stack
-    if (event.reason && event.reason.stack) {
-      console.error("stack:", event.reason.stack);
-    }
-
-    // If it's an object, turn it into a string
-    try {
-      console.log("stringified reason:", JSON.stringify(event.reason, getCircularReplacer(), 2));
-    } catch (e) {
-      console.log("could not stringify reason:", e);
-    }
-
-    // log the full event
-    console.log("full event:", event);
-
-    console.groupEnd();
-  } catch (e) {
-    console.error("error while logging unhandledrejection:", e);
+  if (!event.reason) {
+    // iTwin SDK sometimes rejects internal promises with no reason.
+    // Suppress the CRA overlay for these — they are not actionable.
+    event.preventDefault();
+    return;
   }
-
-  // Stop here so DevTools will break — useful to inspect call stack & scope.
-  debugger;
+  console.groupCollapsed("UNHANDLED PROMISE REJECTION");
+  console.error("reason:", event.reason);
+  if (event.reason?.stack) console.error("stack:", event.reason.stack);
+  console.groupEnd();
 });
 
-// catch synchronous errors
+// Log synchronous errors to the console.
 window.addEventListener("error", (event) => {
-  console.error("UNCAUGHT ERROR:", event.error ?? event.message, event);
-  debugger;
+  console.error("UNCAUGHT ERROR:", event.error ?? event.message);
 });
 
-// helper to avoid JSON.stringify circular reference errors
-function getCircularReplacer() {
-  const seen = new WeakSet();
-  return (key: string, value: any) => {
-    if (typeof value === "object" && value !== null) {
-      if (seen.has(value)) return "[Circular]";
-      seen.add(value);
-    }
-    return value;
-  };
-}
 
 if (!process.env.IMJS_AUTH_CLIENT_CLIENT_ID) {
   throw new Error(

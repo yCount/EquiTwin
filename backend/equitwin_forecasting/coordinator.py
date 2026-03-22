@@ -27,6 +27,10 @@ class ForecastCoordinator:
                 continue
             pred = self.predictors[fname]
             X_st = self.buf15.build_X_t(group_id, cfg.st_lag_cols)
-            X_lt = self.buf4h.build_X_t(group_id, cfg.lt_lag_cols, lt_steps_back=0)
-            out[fname] = FeatureForecast(st=pred.st.predict(X_st), lt=pred.lt.predict(X_lt))
+            try:
+                X_lt = self.buf4h.build_X_t(group_id, cfg.lt_lag_cols, lt_steps_back=0)
+                lt_pred = pred.lt.predict(X_lt)
+            except ValueError:
+                lt_pred = {}   # LT not ready yet (need 64 rows) — OuterMPC handles {} gracefully
+            out[fname] = FeatureForecast(st=pred.st.predict(X_st), lt=lt_pred)
         return ForecastBundle(by_feature=out)

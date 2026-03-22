@@ -30,6 +30,93 @@ _CACHE: Dict[str, Any] = {
 }
 
 
+def _load_archive_weather_rows(start_date: str, end_date: str) -> List[Dict[str, Any]]:
+    try:
+        from core.weather_client import WeatherClient
+
+        wc = WeatherClient(55.8617, -4.2583)  # Glasgow (same backend default)
+        wdf = wc.get_historical_df(start_date, end_date)
+        if wdf.empty:
+            return []
+
+        rows: List[Dict[str, Any]] = []
+        for _, row in wdf.iterrows():
+            ts = row.get("timestamp")
+            outdoor_temp = row.get("outdoor_temp")
+            if pd.isna(ts) or pd.isna(outdoor_temp):
+                continue
+            rows.append(
+                {
+                    "ts": ts.isoformat(),
+                    "value": round(float(outdoor_temp), 1),
+                    "condition": str(row.get("weather_condition", "cloudy")),
+                }
+            )
+        return rows
+    except Exception as exc:
+        print(f"[csv_source] Weather archive backfill failed for {start_date}..{end_date}: {exc}")
+        return []
+
+
+def _build_weather_payload(
+    df: pd.DataFrame,
+    *,
+    ts_values: pd.Series,
+) -> List[Dict[str, Any]]:
+    weather_by_ts: Dict[str, Dict[str, Any]] = {}
+    latest_weather_ts = None
+
+    if "weather" in df.columns:
+        weather = pd.to_numeric(df["weather"], errors="coerce")
+        condition = (
+            df["condition"].fillna("cloudy").astype(str)
+            if "condition" in df.columns
+            else pd.Series("cloudy", index=df.index)
+        )
+
+        for ts, value, cond in zip(ts_values, weather, condition):
+            if pd.isna(ts) or pd.isna(value):
+                continue
+            ts_key = ts if isinstance(ts, str) else ts.isoformat()
+            weather_by_ts[ts_key] = {
+                "ts": ts_key,
+                "value": round(float(value), 1),
+                "condition": str(cond),
+            }
+
+        valid_weather_mask = weather.notna()
+        if valid_weather_mask.any():
+            latest_weather_ts = pd.to_datetime(
+                df.loc[valid_weather_mask, "timestamp"],
+                utc=True,
+                errors="coerce",
+            ).max()
+
+    max_sensor_ts = pd.to_datetime(df["timestamp"], utc=True, errors="coerce").max()
+    needs_backfill = (
+        max_sensor_ts is not None
+        and not pd.isna(max_sensor_ts)
+        and (
+            latest_weather_ts is None
+            or pd.isna(latest_weather_ts)
+            or latest_weather_ts < max_sensor_ts
+        )
+    )
+    if needs_backfill:
+        start_ts = latest_weather_ts if latest_weather_ts is not None and not pd.isna(latest_weather_ts) else pd.to_datetime(
+            df["timestamp"], utc=True, errors="coerce"
+        ).min()
+        if start_ts is not None and not pd.isna(start_ts):
+            archive_rows = _load_archive_weather_rows(
+                start_ts.strftime("%Y-%m-%d"),
+                max_sensor_ts.strftime("%Y-%m-%d"),
+            )
+            for row in archive_rows:
+                weather_by_ts.setdefault(row["ts"], row)
+
+    return [weather_by_ts[ts] for ts in sorted(weather_by_ts)]
+
+
 def load_dashboard_csv(path) -> pd.DataFrame:
     df = pd.read_csv(path)
     if "timestamp" not in df.columns:
@@ -98,14 +185,7 @@ def build_timeseries_from_csv(df: pd.DataFrame) -> Dict[str, Any]:
             if pd.notna(ev)
         ]
 
-    if "weather" in df.columns:
-        w = pd.to_numeric(df["weather"], errors="coerce")
-        condition = df["condition"].astype(str) if "condition" in df.columns else pd.Series("cloudy", index=df.index)
-        out["weather"] = [
-            {"ts": ts.isoformat(), "value": round(float(wv), 1), "condition": cond}
-            for ts, wv, cond in zip(df["timestamp"], w, condition)
-            if pd.notna(wv)
-        ]
+    out["weather"] = _build_weather_payload(df, ts_values=df["timestamp"])
 
     return out
 
@@ -192,41 +272,7 @@ def _build_timeseries_payload(df: pd.DataFrame) -> Dict[str, Any]:
             for ts, ev, cv0, cv1 in zip(ts_iso[m], e[m], c0[m], c1[m])
         ]
 
-    if "weather" in df.columns:
-        w = pd.to_numeric(df["weather"], errors="coerce")
-        cond = (
-            df["condition"].fillna("cloudy").astype(str)
-            if "condition" in df.columns else pd.Series("cloudy", index=df.index)
-        )
-        m = w.notna()
-        out["weather"] = [
-            {"ts": ts, "value": round(float(wv), 1), "condition": c}
-            for ts, wv, c in zip(ts_iso[m], w[m], cond[m])
-        ]
-
-    # Restore old dashboard behavior: if no weather exists in CSV,
-    # backfill with weather API for the same date span.
-    if len(out["weather"]) == 0 and len(df) > 0:
-        try:
-            from core.weather_client import WeatherClient
-
-            start_date = df["timestamp"].min().strftime("%Y-%m-%d")
-            end_date = df["timestamp"].max().strftime("%Y-%m-%d")
-            wc = WeatherClient(55.8617, -4.2583)  # Glasgow (same backend default)
-            wdf = wc.get_historical_df(start_date, end_date)
-            if not wdf.empty:
-                out["weather"] = [
-                    {
-                        "ts": row["timestamp"].isoformat(),
-                        "value": round(float(row["outdoor_temp"]), 1),
-                        "condition": str(row["weather_condition"]),
-                    }
-                    for _, row in wdf.iterrows()
-                    if row.get("outdoor_temp") is not None
-                ]
-        except Exception:
-            # Keep weather empty on fallback failure.
-            pass
+    out["weather"] = _build_weather_payload(df, ts_values=ts_iso)
 
     return out
 

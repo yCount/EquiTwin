@@ -12,6 +12,7 @@ class PredictorSpec:
     artifacts_root: str
     feature_name: str
     level: str  # 'st' or 'lt'
+    subdir: str = "best"
 
 
 def _align_columns(X: pd.DataFrame, model) -> pd.DataFrame:
@@ -114,7 +115,7 @@ class HorizonModelBank:
         self.models: Dict[int, Any] = {}
         self.meta: Dict[int, dict] = {}
 
-        root = Path(spec.artifacts_root) / spec.feature_name / "best"
+        root = Path(spec.artifacts_root) / spec.feature_name / spec.subdir
         for h in self.horizons:
             d = root / f"{spec.level}_h{h}"
             m = joblib.load(d / "model.joblib")

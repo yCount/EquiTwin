@@ -174,7 +174,7 @@ class WeatherClient:
         Return up to ``hours`` hourly WeatherSnapshot objects starting from now.
 
         No caching — called at most once per MPC solve cycle.
-        Returns an empty list on failure (callers must handle gracefully).
+        Returns an empty list on failure.
         """
         try:
             url = _FORECAST_URL.format(lat=self.lat, lon=self.lon)
@@ -258,7 +258,11 @@ class WeatherClient:
             df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
             return df
 
-        except Exception:
+        except Exception as exc:
+            print(
+                f"[WeatherClient] Historical archive fetch failed for "
+                f"{start_date}..{end_date}: {exc}"
+            )
             return _EMPTY
 
     # Training join utility

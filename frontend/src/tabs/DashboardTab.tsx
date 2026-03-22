@@ -71,7 +71,7 @@ interface DbResponse {
 const DB_API = "http://localhost:8000";
 
 const DB_DEFAULT_COLS = [
-  "id", "timestamp", "event_label", "net_occupancy",
+  "id", "timestamp", "net_occupancy",
   "temp", "humidity", "co2", "total_act_power",
   "num_targets", "entries", "exits",
 ];
@@ -121,6 +121,11 @@ interface TimeRange {
   end: number | null;
 }
 
+interface TimeBounds {
+  start: number;
+  end: number;
+}
+
 // Weather condition colors
 const WEATHER_COLORS = {
   'sunny': '#f59e0b',
@@ -167,8 +172,11 @@ interface TimeseriesApiResponse {
 
 const mapWeatherCondition = (c?: string): WeatherDataPoint['condition'] => {
   switch (c) {
+    case 'clear':        return 'sunny';
     case 'sunny':        return 'sunny';
     case 'mostly_sunny': return 'partly-cloudy';
+    case 'partly_cloudy': return 'partly-cloudy';
+    case 'overcast':     return 'cloudy';
     case 'rain':         return 'rainy';
     case 'snow':         return 'snowy';
     case 'thunderstorm': return 'rainy';
@@ -177,23 +185,161 @@ const mapWeatherCondition = (c?: string): WeatherDataPoint['condition'] => {
   }
 };
 
+const getMaxValue = <T,>(
+  items: T[],
+  getValue: (item: T) => number,
+  fallback = 0
+): number => {
+  if (items.length === 0) return fallback;
+
+  let max = getValue(items[0]);
+  for (let i = 1; i < items.length; i += 1) {
+    const value = getValue(items[i]);
+    if (value > max) max = value;
+  }
+
+  return max;
+};
+
+const getTimeBounds = (...series: ChartDataPoint[][]): TimeBounds | null => {
+  let start = Infinity;
+  let end = -Infinity;
+
+  for (const points of series) {
+    for (const point of points) {
+      const time = point.fullTimestamp.getTime();
+      if (time < start) start = time;
+      if (time > end) end = time;
+    }
+  }
+
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    return null;
+  }
+
+  return { start, end };
+};
+
+const clampNumber = (value: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, value));
+
+const getPercentile = (values: number[], percentile: number): number | null => {
+  if (values.length === 0) return null;
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = (sorted.length - 1) * percentile;
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+
+  if (lower === upper) return sorted[lower];
+
+  const weight = index - lower;
+  return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+};
+
+const buildDeviations = (data: Pick<SensorData, "temperature" | "occupancy" | "airQuality" | "energyByFloor">): DeviationDataPoint[] => {
+  const averageValue = <T,>(items: T[], getValue: (item: T) => number): number | null => {
+    if (items.length === 0) return null;
+    const total = items.reduce((sum, item) => sum + getValue(item), 0);
+    return total / items.length;
+  };
+
+  const deviationPercent = (actual: number, ideal: number) =>
+    ideal !== 0 ? +(((actual - ideal) / ideal) * 100).toFixed(1) : 0;
+
+  const deviationFromUpperBound = (actual: number, upperBound: number) =>
+    actual <= upperBound ? 0 : deviationPercent(actual, upperBound);
+
+  const deviationFromBand = (actual: number, lowerBound: number, upperBound: number) => {
+    if (actual < lowerBound) return deviationPercent(actual, lowerBound);
+    if (actual > upperBound) return deviationPercent(actual, upperBound);
+    return 0;
+  };
+
+  const deviationStatus = (pct: number): DeviationDataPoint["status"] =>
+    Math.abs(pct) > 20 ? "critical" : Math.abs(pct) > 10 ? "warning" : "good";
+
+  const temperatureValues = data.temperature.map((point) => point.value);
+  const occupancyValues = data.occupancy.map((point) => point.value);
+  const airQualityValues = data.airQuality.map((point) => point.value);
+  const energyValues = data.energyByFloor.map((point) => point.value);
+
+  const temperatureActual = averageValue(data.temperature, (point) => point.value) ?? 22;
+  const occupancyActual = getMaxValue(data.occupancy, (point) => point.value, 20);
+  const airQualityActual = averageValue(data.airQuality, (point) => point.value) ?? 600;
+  const energyActual = averageValue(data.energyByFloor, (point) => point.value) ?? 5.0;
+
+  const occupancyAverage = averageValue(data.occupancy, (point) => point.value) ?? 0;
+  const occupancyP95 = getPercentile(occupancyValues, 0.95) ?? occupancyActual;
+  const airQualityP75 = getPercentile(airQualityValues, 0.75) ?? airQualityActual;
+  const energyP60 = getPercentile(energyValues, 0.6) ?? energyActual;
+
+  const temperatureIdealMin = 21;
+  const temperatureIdealMax = 24;
+  const occupancyIdealUpper = clampNumber(
+    Math.max(
+      50,
+      occupancyAverage + 20,
+      occupancyP95 * 1.35
+    ),
+    50,
+    200
+  );
+  const airQualityIdealUpper = clampNumber(Math.max(650, airQualityP75 * 1.05), 650, 900);
+  const energyIdealUpper = clampNumber(
+    Math.max(2.5, energyP60 * 0.95, 2.2 + occupancyAverage * 0.05),
+    2.5,
+    9.0
+  );
+
+  const temperatureDeviation = deviationFromBand(
+    temperatureActual,
+    temperatureIdealMin,
+    temperatureIdealMax
+  );
+  const occupancyDeviation = deviationFromUpperBound(occupancyActual, occupancyIdealUpper);
+  const airQualityDeviation = deviationFromUpperBound(airQualityActual, airQualityIdealUpper);
+  const energyDeviation = deviationFromUpperBound(energyActual, energyIdealUpper);
+
+  return [
+    {
+      metric: "Temperature",
+      actual: +temperatureActual.toFixed(1),
+      ideal: +(((temperatureIdealMin + temperatureIdealMax) / 2).toFixed(1)),
+      deviation: temperatureDeviation,
+      status: deviationStatus(temperatureDeviation),
+      impact: "Comfort",
+    },
+    {
+      metric: "Occupancy",
+      actual: occupancyActual,
+      ideal: +occupancyIdealUpper.toFixed(0),
+      deviation: occupancyDeviation,
+      status: deviationStatus(occupancyDeviation),
+      impact: "Capacity",
+    },
+    {
+      metric: "Air Quality",
+      actual: +airQualityActual.toFixed(0),
+      ideal: +airQualityIdealUpper.toFixed(0),
+      deviation: airQualityDeviation,
+      status: deviationStatus(airQualityDeviation),
+      impact: "Health",
+    },
+    {
+      metric: "Energy",
+      actual: +energyActual.toFixed(2),
+      ideal: +energyIdealUpper.toFixed(2),
+      deviation: energyDeviation,
+      status: deviationStatus(energyDeviation),
+      impact: "Cost",
+    },
+  ];
+};
+
 const convertApiToSensorData = (api: TimeseriesApiResponse): SensorData => {
   const toChart = (pts: TimeseriesPoint[]): ChartDataPoint[] =>
     pts.map(p => ({ timestamp: "", fullTimestamp: new Date(p.ts), value: p.value }));
-
-  const avgOf = (arr: TimeseriesPoint[]) =>
-    arr.length > 0 ? arr.reduce((s, p) => s + p.value, 0) / arr.length : 0;
-
-  const devStatus = (pct: number): DeviationDataPoint["status"] =>
-    Math.abs(pct) > 15 ? "critical" : Math.abs(pct) > 7 ? "warning" : "good";
-
-  const tempAvg   = avgOf(api.temperature);
-  const co2Avg    = avgOf(api.airQuality);
-  const occMax    = api.occupancy.length > 0 ? Math.max(...api.occupancy.map(p => p.value)) : 0;
-  const energyAvg = avgOf(api.energy);
-
-  const pct = (actual: number, ideal: number) =>
-    ideal !== 0 ? +((actual - ideal) / ideal * 100).toFixed(1) : 0;
 
   return {
     temperature: toChart(api.temperature),
@@ -209,12 +355,15 @@ const convertApiToSensorData = (api: TimeseriesApiResponse): SensorData => {
       timestamp: "", fullTimestamp: new Date(p.ts),
       value: p.value, floor3: p.circuit0, floor4: p.circuit1,
     })),
-    deviations: [
-      { metric: "Temperature", actual: +tempAvg.toFixed(1),   ideal: 22,  deviation: pct(tempAvg, 22),   status: devStatus(pct(tempAvg, 22)),   impact: "Comfort"  },
-      { metric: "Occupancy",   actual: occMax,                 ideal: 20,  deviation: pct(occMax, 20),    status: devStatus(pct(occMax, 20)),    impact: "Capacity" },
-      { metric: "Air Quality", actual: +co2Avg.toFixed(0),    ideal: 600, deviation: pct(co2Avg, 600),   status: co2Avg <= 600 ? "good" : devStatus(pct(co2Avg, 600)), impact: "Health" },
-      { metric: "Energy",      actual: +energyAvg.toFixed(2), ideal: 5.0, deviation: pct(energyAvg, 5.0), status: devStatus(pct(energyAvg, 5.0)), impact: "Cost"     },
-    ],
+    deviations: buildDeviations({
+      temperature: toChart(api.temperature),
+      occupancy: toChart(api.occupancy),
+      airQuality: toChart(api.airQuality),
+      energyByFloor: api.energy.map(p => ({
+        timestamp: "", fullTimestamp: new Date(p.ts),
+        value: p.value, floor3: p.circuit0, floor4: p.circuit1,
+      })),
+    }),
   };
 };
 
@@ -249,31 +398,31 @@ const DashboardTab = () => {
       });
   }, [refreshKey]);
 
-  // Build a flat list of all timestamps across every data series so time-range
-  // calculations are not accidentally pinned to whichever series has the
-  // narrowest coverage (e.g. temperature data only existing for Jun-Jul while
-  // energy spans the full DB history).
-  const allSeriesPoints = useMemo((): ChartDataPoint[] => [
-    ...sensorData.temperature,
-    ...sensorData.occupancy,
-    ...sensorData.airQuality,
-    ...sensorData.energyByFloor,
-    ...sensorData.weather,
-  ], [sensorData]);
+  const allSeriesBounds = useMemo(
+    () =>
+      getTimeBounds(
+        sensorData.temperature,
+        sensorData.occupancy,
+        sensorData.airQuality,
+        sensorData.energyByFloor,
+        sensorData.weather
+      ),
+    [sensorData]
+  );
 
   useEffect(() => {
-    if (allSeriesPoints.length === 0) {
+    if (!allSeriesBounds) {
       setTimeRange({ start: null, end: null });
       setTimelineViewRange(null);
       return;
     }
-    const endTime = allSeriesPoints.reduce(
-      (max, p) => Math.max(max, p.fullTimestamp.getTime()), -Infinity
-    );
     const config = getRangeConfig(activeTimeRange);
-    setTimeRange({ start: endTime - config.selectedHours * 3600000, end: endTime });
+    setTimeRange({
+      start: allSeriesBounds.end - config.selectedHours * 3600000,
+      end: allSeriesBounds.end,
+    });
     setTimelineViewRange(null);
-  }, [allSeriesPoints, activeTimeRange]);
+  }, [allSeriesBounds, activeTimeRange]);
 
   const filteredData = useMemo(() => {
     if (!timeRange.start || !timeRange.end) return sensorData;
@@ -294,16 +443,23 @@ const DashboardTab = () => {
     };
   }, [sensorData, timeRange]);
 
+  const visibleDeviations = useMemo(
+    () =>
+      buildDeviations({
+        temperature: filteredData.temperature,
+        occupancy: filteredData.occupancy,
+        airQuality: filteredData.airQuality,
+        energyByFloor: filteredData.energyByFloor,
+      }),
+    [filteredData]
+  );
+
   const fullTimeRange = useMemo(() => {
-    if (allSeriesPoints.length === 0) {
+    if (!allSeriesBounds) {
       return { start: Date.now() - 86400000, end: Date.now() };
     }
-    const times = allSeriesPoints.map(p => p.fullTimestamp.getTime());
-    return {
-      start: Math.min(...times),
-      end:   Math.max(...times),
-    };
-  }, [allSeriesPoints]);
+    return allSeriesBounds;
+  }, [allSeriesBounds]);
 
   const chartXDomain = useMemo((): [number, number] => [
     timeRange.start  ?? fullTimeRange.start,
@@ -405,9 +561,9 @@ const [level3Active, setLevel3Active] = useState(true);
     const max = useMemo(() => {
       if (!data || data.length === 0) return '—';
       if (type === 'weather') {
-        return Math.max(...data.map((d: WeatherDataPoint) => d.temperature)).toFixed(1);
+        return getMaxValue(data, (d: WeatherDataPoint) => d.temperature).toFixed(1);
       }
-      return fmt(Math.max(...data.map((d: any) => d.value || 0)));
+      return fmt(getMaxValue(data, (d: any) => d.value || 0));
     }, [data, type, unit]);
 
     // Add numeric timestamp (_tsMs) so XAxis can use type="number" scale="time"
@@ -765,7 +921,7 @@ const [level3Active, setLevel3Active] = useState(true);
             </SidebarSection>
             <SidebarSection title="Anomaly Detection Log" noBorder>
               <div className="anomaly-feed">
-                {sensorData?.deviations.map((dev) => (
+                {visibleDeviations.map((dev) => (
                   <div key={dev.metric} className={`anomaly-card ${dev.status}`}>
                     <div className="icon-wrapper">
                       {getMetricIcon(dev.metric)}
@@ -810,10 +966,10 @@ const [level3Active, setLevel3Active] = useState(true);
             />
             <ChartCard
               title="External Weather"
-              subtitle="Outdoor Â°C"
+              subtitle="Outdoor °C"
               data={filteredData.weather}
               color="#f59e0b"
-              unit="Â°C"
+              unit="°C"
               type="weather"
               xDomain={chartXDomain}
               emptyMessage="No weather data available"

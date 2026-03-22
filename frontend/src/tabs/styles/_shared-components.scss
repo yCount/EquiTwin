@@ -59,6 +59,7 @@
   letter-spacing: 0.5px;
   
   &.ready,
+  &.active,
   &.trained,
   &.good {
     background: rgba($success, 0.12);
@@ -79,6 +80,11 @@
   }
   
   &.outdated {
+    background: rgba($info, 0.12);
+    color: $info;
+  }
+
+  &.external {
     background: rgba($info, 0.12);
     color: $info;
   }

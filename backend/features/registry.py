@@ -6,6 +6,14 @@ from core.featurize import FeatureSpec
 
 _META_DROP = ("raw_payload", "quality", "version")
 
+# Lead steps (in 4h blocks) for LT weather-forecast features.
+# lead1=4h, lead2=8h, lead3=12h from current block.
+# During LT training these are actual future values (oracle proxy).
+# During LT inference, FeatureBuffer4h should populate them from
+# WeatherClient.get_forecast() — see equitwin_forecasting/feature_buffer.py.
+_WEATHER_LEAD_COLS = ("outdoor_temp", "sunlight")
+_WEATHER_LEADS     = (1, 2, 3)
+
 ENERGY = FeatureSpec(
     name="energy",
     target="total_act_power",
@@ -22,13 +30,20 @@ ENERGY = FeatureSpec(
     lag_cols=[
         "total_act_power","total_current",
         "a_act_power","b_act_power","c_act_power",
-        "a_voltage","b_voltage","c_voltage",
         "num_targets","temp",
         # Numeric weather lags
         "outdoor_temp","sunlight",
     ],
     lags=(1,2,3,6,12),
+    # Rolling windows over 15-min steps:
+    #   4  = 1 h rolling mean/std  (within-hour smoothing)
+    #   12 = 3 h rolling mean/std  (HVAC cycle capture)
+    #   48 = 12 h rolling mean/std (half-day load profile)
+    roll_cols=("total_act_power", "num_targets", "temp"),
+    roll_windows=(4, 12, 48),
     drop_cols=_META_DROP,
+    lead_cols=_WEATHER_LEAD_COLS,
+    leads=_WEATHER_LEADS,
 )
 
 TEMPERATURE = FeatureSpec(
@@ -45,7 +60,12 @@ TEMPERATURE = FeatureSpec(
     lag_cols=["temp","humidity","co2","num_targets","total_act_power",
               "outdoor_temp","sunlight"],
     lags=(1,2,3,6,12),
+    # Temperature changes slowly — 1h/3h rolling stats capture thermal inertia
+    roll_cols=("temp", "humidity", "outdoor_temp"),
+    roll_windows=(4, 12, 48),
     drop_cols=_META_DROP,
+    lead_cols=_WEATHER_LEAD_COLS,
+    leads=_WEATHER_LEADS,
 )
 
 AIRQUALITY_CO2 = FeatureSpec(
@@ -63,7 +83,12 @@ AIRQUALITY_CO2 = FeatureSpec(
     lag_cols=["co2","temp","humidity","num_targets","total_act_power","voc","pm2p5",
               "outdoor_temp","sunlight"],
     lags=(1,2,3,6,12),
+    # CO2 accumulates over time — 1h and 3h rolling trends are strong predictors
+    roll_cols=("co2", "num_targets", "voc"),
+    roll_windows=(4, 12, 48),
     drop_cols=_META_DROP,
+    lead_cols=_WEATHER_LEAD_COLS,
+    leads=_WEATHER_LEADS,
 )
 
 OCCUPANCY = FeatureSpec(
@@ -81,4 +106,6 @@ OCCUPANCY = FeatureSpec(
               "outdoor_temp","sunlight"],
     lags=(1,2,3,6,12),
     drop_cols=_META_DROP,
+    lead_cols=_WEATHER_LEAD_COLS,
+    leads=_WEATHER_LEADS,
 )

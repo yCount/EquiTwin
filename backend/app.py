@@ -13,8 +13,11 @@ import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, WebSocket, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette import status
 from typing import Any, Dict, List, Optional
 from sqlalchemy import create_engine, text
+from ingestion import IngestionService, start_optional_pollers
 from models import (
     EnergyPoint, AirPoint, OccPoint, WeatherPoint,
     MpcRequest, MpcSuggestion,
@@ -62,6 +65,8 @@ async def lifespan(app: FastAPI):
     )
     db_url = os.environ.get("DATABASE_URL")
     app.state.forecast = None
+    app.state.ingestion = None
+    app.state.ingestion_pollers = []
 
     try:
         from equitwin_dnm_integration_point import build_forecast_service, warmup_from_db
@@ -86,8 +91,25 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         print(f"[EquiTwin] ForecastService init failed: {exc}. MPC endpoints will return HTTP 503.")
 
+    if db_url:
+        try:
+            app.state.ingestion = IngestionService(
+                _get_db_engine(),
+                forecast_service=app.state.forecast,
+                default_group_id=os.environ.get("INGESTION_GROUP_ID", "1"),
+            )
+            app.state.ingestion_pollers = start_optional_pollers(app.state.ingestion)
+            if app.state.ingestion_pollers:
+                print(f"[EquiTwin] Optional ingestion pollers started: {len(app.state.ingestion_pollers)}")
+        except Exception as exc:
+            print(f"[EquiTwin] Ingestion init failed: {exc}")
+
     yield   # app runs here
-    # Shutdown — nothing to tear down
+    for task in getattr(app.state, "ingestion_pollers", []):
+        task.cancel()
+    if getattr(app.state, "ingestion_pollers", None):
+        await asyncio.gather(*app.state.ingestion_pollers, return_exceptions=True)
+    # Shutdown — nothing else to tear down
 
 
 app = FastAPI(lifespan=lifespan)
@@ -96,6 +118,19 @@ app.add_middleware(
     allow_origins=["http://localhost:3000"],  # dev
     allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
+
+
+def get_ingestion_service(request: Request) -> IngestionService:
+    svc = getattr(request.app.state, "ingestion", None)
+    if svc is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Ingestion is unavailable. Set DATABASE_URL and restart the backend "
+                "to initialise the optional ingestion tables."
+            ),
+        )
+    return svc
 
 # ---- REST -------------------------------------------------------------------
 @app.post("/mpc/optimize", response_model=List[MpcSuggestion])
@@ -109,6 +144,108 @@ def forecast_energy_endpoint(horizon_minutes: int = 120):
 @app.get("/kpis")
 def kpis():
     return compute_kpis()
+
+
+@app.get("/api/ingestion/status")
+def ingestion_status(svc: IngestionService = Depends(get_ingestion_service)):
+    return svc.status()
+
+
+@app.get("/api/home/summary")
+def home_summary(svc: IngestionService = Depends(get_ingestion_service)):
+    return svc.get_home_snapshot()
+
+
+@app.post("/data/aq/push", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/air-quality/push", status_code=status.HTTP_201_CREATED)
+async def ingest_air_quality_push(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    try:
+        payload = await request.json()
+        return svc.ingest_air_quality_payload(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/data/temp", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/temperature", status_code=status.HTTP_201_CREATED)
+async def ingest_temperature_push(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    try:
+        payload = await request.json()
+        return svc.ingest_temperature_humidity_payload(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/data/lsg01", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/lsg01", status_code=status.HTTP_201_CREATED)
+async def ingest_lsg01_push(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    try:
+        payload = await request.json()
+        return svc.ingest_lsg01_payload(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/data/em", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/energy", status_code=status.HTTP_201_CREATED)
+async def ingest_energy(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    try:
+        payload = await request.json()
+        return svc.ingest_energy_payload(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.post("/data/oc", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/occupancy/raw", status_code=status.HTTP_201_CREATED)
+async def store_occupancy_raw(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    payload = await request.json()
+    return svc.store_raw_payload(payload, source_kind="occupancy_raw")
+
+
+@app.post("/data/oc/parsed", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/occupancy/parsed", status_code=status.HTTP_201_CREATED)
+async def ingest_occupancy_parsed(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    try:
+        payload = await request.json()
+        result = svc.ingest_occupancy_batch(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    if result["errors"]:
+        return JSONResponse(status_code=status.HTTP_207_MULTI_STATUS, content=result)
+    return result
+
+
+@app.post("/data/radar", status_code=status.HTTP_201_CREATED)
+@app.post("/api/ingest/radar", status_code=status.HTTP_201_CREATED)
+async def ingest_radar(
+    request: Request,
+    svc: IngestionService = Depends(get_ingestion_service),
+):
+    try:
+        payload = await request.json()
+        return svc.ingest_radar_payload(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 # ---- Database table viewer --------------------------------------------------
@@ -554,12 +691,35 @@ async def simulation_ws(ws: WebSocket):
         n_occ       = int(cfg.get("nOccupants",    10))
         init_temp   = float(cfg.get("initTemp",    14.0))
         start_hour  = float(cfg.get("startHour",   0.0))
+        co2_target  = float(cfg.get("co2Target",   800.0))   # ppm — CO2 reference for QP air quality cost
+        hum_target  = float(cfg.get("humidityTarget", 50.0)) # %RH — kept for UI display
+        # QP cost weight overrides (UI sends integer "dial" values; scaled here)
+        #   wSmooth  × 1e-5 → W_smooth  (0–100 dial, default 5  → 5e-5)
+        #   wEnergy  × 1e-5 → W_energy  (0–100 dial, default 30 → 3e-4)
+        #   wAirqual × 0.01 → W_airqual (0–50  dial, default 8  → 0.08)
+        #   wComfort and qTerminal passed as-is
+        w_comfort  = float(cfg.get("wComfort",  200.0))
+        w_airqual  = float(cfg.get("wAirqual",  8.0))   * 0.01
+        w_energy   = float(cfg.get("wEnergy",   30.0))  * 1e-5
+        w_smooth   = float(cfg.get("wSmooth",   5.0))   * 1e-5
+        q_terminal = float(cfg.get("qTerminal", 3.0))
+        # Features to include in MPC forecasting (None = all)
+        _af_raw     = cfg.get("activeFeatures", None)
+        active_features = (
+            [f for f in _af_raw if f in _KNOWN_FEATURES] if _af_raw else None
+        )
+        # Per-feature model overrides: {"energy": "ridge", ...}
+        _mo_raw = cfg.get("modelOverrides", None)
+        model_overrides: Optional[Dict[str, str]] = (
+            {k: v for k, v in _mo_raw.items() if k in _KNOWN_FEATURES and isinstance(v, str)}
+            if isinstance(_mo_raw, dict) else None
+        )
 
         # --- Import simulation helpers (inside the handler to avoid module-level cost)
         from simulate_house import (
             HouseState, ScheduleConfig, get_building_mode,
             commercial_occupancy_at, synthetic_weather, mode_hvac,
-            BASE_LOAD_W, _BMODE_LABEL,
+            BASE_LOAD_W, HVAC_STANDBY_W, _BMODE_LABEL,
         )
         import pandas as pd
 
@@ -571,25 +731,34 @@ async def simulation_ws(ws: WebSocket):
         house    = HouseState(indoor_temp=init_temp, co2=450.0, humidity=40.0)
         sim_start = pd.Timestamp("2025-06-01", tz="UTC") + pd.Timedelta(hours=start_hour)
 
-        # --- Try building the EquiTwin ML stack (fallback if no artifacts)
+        # --- Build TickRunner for this simulation session.
+        # Always build a fresh isolated stack so the simulation's buffer
+        # is independent from the real ForecastService buffer.
         runner   = None
         has_mpc  = False
         try:
             from equitwin_integration.bootstrap import EquiTwinConfig, build_equitwin_stack
             from equitwin_integration.tick_runner import TickRunner, TickRunnerConfig
             _arts = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts")
-            _stack = build_equitwin_stack(EquiTwinConfig(artifacts_root=_arts))
+            _stack = build_equitwin_stack(EquiTwinConfig(
+                artifacts_root=_arts,
+                features=active_features,
+                model_overrides=model_overrides,
+            ))
             if _stack.predictors:          # only wire MPC if models are loaded
                 runner  = TickRunner(
                     _stack,
-                    TickRunnerConfig(group_id="1", temp_target=setpoint, min_warm_rows=70),
+                    # 13 = max ST lag (12) + 1: first tick where all lag features
+                    # are real data. Before this, lags are NaN → SimpleImputer uses
+                    # training-time means → predictions are generic, not building-specific.
+                    TickRunnerConfig(group_id="1", temp_target=setpoint, min_warm_rows=13),
                     weather_client=_stack.weather_client,
                 )
                 has_mpc = True
         except FileNotFoundError:
             pass   # no artifacts — simulation runs as a pure proportional thermostat
 
-        await ws.send_json({"type": "started", "ticks": ticks, "has_mpc": has_mpc})
+        await ws.send_json({"type": "started", "ticks": ticks, "has_mpc": has_mpc, "warm_rows": 13})
 
         # --- Phase 2: background task listens for "stop"; main loop runs the sim
         stop_event = asyncio.Event()
@@ -640,11 +809,29 @@ async def simulation_ws(ws: WebSocket):
                             "temp_target":     sp,
                             "temp":            house.indoor_temp,
                             "total_act_power": house.hvac_power_w + BASE_LOAD_W,
+                            "heating_only":    heating_only,
+                            "co2_target":      co2_target,
+                            "hum_target":      hum_target,
+                            "w_comfort":       w_comfort,
+                            "w_airqual":       w_airqual,
+                            "w_energy":        w_energy,
+                            "w_smooth":        w_smooth,
+                            "q_terminal":      q_terminal,
                         },
                     )
 
-                hvac_w     = mode_hvac(house.indoor_temp, sp, band, max_hvac_w, heating_only)
                 mpc_active = output is not None and output.warmed_up and output.error is None
+
+                if mpc_active and "total_act_power" in output.inner_action.u:
+                    # MPC is active: use InnerMPC's total_act_power command.
+                    # InnerMPC outputs total building power (HVAC + base load).
+                    # Extract HVAC-only portion and clamp to mode limits.
+                    mpc_total_w = float(output.inner_action.u["total_act_power"])
+                    hvac_w = max(HVAC_STANDBY_W, min(max_hvac_w, mpc_total_w - BASE_LOAD_W))
+                else:
+                    # Warmup or no artifacts: fall back to proportional thermostat
+                    hvac_w = mode_hvac(house.indoor_temp, sp, band, max_hvac_w, heating_only)
+
                 if mpc_active:
                     mpc_tick_count += 1
 
@@ -668,6 +855,9 @@ async def simulation_ws(ws: WebSocket):
                     "energy_budget_lt":   None,
                     "temp_ref_lt":        None,
                     "error":              output.error if output else None,
+                    # Active user targets (always present so UI can render reference lines)
+                    "co2_target":         round(co2_target),
+                    "hum_target":         round(hum_target, 1),
                 }
 
                 if mpc_active and output:
@@ -683,13 +873,61 @@ async def simulation_ws(ws: WebSocket):
                         tick_data["temp_ref_lt"] = {
                             str(k): round(float(v), 1) for k, v in refs["temp_ref_lt"].items()
                         }
+                    if refs.get("co2_ref_lt"):
+                        tick_data["co2_ref_lt"] = {
+                            str(k): round(float(v), 1) for k, v in refs["co2_ref_lt"].items()
+                        }
+                    if refs.get("t_star_lt"):
+                        tick_data["t_star_lt"] = {
+                            str(k): round(float(v), 1) for k, v in refs["t_star_lt"].items()
+                        }
+                    if refs.get("occupancy_ref_lt"):
+                        tick_data["occupancy_ref_lt"] = {
+                            str(k): round(float(v), 1) for k, v in refs["occupancy_ref_lt"].items()
+                        }
+                    # QP solver diagnostics from InnerMPC info dict
+                    inner_info = output.inner_action.info or {}
+                    tick_data["qp_solver"] = inner_info.get("solver", "none")
+                    if inner_info.get("solver") == "SLSQP":
+                        tick_data["qp_converged"]  = bool(inner_info.get("converged", False))
+                        tick_data["qp_iter"]       = int(inner_info.get("n_iter", 0))
+                        t_star_seq = inner_info.get("T_star_per_step") or []
+                        tick_data["t_star_now"]    = round(float(t_star_seq[0]), 1) if t_star_seq else None
+                        q_t_seq = inner_info.get("Q_T_per_step") or []
+                        tick_data["q_t_now"]       = round(float(q_t_seq[0]), 3) if q_t_seq else None
+                        tick_data["e_budget_wh"]   = round(float(inner_info.get("E_budget_wh", 0)), 1)
+                        tick_data["u_max_w"]       = round(float(inner_info.get("u_max_applied_w", 0)), 1)
+                        u_seq = inner_info.get("u_sequence_w") or []
+                        tick_data["u_sequence_w"]  = u_seq[:8]
+                        v_seq = inner_info.get("v_sequence") or []
+                        tick_data["v_sequence"]    = [round(v * 100, 1) for v in v_seq[:8]]
+                        t_pred = inner_info.get("T_pred_trajectory") or []
+                        tick_data["t_pred_st"]     = t_pred[:8]
+                        t_star_all = inner_info.get("T_star_per_step") or []
+                        tick_data["t_star_st"]     = t_star_all[:8]
+                        # Echo back the actual weights used so UI can verify tuning is live
+                        tick_data["applied_w_comfort"]  = inner_info.get("W_comfort")
+                        tick_data["applied_w_airqual"]  = inner_info.get("W_airqual")
+                        tick_data["applied_w_energy"]   = inner_info.get("W_energy")
+                        tick_data["applied_w_smooth"]   = inner_info.get("W_smooth")
+                        tick_data["applied_q_terminal"] = inner_info.get("Q_terminal")
+                    elif inner_info.get("solver") == "proportional_fallback":
+                        # Surface the fallback reason so the user can diagnose
+                        tick_data["qp_error"] = inner_info.get("qp_error") or inner_info.get("reason", "fallback")
+                    # Ventilation rate (available from both SLSQP and fallback)
+                    if output.inner_action.u.get("vent_rate") is not None:
+                        tick_data["vent_rate_pct"] = round(float(output.inner_action.u["vent_rate"]) * 100, 1)
 
                 await ws.send_json(tick_data)
 
                 # Advance physics AFTER sending so tick 0 shows the initial state
+                vent_rate = None
+                if mpc_active and output and output.inner_action.u.get("vent_rate") is not None:
+                    vent_rate = float(output.inner_action.u["vent_rate"])
                 house.step(
                     hvac_w=hvac_w, outdoor_temp=t_out,
                     n_people=n_people, temp_target=sp,
+                    vent_rate=vent_rate,
                 )
 
                 if speed > 0:
@@ -728,17 +966,22 @@ _KNOWN_FEATURES = ["energy", "temperature", "airquality", "occupancy"]
 @app.get("/api/artifacts/status")
 def artifacts_status():
     """
-    Walk the artifacts directory and return per-feature / per-horizon metadata.
-    Reads the metadata.json stored alongside each model.joblib by training.service.
-    NaN values (R²) are normalised to null for safe JSON serialisation.
+    Walk the artifacts directory and return rich per-feature training metadata.
+
+    Response shape per feature:
+      st / lt : { "<horizon>": { model, mae, rmse, r2, mase, n_rows, quantile? } }
+      all_models_st / all_models_lt : rows from metrics_<level>.csv (full comparison)
+      multioutput : { st?: { per_horizon_mae }, lt?: { ... } }
+      n_rows : total training rows (from first available horizon)
     """
+    import csv as _csv
+
     arts_root = os.environ.get(
         "ARTIFACTS_ROOT",
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts"),
     )
 
     def _safe(v):
-        """Return None instead of NaN / Inf so the response is valid JSON."""
         if v is None:
             return None
         try:
@@ -748,34 +991,145 @@ def artifacts_status():
             pass
         return v
 
+    def _read_metrics_csv(path: str):
+        """Read a metrics CSV and return list of row dicts with safe numeric values."""
+        rows = []
+        if not os.path.exists(path):
+            return rows
+        try:
+            with open(path, newline="", encoding="utf-8") as fh:
+                for r in _csv.DictReader(fh):
+                    rows.append({
+                        "model":      r.get("model", ""),
+                        "horizon":    _safe(int(r["horizon"])) if r.get("horizon") else None,
+                        "mae":        _safe(float(r["mae"]))   if r.get("mae")     else None,
+                        "rmse":       _safe(float(r["rmse"]))  if r.get("rmse")    else None,
+                        "r2":         _safe(float(r["r2"]))    if r.get("r2")      else None,
+                        "mase":       _safe(float(r["mase"]))  if r.get("mase")    else None,
+                        "n_folds":    int(r["n_folds"])        if r.get("n_folds") else None,
+                        "level":      r.get("level", ""),
+                    })
+        except Exception:
+            pass
+        return rows
+
     result: Dict[str, Any] = {}
     for feature in _KNOWN_FEATURES:
-        best_dir = os.path.join(arts_root, feature, "best")
-        feature_data: Dict[str, Dict] = {"st": {}, "lt": {}}
+        feat_root  = os.path.join(arts_root, feature)
+        best_dir   = os.path.join(feat_root, "best")
+        q_dir      = os.path.join(feat_root, "quantile")
+        mo_dir     = os.path.join(feat_root, "multioutput")
 
+        feature_data: Dict[str, Any] = {
+            "st": {}, "lt": {},
+            "all_models_st": [], "all_models_lt": [],
+            "multioutput": {},
+            "n_rows": None,
+        }
+
+        #  best models per horizon
         if os.path.isdir(best_dir):
-            for entry in os.listdir(best_dir):
-                # Expecting names like  st_h1  lt_h3
+            for entry in sorted(os.listdir(best_dir)):
                 if "_h" not in entry:
                     continue
-                level, h_str = entry.split("_h", 1)
+                parts = entry.split("_h", 1)
+                if len(parts) != 2:
+                    continue
+                level, h_str = parts
                 if level not in ("st", "lt"):
                     continue
                 meta_path = os.path.join(best_dir, entry, "metadata.json")
                 if not os.path.exists(meta_path):
                     continue
                 try:
-                    with open(meta_path, "r") as fh:
+                    with open(meta_path) as fh:
                         raw = json.load(fh)
-                    feature_data[level][h_str] = {
+                    horizon_data: Dict[str, Any] = {
                         "model":  raw.get("model"),
                         "mae":    _safe(raw.get("mae")),
                         "rmse":   _safe(raw.get("rmse")),
                         "r2":     _safe(raw.get("r2")),
+                        "mase":   _safe(raw.get("mase")),
                         "n_rows": raw.get("n_rows"),
                     }
+                    feature_data[level][h_str] = horizon_data
+                    if feature_data["n_rows"] is None:
+                        feature_data["n_rows"] = raw.get("n_rows")
                 except Exception:
-                    pass  # corrupt metadata, skip silently
+                    pass
+
+        # quantile coverage / sharpness per horizon
+        if os.path.isdir(q_dir):
+            for entry in os.listdir(q_dir):
+                # names like  st_h1_q90  st_h1_lgbm_q50  lt_h3_q10
+                meta_path = os.path.join(q_dir, entry, "metadata.json")
+                if not os.path.exists(meta_path):
+                    continue
+                try:
+                    with open(meta_path) as fh:
+                        raw = json.load(fh)
+                    # Parse level and horizon from entry name  e.g. st_h1_q90
+                    parts = entry.split("_h", 1)
+                    if len(parts) != 2:
+                        continue
+                    level = parts[0]
+                    rest = parts[1]          # "1_q90" or "1_lgbm_q50"
+                    h_str = rest.split("_")[0]
+                    qtag  = raw.get("quantile_tag", "")
+                    if level not in ("st", "lt") or h_str not in feature_data[level]:
+                        continue
+                    # Attach coverage/sharpness once per horizon (use q90 as canonical)
+                    if "quantile" not in feature_data[level][h_str]:
+                        feature_data[level][h_str]["quantile"] = {}
+                    cov = _safe(raw.get("coverage"))
+                    sha = _safe(raw.get("sharpness"))
+                    if cov is not None:
+                        feature_data[level][h_str]["quantile"]["coverage"]  = cov
+                        feature_data[level][h_str]["quantile"]["sharpness"] = sha
+                except Exception:
+                    pass
+
+        # full model comparison tables (all models x all horizons)
+        feature_data["all_models_st"] = _read_metrics_csv(
+            os.path.join(feat_root, "metrics_st.csv")
+        )
+        feature_data["all_models_lt"] = _read_metrics_csv(
+            os.path.join(feat_root, "metrics_lt.csv")
+        )
+
+        #  saved candidate models
+        candidates_saved: List[str] = []
+        try:
+            for entry in os.listdir(feat_root):
+                if not entry.startswith("model_"):
+                    continue
+                cand_name = entry[len("model_"):]
+                # Consider a candidate "saved" if ST h1 joblib exists
+                probe = os.path.join(feat_root, entry, "st_h1", "model.joblib")
+                if os.path.exists(probe):
+                    candidates_saved.append(cand_name)
+        except Exception:
+            pass
+        feature_data["candidates_saved"] = sorted(candidates_saved)
+
+        #  multi-output summary
+        if os.path.isdir(mo_dir):
+            for entry in os.listdir(mo_dir):
+                # names like  st_all_horizons  lt_all_horizons
+                meta_path = os.path.join(mo_dir, entry, "metadata.json")
+                if not os.path.exists(meta_path):
+                    continue
+                try:
+                    with open(meta_path) as fh:
+                        raw = json.load(fh)
+                    level = raw.get("level", entry.split("_")[0])
+                    if level in ("st", "lt"):
+                        feature_data["multioutput"][level] = {
+                            "base_model": raw.get("base_model"),
+                            "per_horizon_mae": raw.get("per_horizon_mae", {}),
+                        }
+                except Exception:
+                    pass
 
         result[feature] = feature_data
 
@@ -911,18 +1265,40 @@ async def training_ws(ws: WebSocket):
                 kind, payload = await line_queue.get()
 
                 if kind == "line":
+                    import re as _re
                     line = payload
                     msg_out: Dict[str, Any] = {
                         "type": "log", "line": line,
                         "feature_start": None, "feature_done": None,
+                        "current_level": None,    # "st" | "lt"
+                        "current_model": None,    # model name being evaluated
+                        "current_horizon": None,  # int
+                        "current_step": None,     # "model" | "quantile" | "multioutput"
                     }
                     stripped = line.strip()
                     for fname in _KNOWN_FEATURES:
                         if stripped == f"--- {fname.upper()} ---":
                             msg_out["feature_start"] = fname
-                        # train_all.py prints: "energy done."
                         if stripped == f"{fname} done.":
                             msg_out["feature_done"] = fname
+                    # Parse structured [TAG] DATA progress lines
+                    m = _re.match(r"^\[(\w+)\]\s+(.*)", stripped)
+                    if m:
+                        tag, data = m.group(1), m.group(2).strip()
+                        parts = data.split()
+                        if tag == "level" and len(parts) >= 1 and parts[0] in ("st", "lt"):
+                            msg_out["current_level"] = parts[0]
+                            msg_out["current_step"]  = "model"
+                        elif tag == "model" and len(parts) >= 2:
+                            msg_out["current_model"] = parts[0]
+                            h_part = parts[1]
+                            if h_part.startswith("h") and h_part[1:].isdigit():
+                                msg_out["current_horizon"] = int(h_part[1:])
+                            msg_out["current_step"] = "model"
+                        elif tag == "quantile":
+                            msg_out["current_step"] = "quantile"
+                        elif tag == "multioutput":
+                            msg_out["current_step"] = "multioutput"
                     await ws.send_json(msg_out)
 
                 elif kind == "done":

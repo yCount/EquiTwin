@@ -231,6 +231,290 @@
           input[type=number] { width: 60px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: $text-main; padding: 4px; border-radius: 4px; }
           .val, .unit { font-family: $font-family-mono; font-size: 11px; color: $text-main; min-width: 40px; text-align: right; font-weight: 600; }
       }
+      .input-hint {
+          font-size: 9px; color: $text-dim; opacity: 0.55; margin-top: 3px; line-height: 1.4;
+      }
+  }
+
+  // === Active Models selector ===
+  .model-select-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .model-feature-card {
+    position: relative;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: $radius-sm;
+    padding: 10px 10px 10px 10px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    overflow: hidden;
+
+    &.on {
+      border-color: rgba($primary, 0.35);
+      background: rgba($primary, 0.07);
+    }
+    &.off {
+      opacity: 0.5;
+    }
+    &.no-model {
+      cursor: default;
+      opacity: 0.35;
+    }
+    &.last {
+      cursor: not-allowed;
+    }
+
+    .mfc-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .mfc-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: $text-main;
+    }
+    .mfc-unit {
+      font-size: 9px;
+      color: $text-dim;
+      font-family: $font-family-mono;
+    }
+    .mfc-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+    }
+    .mfc-model {
+      font-size: 10px;
+      color: $text-dim;
+      font-family: $font-family-mono;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 72px;
+    }
+    .mfc-toggle-dot {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      &.on  { background: $success; box-shadow: 0 0 5px $success; }
+      &.off { background: rgba(255,255,255,0.2); }
+    }
+
+    .mfc-toggle-area {
+      cursor: pointer;
+      position: relative;
+    }
+
+    .mfc-select {
+      width: 100%;
+      margin-top: 8px;
+      padding: 4px 6px;
+      font-size: 10px;
+      font-family: $font-family-mono;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 4px;
+      color: $text-main;
+      appearance: none;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s;
+
+      &:hover:not(:disabled) { border-color: rgba($primary, 0.4); }
+      &:focus { border-color: rgba($primary, 0.6); }
+      &:disabled { opacity: 0.4; cursor: default; }
+
+      option {
+        background: #111318;
+        color: $text-main;
+        &:disabled { color: $text-dim; }
+      }
+    }
+  }
+
+  .mase-chip {
+    font-size: 9px;
+    font-family: $font-family-mono;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+    &.good { background: rgba($success, 0.15); color: $success; }
+    &.warn { background: rgba($warning, 0.15); color: $warning; }
+    &.bad  { background: rgba($danger,  0.15); color: $danger;  }
+    &.none { color: $text-dim; background: transparent; }
+  }
+
+  .model-select-hint {
+    margin: 8px 0 0;
+    font-size: 10px;
+    color: $text-dim;
+    opacity: 0.6;
+    line-height: 1.4;
+  }
+
+  // === T* legend dot ===
+  .cw-legend .line.tstar {
+    border-top: 2px dashed #a78bfa;
+    background: transparent;
+    height: 0;
+  }
+
+  // === Sidebar divider ===
+  .status-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.07);
+    margin: 4px 0;
+  }
+
+  // === Signals + QP row ===
+  .signals-qp-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .signals-chart-section {
+    @include glass-panel;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    min-height: 220px;
+
+    .signals-chart-body {
+      flex: 1;
+      min-height: 0;
+      .chart-empty { height: 100%; min-height: 160px; display: flex; align-items: center; justify-content: center; span { font-size: 12px; color: $text-dim; opacity: 0.5; } }
+    }
+  }
+
+  // === QP Diagnostics Panel ===
+  .qp-diag-section {
+    @include glass-panel;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+
+    .qp-diag-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .qp-idle-msg {
+      font-size: 12px;
+      color: $text-dim;
+      opacity: 0.6;
+      text-align: center;
+      margin-top: 24px;
+    }
+
+    .qp-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      .qp-meta-label { color: $text-dim; }
+      .qp-meta-val { font-family: $font-family-mono; font-weight: 600; color: $text-main; }
+    }
+
+    .qp-signal-block {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: $radius-sm;
+      padding: 8px 10px;
+    }
+
+    .qp-signal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 3px;
+    }
+    .qp-sig-name {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: $text-dim;
+    }
+    .qp-sig-val {
+      font-size: 12px;
+      font-family: $font-family-mono;
+      font-weight: 700;
+      color: $text-main;
+    }
+    .qp-sig-desc {
+      font-size: 9px;
+      color: $text-dim;
+      opacity: 0.7;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+
+    .qp-bar-track {
+      height: 5px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      overflow: hidden;
+      .qp-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+      }
+    }
+    .qp-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8px;
+      color: $text-dim;
+      opacity: 0.5;
+      margin-top: 2px;
+    }
+
+    // HVAC plan sparkline
+    .qp-sparkline {
+      display: flex;
+      gap: 3px;
+      height: 50px;
+      align-items: flex-end;
+      margin-top: 6px;
+    }
+    .qp-spark-bar-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+    }
+    .qp-spark-bar {
+      width: 100%;
+      min-height: 4px;
+      border-radius: 2px 2px 0 0;
+      transition: height 0.25s ease;
+    }
+    .qp-spark-label {
+      font-size: 7px;
+      color: $text-dim;
+      opacity: 0.5;
+      margin-top: 2px;
+      white-space: nowrap;
+    }
   }
 
   .constraint-list {

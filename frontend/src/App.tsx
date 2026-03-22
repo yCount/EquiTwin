@@ -51,6 +51,11 @@ const App: React.FC = () => {
   // Use ref to track the actual active tab for immediate DOM updates
   const activeTabRef = React.useRef<string>(activeTab);
 
+  // Track whether we've ever received a valid token so the "Signing in..."
+  // overlay is only shown on the very first load, not on background refreshes.
+  const hasEverAuthenticatedRef = React.useRef(false);
+  if (accessToken) hasEverAuthenticatedRef.current = true;
+
   const login = useCallback(async () => {
     try {
       await authClient.signInSilent();
@@ -62,6 +67,14 @@ const App: React.FC = () => {
   useEffect(() => {
     void login();
   }, [login]);
+
+  // Refresh the token every 10 minutes so it never expires mid-session.
+  useEffect(() => {
+    const id = setInterval(() => {
+      authClient.signInSilent().catch(() => {/* silent failure is fine */});
+    }, 10 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [authClient]);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -147,7 +160,7 @@ const App: React.FC = () => {
 
   return (
     <div className={`app-root${theme === 'light' ? ' light-theme' : ''}`}>
-      {!accessToken && (
+      {!accessToken && !hasEverAuthenticatedRef.current && (
         <Flex justifyContent="center" style={{ height: "100%" }}>
           <div className="signin-content">
             <ProgressLinear indeterminate={true} labels={["Signing in..."]} />

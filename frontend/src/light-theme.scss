@@ -154,10 +154,10 @@ $lt-faint:   #94a3b8;        // tertiary / section labels
 
   // Status badges — 0.12 was invisible on white; raise to 0.18
   .status-badge {
-    &.ready, &.trained, &.good { background: rgba(16,185,129, 0.18) !important; }
+    &.ready, &.active, &.trained, &.good { background: rgba(16,185,129, 0.18) !important; }
     &.pending, &.training       { background: rgba(245,158,11, 0.18) !important; }
     &.error, &.critical, &.missing { background: rgba(239,68,68, 0.18) !important; }
-    &.outdated                  { background: rgba(58,169,214, 0.18) !important; }
+    &.outdated, &.external      { background: rgba(58,169,214, 0.18) !important; }
   }
 
   // TEXT — all explicit dark-mode white/grey color overrides
