@@ -24,7 +24,6 @@ const FEATURE_DEFS = [
   { key: "energy",      label: "Energy",      unit: "kW"  },
   { key: "temperature", label: "Temperature", unit: "°C"  },
   { key: "occupancy",   label: "Occupancy",   unit: "ppl" },
-  { key: "airquality",  label: "Air Quality", unit: "ppm" },
 ] as const;
 
 interface SimConfig {
@@ -34,11 +33,8 @@ interface SimConfig {
   ticks:         number;
   initTemp:      number;
   speed:         number;
-  co2Target:     number;    // ppm — CO2 reference for air quality cost
-  humidityTarget: number;   // %RH — kept for UI display
   // QP cost weight dials (backend applies multiplier; see app.py)
   wComfort:  number;  // 10–500  — actual = wComfort         (temperature tracking)
-  wAirqual:  number;  // 0–50    — actual = wAirqual  × 0.01 (CO2 tracking)
   wEnergy:   number;  // 0–100   — actual = wEnergy   × 5e-3 (energy cost)
   wSmooth:   number;  // 0–100   — actual = wSmooth   × 1e-5 (anti-oscillation)
   qTerminal: number;  // 1–15    — terminal horizon weight multiplier
@@ -55,8 +51,6 @@ interface SimTick {
   indoor_temp:        number;
   outdoor_temp:       number;
   setpoint:           number;
-  co2:                number;
-  humidity:           number;
   n_people:           number;
   hvac_w:             number;
   cumulative_kwh:     number;
@@ -71,7 +65,6 @@ interface SimTick {
   qp_iter?:           number | null;
   // Applied weights echoed back from backend (confirms tuning is live)
   applied_w_comfort?:  number;
-  applied_w_airqual?:  number;
   applied_w_energy?:   number;
   applied_w_smooth?:   number;
   applied_q_terminal?: number;
@@ -81,14 +74,10 @@ interface SimTick {
   u_max_w?:           number | null;   // outer-plan HVAC power cap [W]
   u_sequence_w?:      number[];        // optimised heating power plan [W]
   v_sequence?:        number[];        // optimised ventilation rate plan [%]
-  vent_rate_pct?:     number | null;   // current ventilation rate [%]
   t_pred_st?:         number[];        // ML+QP predicted T trajectory [°C]
   t_star_st?:         number[];        // T* setpoint trajectory [°C]
   // Active targets (always present from backend)
-  co2_target?:        number;
-  hum_target?:        number;
   // Outer plan LT refs
-  co2_ref_lt?:        Record<string, number> | null;
   t_star_lt?:         Record<string, number> | null;
   occupancy_ref_lt?:  Record<string, number> | null;
 }
@@ -96,8 +85,6 @@ interface SimTick {
 interface SimComplete {
   type:           "complete";
   final_temp:     number;
-  final_co2:      number;
-  final_humidity: number;
   total_kwh:      number;
   mpc_ticks:      number;
   total_ticks:    number;
@@ -110,10 +97,7 @@ interface ChartPoint {
   setpoint: number;
   hvac_kw:  number;
   t_star?:  number;   // occupancy-aware dynamic setpoint [°C]
-  co2?:          number;   // indoor CO2 [ppm]
   n_people?:     number;  // occupant count
-  humidity?:     number;  // indoor humidity [%]
-  vent_rate_pct?: number; // ventilation rate [%]
 }
 
 interface ControlTrajectoryPoint {
@@ -134,10 +118,7 @@ interface SignalWindowPoint {
   setpoint?: number | null;
   hvac_kw?: number | null;
   t_star?: number | null;
-  co2?: number | null;
   n_people?: number | null;
-  humidity?: number | null;
-  vent_rate_pct?: number | null;
 }
 
 type SimStatus = "idle" | "running" | "complete" | "stopped" | "error";
@@ -174,11 +155,8 @@ const ControllerTab: React.FC = () => {
     ticks:          96,
     initTemp:       14.0,
     speed:          0.05,
-    co2Target:      800,   // ppm — good air quality threshold (ASHRAE 62.1)
-    humidityTarget: 50,    // %RH — ASHRAE 55 thermal comfort centre
     // QP cost weight dials (defaults match module-level constants in hierarchical.py)
     wComfort:  120,   // W_comfort = 120   → effective ~42 (empty) – 168 (full)
-    wAirqual:  8,     // W_airqual = 0.08
     wEnergy:   15,    // W_energy  = 7.5e-2
     wSmooth:   20,    // W_smooth  = 20×1e-5 = 2e-4 (raised from 5 to dampen oscillation)
     qTerminal: 1.5,   // Q_terminal = 1.5 (reduced from 3.0 to soften end-horizon aggression)
@@ -259,10 +237,7 @@ const ControllerTab: React.FC = () => {
           initTemp:       simConfig.initTemp,
           speed:          simConfig.speed,
           startHour:      0.0,
-          co2Target:      simConfig.co2Target,
-          humidityTarget: simConfig.humidityTarget,
           wComfort:       simConfig.wComfort,
-          wAirqual:       simConfig.wAirqual,
           wEnergy:        simConfig.wEnergy,
           wSmooth:        simConfig.wSmooth,
           qTerminal:      simConfig.qTerminal,
@@ -298,10 +273,7 @@ const ControllerTab: React.FC = () => {
               setpoint: t.setpoint,
               hvac_kw:  +(t.hvac_w / 1000).toFixed(3),
               t_star:   t.t_star_now ?? t.setpoint,
-              co2:      t.co2,
               n_people: t.n_people,
-              humidity: t.humidity,
-              vent_rate_pct: t.vent_rate_pct ?? undefined,
             },
           ]);
         }
@@ -389,15 +361,8 @@ const ControllerTab: React.FC = () => {
       : [
           ...Array.from({ length: signalWindowPadding }, () => ({
             time: "",
-            indoor: null,
-            outdoor: null,
-            setpoint: null,
-            hvac_kw: null,
-            t_star: null,
-            co2: null,
             n_people: null,
-            humidity: null,
-            vent_rate_pct: null,
+            hvac_kw: null,
           })),
           ...chartData,
         ];
@@ -491,10 +456,6 @@ const ControllerTab: React.FC = () => {
                     hint: "18–26 °C — ASHRAE 55 comfort range" },
                   { label: "Night Setpoint",   key: "nightSetpoint",  min: 10,  max: 20,   step: 0.5,  fmt: (v: number) => `${v.toFixed(1)} °C`,
                     hint: "Frost-protection minimum during unoccupied hours" },
-                  { label: "CO₂ Target",       key: "co2Target",      min: 500, max: 1100, step: 50,   fmt: (v: number) => `${v} ppm`,
-                    hint: "≤800 ppm Good · ≤1000 ppm ASHRAE limit · >1000 ppm Poor" },
-                  { label: "Humidity Target",  key: "humidityTarget", min: 30,  max: 65,   step: 5,    fmt: (v: number) => `${v} %RH`,
-                    hint: "30–50 %RH Ideal (ASHRAE 55) · >60 %RH mold risk" },
                   { label: "Occupants",        key: "nOccupants",     min: 1,   max: 100,  step: 1,    fmt: (v: number) => `${v}`,
                     hint: undefined },
                   { label: "Duration",         key: "ticks",          min: 24,  max: 192,  step: 24,   fmt: (v: number) => `${v * 15 / 60} h`,
@@ -545,13 +506,6 @@ const ControllerTab: React.FC = () => {
                     min: 10, max: 500, step: 10,
                     fmt: (v: number) => `${v}`,
                     hint: "Temperature tracking aggressiveness — higher = chases setpoint harder",
-                  },
-                  {
-                    label: "Air Quality Weight",
-                    key:   "wAirqual" as keyof SimConfig,
-                    min: 0, max: 50, step: 1,
-                    fmt: (v: number) => `${v} (${(v * 0.01).toFixed(2)})`,
-                    hint: "CO₂ tracking via ventilation — higher = faster CO₂ response",
                   },
                   {
                     label: "Energy Cost",
@@ -664,14 +618,6 @@ const ControllerTab: React.FC = () => {
                           <div className="status-row">
                             <span className="label">T* (MPC)</span>
                             <span className="mono-val" style={{ color: "#a78bfa" }}>{latestTick.t_star_now.toFixed(1)} °C</span>
-                          </div>
-                        )}
-                        {latestTick.vent_rate_pct != null && (
-                          <div className="status-row">
-                            <span className="label">Vent.</span>
-                            <span className="mono-val" style={{ color: latestTick.vent_rate_pct > 12 ? "#60a5fa" : undefined }}>
-                              {latestTick.vent_rate_pct.toFixed(1)}%
-                            </span>
                           </div>
                         )}
                       </>
@@ -804,14 +750,14 @@ const ControllerTab: React.FC = () => {
             </div>
 
             <div className="kpi-hero-card">
-              <div className="kpi-label">CO₂ Level</div>
+              <div className="kpi-label">Occupancy</div>
               <div className="kpi-val">
-                {latestTick ? Math.round(latestTick.co2) : "--"}
-                <span className="unit">ppm</span>
+                {latestTick ? latestTick.n_people : "--"}
+                <span className="unit">ppl</span>
               </div>
               {latestTick && (
-                <div className={`kpi-trend ${latestTick.co2 > 2000 ? "down" : latestTick.co2 > 1000 ? "flat" : "up"}`}>
-                  {latestTick.co2 > 2000 ? "High" : latestTick.co2 > 1000 ? "Moderate" : "Good"}
+                <div className="kpi-trend flat">
+                  Occupancy driven
                 </div>
               )}
             </div>
@@ -970,14 +916,13 @@ const ControllerTab: React.FC = () => {
           {/*  Signals + QP Diagnostics Row  */}
           <div className="signals-qp-row">
 
-            {/*  CO2 + Occupancy Chart  */}
+            {/*  Occupancy + Energy Chart  */}
             <Section className="signals-chart-section">
               <div className="cw-header">
-                <h3>Environment Signals</h3>
+                <h3>Occupancy + Energy</h3>
                 <div className="cw-legend">
-                  <span><span className="line" style={{ background: "#f87171" }} /> CO₂ ppm</span>
-                  <span><span className="line" style={{ background: "#34d399" }} /> Occupants</span>
-                  <span><span className="line" style={{ background: "#60a5fa", opacity: 0.5 }} /> Humidity %</span>
+                  <span><span className="line occupancy" /> Occupants</span>
+                  <span><span className="area energy" /> HVAC kW</span>
                 </div>
               </div>
               <div className="signals-chart-body">
@@ -986,29 +931,21 @@ const ControllerTab: React.FC = () => {
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={signalChartData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="humFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%"   stopColor="#60a5fa" stopOpacity={0.15} />
-                          <stop offset="100%" stopColor="#60a5fa" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
                       <XAxis dataKey="time" stroke="rgba(255,255,255,0.25)" style={{ fontSize: 9 }} tickLine={false} minTickGap={30} />
-                      <YAxis yAxisId="co2"  stroke="rgba(255,255,255,0.25)" style={{ fontSize: 9 }} tickLine={false} axisLine={false} unit=" ppm" domain={[400, "auto"]} />
-                      <YAxis yAxisId="occ"  orientation="right" stroke="rgba(255,255,255,0.25)" style={{ fontSize: 9 }} tickLine={false} axisLine={false} unit=" ppl" />
+                      <YAxis yAxisId="occ" stroke="rgba(255,255,255,0.25)" style={{ fontSize: 9 }} tickLine={false} axisLine={false} unit=" ppl" domain={[0, "auto"]} />
+                      <YAxis yAxisId="power" orientation="right" stroke="rgba(255,255,255,0.25)" style={{ fontSize: 9 }} tickLine={false} axisLine={false} unit=" kW" />
                       <Tooltip
                         contentStyle={{ backgroundColor: "#0b0d12", border: "1px solid #333", fontSize: 11 }}
                         formatter={(val: unknown, name: string) => {
                           const n = Number(val);
-                          if (name === "co2")      return [`${Math.round(n)} ppm`, "CO₂"];
                           if (name === "n_people") return [`${n}`, "Occupants"];
-                          if (name === "humidity") return [`${n.toFixed(1)} %`, "Humidity"];
+                          if (name === "hvac_kw") return [`${n.toFixed(2)} kW`, "HVAC Power"];
                           return [val as string, name];
                         }}
                       />
-                      <Area  yAxisId="occ"  type="linear" dataKey="humidity"  fill="url(#humFill)" stroke="#60a5fa" strokeWidth={1} dot={false} connectNulls isAnimationActive animationDuration={LIVE_CHART_ANIMATION_MS} animationEasing="linear" />
-                      <Line  yAxisId="co2"  type="linear" dataKey="co2"       stroke="#f87171" strokeWidth={1.5} dot={false} connectNulls isAnimationActive animationDuration={LIVE_CHART_ANIMATION_MS} animationEasing="linear" />
-                      <Line  yAxisId="occ"  type="linear" dataKey="n_people"  stroke="#34d399" strokeWidth={2} dot={false} connectNulls isAnimationActive animationDuration={LIVE_CHART_ANIMATION_MS} animationEasing="linear" />
+                      <Line yAxisId="occ" type="linear" dataKey="n_people" stroke="#34d399" strokeWidth={2} dot={false} connectNulls isAnimationActive animationDuration={LIVE_CHART_ANIMATION_MS} animationEasing="linear" />
+                      <Area yAxisId="power" type="linear" dataKey="hvac_kw" fill="rgba(245, 158, 11, 0.15)" stroke="#f59e0b" strokeWidth={1.5} dot={false} connectNulls isAnimationActive animationDuration={LIVE_CHART_ANIMATION_MS} animationEasing="linear" />
                     </ComposedChart>
                   </ResponsiveContainer>
                 )}
@@ -1068,7 +1005,6 @@ const ControllerTab: React.FC = () => {
                         <span className="qp-meta-label">Active weights</span>
                         <span className="qp-meta-val mono" style={{ fontSize: "0.7rem", color: "#94a3b8" }}>
                           C={latestTick.applied_w_comfort?.toFixed(0)}
-                          {" · "}AQ={latestTick.applied_w_airqual?.toFixed(3)}
                           {" · "}E={latestTick.applied_w_energy?.toExponential(1)}
                           {" · "}S={latestTick.applied_w_smooth?.toExponential(1)}
                           {" · "}Qt={latestTick.applied_q_terminal?.toFixed(1)}
@@ -1117,50 +1053,6 @@ const ControllerTab: React.FC = () => {
                         <span>{((latestTick.applied_w_comfort ?? 200) * 0.25).toFixed(0)} (empty)</span>
                         <span>{((latestTick.applied_w_comfort ?? 200) * 1.8).toFixed(0)} (full)</span>
                       </div>
-                    </div>
-
-                    {/* Air quality weight — CO2 tracked via cost */}
-                    <div className="qp-signal-block">
-                      <div className="qp-signal-header">
-                        <span className="qp-sig-name">Air Quality (W_airqual)</span>
-                        <span className="qp-sig-val" style={{ color: "#f87171" }}>
-                          {latestTick.co2 != null
-                            ? latestTick.co2 <= (latestTick.co2_target ?? 800)
-                              ? "On target"
-                              : `+${Math.round(latestTick.co2 - (latestTick.co2_target ?? 800))} ppm over`
-                            : "--"}
-                        </span>
-                      </div>
-                      <div className="qp-sig-desc">
-                        CO₂ tracked to {latestTick.co2_target ?? 800} ppm via ventilation cost (W_airqual = 0.08)
-                      </div>
-                      <div className="qp-bar-track">
-                        <div className="qp-bar-fill" style={{
-                          width: `${Math.max(0, Math.min(100, ((latestTick.co2 ?? 420) - 420) / (1200 - 420) * 100))}%`,
-                          background: "#f87171"
-                        }} />
-                      </div>
-                      <div className="qp-bar-labels"><span>420 ppm (outdoor)</span><span>1200 ppm (poor)</span></div>
-                    </div>
-
-                    {/* Ventilation rate */}
-                    <div className="qp-signal-block">
-                      <div className="qp-signal-header">
-                        <span className="qp-sig-name">Ventilation Rate</span>
-                        <span className="qp-sig-val" style={{ color: "#60a5fa" }}>
-                          {latestTick.vent_rate_pct != null ? `${latestTick.vent_rate_pct.toFixed(1)}%` : "--"}
-                        </span>
-                      </div>
-                      <div className="qp-sig-desc">
-                        Independent control: standby ≈ 11.7% → max 40%. MPC raises vent when CO₂ is high.
-                      </div>
-                      <div className="qp-bar-track">
-                        <div className="qp-bar-fill" style={{
-                          width: `${Math.max(0, Math.min(100, (latestTick.vent_rate_pct ?? 11.7) / 40 * 100))}%`,
-                          background: "#60a5fa"
-                        }} />
-                      </div>
-                      <div className="qp-bar-labels"><span>0%</span><span>40% (max)</span></div>
                     </div>
 
                     {/* Energy budget */}
@@ -1305,8 +1197,7 @@ const ControllerTab: React.FC = () => {
               <div className="summary-card">
                 <div className="sc-header">Final State</div>
                 <div className="sc-stat"><span>Indoor Temp</span><strong>{simComplete.final_temp.toFixed(1)} °C</strong></div>
-                <div className="sc-stat"><span>CO₂</span><strong>{simComplete.final_co2} ppm</strong></div>
-                <div className="sc-stat"><span>Humidity</span><strong>{simComplete.final_humidity.toFixed(1)} %RH</strong></div>
+                <div className="sc-stat"><span>Occupancy</span><strong>{latestTick?.n_people ?? "--"}</strong></div>
               </div>
               <div className="summary-card">
                 <div className="sc-header">Energy</div>

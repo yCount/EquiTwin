@@ -660,10 +660,9 @@ class InnerMPC:
         # UI sends integer "dial" values; app.py scales them to real weights:
         #   W_smooth  = wSmooth  * 1e-5  (UI: 0–100, default 5  → 5e-5)
         #   W_energy  = wEnergy  * 1e-5  (UI: 0–100, default 30 → 3e-4)
-        #   W_airqual = wAirqual * 0.01  (UI: 0–50,  default 8  → 0.08)
         #   W_comfort and Q_terminal passed as-is
         W_comfort  = float(state.get("w_comfort",  _W_COMFORT))
-        W_airqual  = float(state.get("w_airqual",  _W_AIRQUAL))
+        W_airqual  = float(state.get("w_airqual",  0.0))
         W_energy   = float(state.get("w_energy",   _W_ENERGY))
         W_smooth   = float(state.get("w_smooth",   _W_SMOOTH))
         Q_terminal = float(state.get("q_terminal", _Q_TERMINAL))

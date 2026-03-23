@@ -691,15 +691,11 @@ async def simulation_ws(ws: WebSocket):
         n_occ       = int(cfg.get("nOccupants",    10))
         init_temp   = float(cfg.get("initTemp",    14.0))
         start_hour  = float(cfg.get("startHour",   0.0))
-        co2_target  = float(cfg.get("co2Target",   800.0))   # ppm — CO2 reference for QP air quality cost
-        hum_target  = float(cfg.get("humidityTarget", 50.0)) # %RH — kept for UI display
         # QP cost weight overrides (UI sends integer "dial" values; scaled here)
         #   wSmooth  × 1e-5 → W_smooth  (0–100 dial, default 20 → 2e-4)
         #   wEnergy  × 5e-3 → W_energy  (0–100 dial, default 15 → 7.5e-2)
-        #   wAirqual × 0.01 → W_airqual (0–50  dial, default 8  → 0.08)
         #   wComfort and qTerminal passed as-is
         w_comfort  = float(cfg.get("wComfort",  120.0))
-        w_airqual  = float(cfg.get("wAirqual",  8.0))   * 0.01
         w_energy   = float(cfg.get("wEnergy",   15.0))  * 5e-3
         w_smooth   = float(cfg.get("wSmooth",   20.0))  * 1e-5
         q_terminal = float(cfg.get("qTerminal", 1.5))
@@ -728,7 +724,7 @@ async def simulation_ws(ws: WebSocket):
             night_setpoint=night_sp,
             n_occupants=n_occ,
         )
-        house    = HouseState(indoor_temp=init_temp, co2=450.0, humidity=40.0)
+        house    = HouseState(indoor_temp=init_temp)
         sim_start = pd.Timestamp("2025-06-01", tz="UTC") + pd.Timedelta(hours=start_hour)
 
         # --- Build TickRunner for this simulation session.
@@ -807,12 +803,8 @@ async def simulation_ws(ws: WebSocket):
                             "temp":            house.indoor_temp,
                             "total_act_power": float(sensor_row.get("total_act_power", house.hvac_power_w + BASE_LOAD_W)),
                             "hvac_power_w":    float(house.hvac_power_w),
-                            "vent_rate":       float(house.vent_rate),
                             "heating_only":    heating_only,
-                            "co2_target":      co2_target,
-                            "hum_target":      hum_target,
                             "w_comfort":       w_comfort,
-                            "w_airqual":       w_airqual,
                             "w_energy":        w_energy,
                             "w_smooth":        w_smooth,
                             "q_terminal":      q_terminal,
@@ -851,8 +843,6 @@ async def simulation_ws(ws: WebSocket):
                     "indoor_temp":        round(house.indoor_temp, 1),
                     "outdoor_temp":       round(t_out, 1),
                     "setpoint":           round(sp, 1),
-                    "co2":                round(house.co2),
-                    "humidity":           round(house.humidity, 1),
                     "n_people":           int(n_people),
                     "hvac_w":             round(hvac_w),
                     "cumulative_kwh":     round(house.cumulative_kwh, 2),
@@ -861,8 +851,6 @@ async def simulation_ws(ws: WebSocket):
                     "temp_ref_lt":        None,
                     "error":              output.error if output else None,
                     # Active user targets (always present so UI can render reference lines)
-                    "co2_target":         round(co2_target),
-                    "hum_target":         round(hum_target, 1),
                 }
 
                 if mpc_active and output:
@@ -877,10 +865,6 @@ async def simulation_ws(ws: WebSocket):
                     if refs.get("temp_ref_lt"):
                         tick_data["temp_ref_lt"] = {
                             str(k): round(float(v), 1) for k, v in refs["temp_ref_lt"].items()
-                        }
-                    if refs.get("co2_ref_lt"):
-                        tick_data["co2_ref_lt"] = {
-                            str(k): round(float(v), 1) for k, v in refs["co2_ref_lt"].items()
                         }
                     if refs.get("t_star_lt"):
                         tick_data["t_star_lt"] = {
@@ -913,28 +897,20 @@ async def simulation_ws(ws: WebSocket):
                         tick_data["t_star_st"]     = t_star_all
                         # Echo back the actual weights used so UI can verify tuning is live
                         tick_data["applied_w_comfort"]  = inner_info.get("W_comfort")
-                        tick_data["applied_w_airqual"]  = inner_info.get("W_airqual")
                         tick_data["applied_w_energy"]   = inner_info.get("W_energy")
                         tick_data["applied_w_smooth"]   = inner_info.get("W_smooth")
                         tick_data["applied_q_terminal"] = inner_info.get("Q_terminal")
                     elif inner_info.get("solver") == "proportional_fallback":
                         # Surface the fallback reason so the user can diagnose
                         tick_data["qp_error"] = inner_info.get("qp_error") or inner_info.get("reason", "fallback")
-                    # Ventilation rate (available from both SLSQP and fallback)
-                    if output.inner_action.u.get("vent_rate") is not None:
-                        tick_data["vent_rate_pct"] = round(float(output.inner_action.u["vent_rate"]) * 100, 1)
 
                 await ws.send_json(tick_data)
 
                 # Advance physics AFTER sending so tick 0 shows the initial state
-                vent_rate = None
-                if mpc_active and output and output.inner_action.u.get("vent_rate") is not None:
-                    vent_rate = float(output.inner_action.u["vent_rate"])
                 house.step(
                     hvac_w=hvac_w, outdoor_temp=t_out,
                     n_people=n_people, temp_target=sp,
                     sunlight=sunlight,
-                    vent_rate=vent_rate,
                     heating_only=heating_only,
                 )
 
@@ -945,8 +921,6 @@ async def simulation_ws(ws: WebSocket):
             await ws.send_json({
                 "type":          "complete",
                 "final_temp":    round(house.indoor_temp, 1),
-                "final_co2":     round(house.co2),
-                "final_humidity": round(house.humidity, 1),
                 "total_kwh":     round(house.cumulative_kwh, 2),
                 "mpc_ticks":     mpc_tick_count,
                 "total_ticks":   ticks,
