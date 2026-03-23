@@ -893,8 +893,7 @@ const ControllerTab: React.FC = () => {
             <div className="cw-header">
               <h3>Control Trajectory</h3>
               <div className="cw-legend">
-                <span><span className="line temp" /> Indoor</span>
-                <span><span className="line" style={{ background: "#60a5fa", opacity: 0.7 }} /> Indoor Forecast</span>
+                <span><span className="line indoor" /> Indoor</span>
                 <span><span className="line outdoor" /> Outdoor</span>
                 <span><span className="line set" /> Mode Setpoint</span>
                 <span><span className="line tstar" /> T* (MPC)</span>

@@ -146,12 +146,22 @@
               display: flex; gap: 16px; font-size: 11px; color: $text-dim;
               span { display: flex; align-items: center; gap: 6px; }
               .line {
-                  width: 12px; height: 2px;
-                  &.temp    { background: $primary; }
-                  &.outdoor { border-top: 2px dashed #94a3b8; background: transparent; height: 0; }
-                  &.set     { border-top: 2px dashed $success; background: transparent; height: 0; }
+                  width: 12px; height: 0; border-top: 2px solid transparent;
+                  &.indoor   { border-top-color: #3b82f6; border-top-width: 2.5px; }
+                  &.forecast { border-top-color: #60a5fa; border-top-style: dashed; border-top-width: 2px; opacity: 0.95; }
+                  &.outdoor  { border-top-color: #94a3b8; border-top-style: dashed; border-top-width: 1px; }
+                  &.set      { border-top-color: #10b981; border-top-style: dashed; border-top-width: 1.5px; }
+                  &.tstar    { border-top-color: #a78bfa; border-top-style: dashed; border-top-width: 1.5px; }
               }
-              .area { width: 12px; height: 12px; border-radius: 2px; &.energy { background: rgba($warning, 0.5); } }
+              .area {
+                  width: 12px;
+                  height: 12px;
+                  border-radius: 2px;
+                  &.energy {
+                      background: linear-gradient(180deg, rgba($warning, 0.65), rgba($warning, 0.18));
+                      border: 1px solid rgba($warning, 0.7);
+                  }
+              }
           }
       }
       .cw-body { flex: 1; min-height: 0; }
