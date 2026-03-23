@@ -8,6 +8,12 @@ import "./ForecastTab.scss";
 import Topbar from "./components/Topbar";
 import RightSidebar, { SidebarSection } from "./components/RightSidebar";
 import MainContent, { ContentArea, Section } from "./components/MainContent";
+import {
+  TemperatureIcon,
+  EnergyIcon,
+  OccupancyIcon,
+  AirQualityIcon,
+} from "./components/Icons";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -90,10 +96,10 @@ const defaultProgress = (): TrainingProgress => ({
 // ─── Static config ────────────────────────────────────────────────────────────
 
 const FEATURE_CONFIG: Omit<ProcessModel, "status"|"statusMsg"|"bestModelType"|"r2"|"mae"|"rmse"|"mase"|"nRows"|"stHorizons"|"ltHorizons"|"hasQuantile"|"coverage">[] = [
-  { id: "temp-model",   featureKey: "temperature", name: "Indoor Temperature", featureLabel: <>&#127777;&#65039; Temp</>   },
-  { id: "energy-model", featureKey: "energy",      name: "Energy Load",        featureLabel: <>&#9889; Energy</>          },
-  { id: "occ-model",    featureKey: "occupancy",   name: "Occupancy Flow",     featureLabel: <>&#128101; Occupancy</>     },
-  { id: "airq-model",   featureKey: "airquality",  name: "Air Quality (CO2)",  featureLabel: <>&#128168; Air Quality</>  },
+  { id: "temp-model",   featureKey: "temperature", name: "Indoor Temperature", featureLabel: <TemperatureIcon className="feature-icon" />   },
+  { id: "energy-model", featureKey: "energy",      name: "Energy Load",        featureLabel: <EnergyIcon className="feature-icon" />          },
+  { id: "occ-model",    featureKey: "occupancy",   name: "Occupancy Flow",     featureLabel: <OccupancyIcon className="feature-icon" />     },
+  { id: "airq-model",   featureKey: "airquality",  name: "Air Quality (CO2)",  featureLabel: <AirQualityIcon className="feature-icon" />  },
 ];
 
 function makeDefaultModel(cfg: typeof FEATURE_CONFIG[0]): ProcessModel {
@@ -521,7 +527,6 @@ const ForecastTab: React.FC = () => {
             <div className="kpi-card detailed">
               <div className="kpi-top">
                 <div className="kpi-label">Total Samples</div>
-                <div className="kpi-icon default">&#128202;</div>
               </div>
               <div className="kpi-val">
                 {processModels.find(m => m.nRows)?.nRows?.toLocaleString() ?? "—"}
@@ -534,7 +539,6 @@ const ForecastTab: React.FC = () => {
             <div className="kpi-card detailed">
               <div className="kpi-top">
                 <div className="kpi-label">Models Trained</div>
-                <div className="kpi-icon success">&#129302;</div>
               </div>
               <div className="kpi-val">
                 {processModels.filter(m => m.stHorizons > 0).length}
@@ -573,7 +577,7 @@ const ForecastTab: React.FC = () => {
                     <>
                       <div className="card-header">
                         <div className="title-group">
-                          <div className="model-icon">{model.featureLabel}</div>
+                          <div className={`model-icon model-icon--${model.featureKey}`}>{model.featureLabel}</div>
                           <div className="title-text">
                             <h3>{model.name}</h3>
                             <div className="meta-row">

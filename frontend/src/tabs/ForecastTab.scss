@@ -137,10 +137,41 @@
 
       .title-group { display: flex; align-items: center; gap: 12px;
         .model-icon {
-          color: rgba($danger,0.9); background: rgba($danger,0.18);
+          color: $danger;
+          background: rgba($danger,0.18);
           border: 1px solid rgba($danger,0.25);
           width: 32px; height: 32px; border-radius: 6px;
           display: flex; align-items: center; justify-content: center;
+
+          svg {
+            width: 18px;
+            height: 18px;
+            display: block;
+          }
+        }
+
+        .model-icon--temperature {
+          color: $danger;
+          background: rgba($danger, 0.18);
+          border-color: rgba($danger, 0.28);
+        }
+
+        .model-icon--energy {
+          color: $warning;
+          background: rgba($warning, 0.18);
+          border-color: rgba($warning, 0.28);
+        }
+
+        .model-icon--occupancy {
+          color: $primary;
+          background: rgba($primary, 0.18);
+          border-color: rgba($primary, 0.28);
+        }
+
+        .model-icon--airquality {
+          color: $success;
+          background: rgba($success, 0.18);
+          border-color: rgba($success, 0.28);
         }
         .title-text { display: flex; flex-direction: column;
           h3 { font-size: 14px; font-weight: 600; color: $text-main; margin: 0; }
