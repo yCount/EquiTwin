@@ -13,9 +13,25 @@
   flex: 1;
   min-height: 0;
   position: relative;
+  isolation: isolate;
   
   // Ensure viewer canvas fits
   > div { height: 100%; }
+}
+
+@keyframes sensorGlowPulse {
+  0% {
+    transform: scale(0.96);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.65;
+  }
+  100% {
+    transform: scale(0.96);
+    opacity: 0.35;
+  }
 }
 
 // === SIDEBAR ELEMENTS ===
@@ -212,4 +228,184 @@
   
   .folder-icon { display: flex; align-items: center; }
   .folder-name { font-size: $font-size-sm; font-weight: $font-weight-medium; }
+}
+
+// 5. Sensor Popup Overlay
+.sensor-popup {
+  position: absolute;
+  top: $spacing-lg;
+  right: $spacing-lg;
+  width: min(360px, calc(100% - #{$spacing-xl}));
+  padding: $spacing-lg;
+  border-radius: $radius-lg;
+  background: linear-gradient(180deg, rgba(12, 16, 24, 0.96), rgba(8, 12, 18, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 12;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.14), transparent 42%);
+  }
+
+  &--occupancy {
+    border-color: rgba($primary, 0.32);
+    box-shadow:
+      0 24px 60px rgba(0, 0, 0, 0.42),
+      0 0 22px rgba($primary, 0.26),
+      0 0 0 1px rgba($primary, 0.12) inset;
+
+    .sensor-popup__glow {
+      background: radial-gradient(circle, rgba($primary, 0.92) 0%, rgba($primary, 0.3) 38%, transparent 70%);
+      box-shadow: 0 0 40px rgba($primary, 0.3);
+    }
+  }
+
+  &--room {
+    border-color: rgba($warning, 0.34);
+    box-shadow:
+      0 24px 60px rgba(0, 0, 0, 0.42),
+      0 0 22px rgba($warning, 0.26),
+      0 0 0 1px rgba($warning, 0.12) inset;
+
+    .sensor-popup__glow {
+      background: radial-gradient(circle, rgba($warning, 0.94) 0%, rgba($warning, 0.3) 38%, transparent 70%);
+      box-shadow: 0 0 40px rgba($warning, 0.3);
+    }
+  }
+
+  .sensor-popup__glow {
+    position: absolute;
+    top: -30px;
+    right: -36px;
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(6px);
+    animation: sensorGlowPulse 2.8s ease-in-out infinite;
+  }
+
+  .sensor-popup__header {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: $spacing-md;
+    margin-bottom: $spacing-md;
+  }
+
+  .sensor-popup__title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    h3 {
+      margin: 0;
+      font-size: $font-size-lg;
+      line-height: 1.1;
+      color: $text-main;
+    }
+  }
+
+  .sensor-popup__eyebrow {
+    font-size: 10px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: $text-dim;
+    font-weight: $font-weight-bold;
+  }
+
+  .sensor-popup__close {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: $text-main;
+    cursor: pointer;
+    line-height: 1;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform $transition-fast, background $transition-fast, border-color $transition-fast;
+
+    &:hover {
+      transform: scale(1.04);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+  }
+
+  .sensor-popup__body {
+    position: relative;
+    display: grid;
+    gap: $spacing-md;
+
+    &--stacked {
+      gap: $spacing-sm;
+    }
+  }
+
+  .sensor-popup__metric {
+    padding: $spacing-md;
+    border-radius: $radius-md;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .sensor-popup__metric-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: $text-dim;
+    font-weight: $font-weight-semibold;
+  }
+
+  .sensor-popup__metric-value-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .sensor-popup__metric-value {
+    font-family: $font-family-mono;
+    font-size: 28px;
+    line-height: 1;
+    font-weight: $font-weight-bold;
+    color: $text-main;
+    text-shadow: 0 0 16px rgba(255, 255, 255, 0.08);
+  }
+
+  .sensor-popup__metric-unit {
+    font-size: $font-size-sm;
+    color: $text-dim;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .sensor-popup__footer {
+    position: relative;
+    margin-top: $spacing-md;
+    font-size: 11px;
+    color: $text-dim;
+    word-break: break-all;
+
+    span {
+      color: $text-main;
+    }
+  }
 }
