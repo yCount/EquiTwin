@@ -70,7 +70,7 @@ interface HomeTabProps {
   onIModelAppInit: any;
 }
 
-const MODEL_ID_1 = "0x200000001c0";
+const MODEL_ID_1 = "0x200000001c2";
 const MODEL_ID_2 = "0x3000000008b";
 const HOME_SUMMARY_URL = "http://localhost:8000/api/home/summary";
 const HOME_POLL_MS = 5000;
