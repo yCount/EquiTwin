@@ -532,26 +532,6 @@ const ControllerTab: React.FC = () => {
               ))}
             </SidebarSection>
 
-            {/*  Optimization Objectives  */}
-            <SidebarSection title="Optimization Objectives">
-              <div className="weight-control">
-                <div className="wc-labels">
-                  <span>Comfort Priority</span>
-                  <span>Energy Savings</span>
-                </div>
-                <input
-                  type="range" min={0} max={1} step={0.1}
-                  value={comfortWeight}
-                  onChange={e => setComfortWeight(parseFloat(e.target.value))}
-                  className="balance-slider"
-                />
-                <div className="wc-values">
-                  <span className="c-val">{(comfortWeight * 100).toFixed(0)}%</span>
-                  <span className="e-val">{((1 - comfortWeight) * 100).toFixed(0)}%</span>
-                </div>
-              </div>
-            </SidebarSection>
-
             {/*  Controller Status  */}
             <SidebarSection title="Controller Status">
               <div className="mpc-status-box">
@@ -1190,75 +1170,6 @@ const ControllerTab: React.FC = () => {
             </Section>
 
           </div>
-
-          {/*  Scenarios / Summary  */}
-          {simStatus === "complete" && simComplete ? (
-            <div className="sim-summary-grid">
-              <div className="summary-card">
-                <div className="sc-header">Final State</div>
-                <div className="sc-stat"><span>Indoor Temp</span><strong>{simComplete.final_temp.toFixed(1)} °C</strong></div>
-                <div className="sc-stat"><span>Occupancy</span><strong>{latestTick?.n_people ?? "--"}</strong></div>
-              </div>
-              <div className="summary-card">
-                <div className="sc-header">Energy</div>
-                <div className="sc-stat"><span>Total</span><strong>{simComplete.total_kwh.toFixed(2)} kWh</strong></div>
-                <div className="sc-stat">
-                  <span>Avg Power</span>
-                  <strong>{(simComplete.total_kwh / (simComplete.total_ticks * 0.25)).toFixed(2)} kW</strong>
-                </div>
-              </div>
-              <div className="summary-card">
-                <div className="sc-header">MPC Performance</div>
-                <div className="sc-stat">
-                  <span>Active Ticks</span>
-                  <strong>{simComplete.mpc_ticks} / {simComplete.total_ticks}</strong>
-                </div>
-                <div className="sc-stat">
-                  <span>Coverage</span>
-                  <strong className={simComplete.mpc_ticks > 0 ? "good" : "warn"}>
-                    {Math.round(simComplete.mpc_ticks / simComplete.total_ticks * 100)}%
-                  </strong>
-                </div>
-                <button className="btn btn-secondary btn-sm full-width mt-sm" onClick={startSimulation}>
-                  Run Again
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="scenario-grid">
-              <div className="scenario-card active">
-                <div className="sc-header">Current Config</div>
-                <div className="sc-stat"><span>Work Setpoint</span><strong>{simConfig.setpoint.toFixed(1)} °C</strong></div>
-                <div className="sc-stat"><span>Occupants</span><strong>{simConfig.nOccupants}</strong></div>
-                <div className="sc-stat"><span>Duration</span><strong>{simConfig.ticks * 15 / 60} h</strong></div>
-              </div>
-              <div className="scenario-card alt">
-                <div className="sc-header">Energy Saver</div>
-                <div className="sc-stat"><span>Setpoint</span><strong className="warn">{(simConfig.setpoint - 1).toFixed(1)} °C</strong></div>
-                <div className="sc-stat"><span>Est. Savings</span><strong className="good">~15%</strong></div>
-                <button
-                  className="btn btn-secondary btn-sm full-width mt-sm"
-                  onClick={() => setSimConfig(c => ({ ...c, setpoint: +(c.setpoint - 1).toFixed(1) }))}
-                  disabled={isRunning}
-                >
-                  Apply
-                </button>
-              </div>
-              <div className="scenario-card alt">
-                <div className="sc-header">Max Comfort</div>
-                <div className="sc-stat"><span>Setpoint</span><strong className="good">{(simConfig.setpoint + 1).toFixed(1)} °C</strong></div>
-                <div className="sc-stat"><span>Est. Cost</span><strong className="warn">+12%</strong></div>
-                <button
-                  className="btn btn-secondary btn-sm full-width mt-sm"
-                  onClick={() => setSimConfig(c => ({ ...c, setpoint: +(c.setpoint + 1).toFixed(1) }))}
-                  disabled={isRunning}
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
-          )}
-
         </ContentArea>
       </MainContent>
     </div>
