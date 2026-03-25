@@ -67,6 +67,7 @@ async def lifespan(app: FastAPI):
     app.state.forecast = None
     app.state.ingestion = None
     app.state.ingestion_pollers = []
+    app.state.continuous_trainer = None
 
     try:
         from equitwin_dnm_integration_point import build_forecast_service, warmup_from_db
@@ -93,9 +94,28 @@ async def lifespan(app: FastAPI):
 
     if db_url:
         try:
+            from training.continuous import build_continuous_trainer
+            continuous_trainer = build_continuous_trainer(
+                db_url=db_url,
+                artifacts_root=artifacts_root,
+                forecast_service=app.state.forecast,
+            )
+            app.state.continuous_trainer = continuous_trainer
+            if continuous_trainer:
+                print(
+                    f"[EquiTwin] Continuous training enabled "
+                    f"(mode={continuous_trainer._mode}, "
+                    f"interval={continuous_trainer._interval_rows} rows, "
+                    f"features={list(continuous_trainer._features)})"
+                )
+        except Exception as exc:
+            print(f"[EquiTwin] ContinuousTrainer init failed: {exc}")
+
+        try:
             app.state.ingestion = IngestionService(
                 _get_db_engine(),
                 forecast_service=app.state.forecast,
+                continuous_trainer=app.state.continuous_trainer,
                 default_group_id=os.environ.get("INGESTION_GROUP_ID", "1"),
             )
             app.state.ingestion_pollers = start_optional_pollers(app.state.ingestion)
@@ -149,6 +169,17 @@ def kpis():
 @app.get("/api/ingestion/status")
 def ingestion_status(svc: IngestionService = Depends(get_ingestion_service)):
     return svc.status()
+
+
+@app.get("/api/continuous-training/status")
+def continuous_training_status(request: Request):
+    trainer = getattr(request.app.state, "continuous_trainer", None)
+    if trainer is None:
+        return {
+            "enabled": False,
+            "reason": "Set CONTINUOUS_TRAINING_ENABLED=1 and DATABASE_URL to activate.",
+        }
+    return trainer.status()
 
 
 @app.get("/api/home/summary")

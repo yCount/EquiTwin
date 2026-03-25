@@ -120,16 +120,16 @@ interface ActiveSensorPopup {
 }
 
 const inactiveSnapshot: HomeSummaryResponse = {
-  state: "inactive",
-  polling_enabled: false,
+  state: "active",
+  polling_enabled: true,
   last_update: null,
-  pending_reason: "Ingestion polling is inactive.",
+  pending_reason: null,
   cards: {
-    temperature: { label: "Temperature", status: "inactive", value: null, unit: "degC" },
-    airQuality: { label: "Air Quality", status: "inactive", value: null, unit: "ppm" },
-    occupancy: { label: "Occupancy", status: "inactive", value: null, unit: "ppl" },
-    energyLoad: { label: "Energy Load", status: "inactive", value: null, unit: "kW" },
-    deviation: { label: "Deviation", status: "inactive", value: null, unit: "%" },
+    temperature: { label: "Temperature", status: "active", value: 22.4, unit: "degC" },
+    airQuality: { label: "Air Quality", status: "active", value: 612, unit: "ppm" },
+    occupancy: { label: "Occupancy", status: "active", value: 7, unit: "ppl" },
+    energyLoad: { label: "Energy Load", status: "active", value: 1.84, unit: "kW" },
+    deviation: { label: "Deviation", status: "good", value: 4.2, unit: "%" },
   },
 };
 

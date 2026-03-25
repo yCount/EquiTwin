@@ -215,10 +215,12 @@ class IngestionService:
         engine: Engine,
         *,
         forecast_service: Any = None,
+        continuous_trainer: Any = None,
         default_group_id: str = "1",
     ) -> None:
         self.engine = engine
         self.forecast_service = forecast_service
+        self.continuous_trainer = continuous_trainer
         self.default_group_id = str(default_group_id)
         self.metadata = MetaData()
         self._define_tables(self.metadata)
@@ -651,14 +653,19 @@ class IngestionService:
         return row
 
     def _push_forecast(self, match_row: Mapping[str, Any]) -> None:
-        if self.forecast_service is None:
-            return
-        try:
-            from equitwin_dnm_integration_point import matches_row_to_ingest
+        if self.forecast_service is not None:
+            try:
+                from equitwin_dnm_integration_point import matches_row_to_ingest
 
-            self.forecast_service.ingest(matches_row_to_ingest(dict(match_row)))
-        except Exception as exc:
-            print(f"[EquiTwin] Live ingestion did not reach ForecastService: {exc}")
+                self.forecast_service.ingest(matches_row_to_ingest(dict(match_row)))
+            except Exception as exc:
+                print(f"[EquiTwin] Live ingestion did not reach ForecastService: {exc}")
+
+        if self.continuous_trainer is not None:
+            try:
+                self.continuous_trainer.notify()
+            except Exception as exc:
+                print(f"[EquiTwin] ContinuousTrainer.notify() failed: {exc}")
 
     def ingest_air_quality_payload(self, body: Mapping[str, Any]) -> Dict[str, Any]:
         payload = body.get("msg") if isinstance(body.get("msg"), Mapping) else body

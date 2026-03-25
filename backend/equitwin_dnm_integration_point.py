@@ -224,6 +224,53 @@ class ForecastService:
         """Names of features for which model banks were successfully loaded."""
         return list(self._stack.predictors.keys())
 
+    def reload_models(self) -> None:
+        """
+        Hot-reload predictor banks from disk after a continuous training run.
+
+        Rebuilds only the HorizonModelBank objects (ST + LT per feature) from
+        the artifacts directory and swaps them into the live coordinator.
+        """
+        from equitwin_integration.bootstrap import (
+            _available_horizons,
+            build_equitwin_stack,
+        )
+        from equitwin_forecasting.predictors import (
+            HorizonModelBank,
+            PredictorSpec,
+            TwoLevelPredictor,
+        )
+        from pathlib import Path
+
+        cfg   = self._stack.cfg
+        hz    = self._stack.hz
+        root  = Path(cfg.artifacts_root)
+
+        new_predictors = {}
+        for fname, feat_cfg in self._stack.feature_cfgs.items():
+            st_available = _available_horizons(root, fname, "st", hz.st_horizons)
+            lt_available = _available_horizons(root, fname, "lt", hz.lt_horizons)
+            if not st_available or not lt_available:
+                logger.warning(
+                    "reload_models: skipping '%s' (missing ST or LT artifacts).", fname
+                )
+                continue
+            st_spec = PredictorSpec(str(root), fname, "st")
+            lt_spec = PredictorSpec(str(root), fname, "lt")
+            new_predictors[fname] = TwoLevelPredictor(
+                feature_name=fname,
+                st=HorizonModelBank(st_spec, horizons=st_available),
+                lt=HorizonModelBank(lt_spec, horizons=lt_available),
+            )
+
+        # Atomically swap the predictor dicts
+        self._stack.predictors = new_predictors
+        self._stack.coordinator.predictors = new_predictors
+        logger.info(
+            "reload_models: reloaded features %s from '%s'.",
+            list(new_predictors.keys()), cfg.artifacts_root,
+        )
+
     def forecast_summary(self, bundle: ForecastBundle) -> Dict[str, Any]:
         """
         Return a JSON-serialisable summary of a ForecastBundle.
