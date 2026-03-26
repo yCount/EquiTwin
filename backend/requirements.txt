@@ -1,0 +1,9 @@
+fastapi
+joblib
+matplotlib
+numpy
+pandas
+pydantic
+scikit-learn
+sqlalchemy
+starlette
