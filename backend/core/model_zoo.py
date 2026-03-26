@@ -57,10 +57,6 @@ def make_preprocessor(cat_cols: List[str], num_cols: List[str], spec: Preprocess
 def regression_candidates(random_state: int = 42) -> Dict[str, Any]:
     """
     Return all available point-forecast regression candidates.
-
-    LightGBM ("lgbm") and XGBoost ("xgb") are included only when those
-    packages are installed.  Both typically outperform sklearn's HGB on
-    real-world tabular data with less tuning.
     """
     kernel = ConstantKernel(1.0) * RBF(length_scale=1.0) + WhiteKernel(noise_level=1.0)
     cands: Dict[str, Any] = {
@@ -75,16 +71,16 @@ def regression_candidates(random_state: int = 42) -> Dict[str, Any]:
         "gp":     GaussianProcessRegressor(kernel=kernel, alpha=1e-6,
                                            normalize_y=True, random_state=random_state),
     }
-    if _HAS_LGBM:
-        cands["lgbm"] = _LGBMRegressor(
-            n_estimators=300, learning_rate=0.05, num_leaves=63,
-            random_state=random_state, n_jobs=-1, verbose=-1,
-        )
-    if _HAS_XGB:
-        cands["xgb"] = _XGBRegressor(
-            n_estimators=300, learning_rate=0.05, max_depth=6,
-            random_state=random_state, n_jobs=-1, verbosity=0,
-        )
+    # if _HAS_LGBM:
+    #     cands["lgbm"] = _LGBMRegressor(
+    #         n_estimators=300, learning_rate=0.05, num_leaves=63,
+    #         random_state=random_state, n_jobs=-1, verbose=-1,
+    #     )
+    # if _HAS_XGB:
+    #     cands["xgb"] = _XGBRegressor(
+    #         n_estimators=300, learning_rate=0.05, max_depth=6,
+    #         random_state=random_state, n_jobs=-1, verbosity=0,
+    #     )
     return cands
 
 
@@ -125,11 +121,4 @@ def make_voting_ensemble(models: List[Tuple[str, Any]]) -> Any:
 
 
 def make_multioutput_model(base_model: Any) -> MultiOutputRegressor:
-    """
-    Wrap any sklearn regressor in MultiOutputRegressor so it can be trained
-    to predict all horizons jointly in a single fit() call.
-
-    This cuts the number of fit() calls from n_horizons to 1, and allows the
-    model to share representations across horizons.
-    """
     return MultiOutputRegressor(base_model, n_jobs=-1)

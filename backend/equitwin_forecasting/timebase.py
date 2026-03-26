@@ -17,8 +17,8 @@ class HorizonConfig:
     lt_horizons: List[int]
 
 def default_horizons() -> HorizonConfig:
-    # Reasonable defaults:
-    # - Inner MPC: ~2 hours ahead at 15-min resolution -> 8 steps
+    # Defaults:
+    # - Inner MPC: 2 hours ahead at 15-min resolution -> 8 steps
     # - Outer MPC: 24 hours ahead at 4-hour resolution -> 6 steps
     return HorizonConfig(
         st_horizons=[1,2,3,4,6,8],

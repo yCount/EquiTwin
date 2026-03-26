@@ -1,12 +1,6 @@
 """
 Walkthrough of the EquiTwin integration.
 
-Replaces examples/trainless_tick_demo.py with a version that uses the
-bootstrap / tick_runner wiring and clearly shows each stage.
-
-Assumes trained artifacts already exist under ./artifacts (st_h*/ and lt_h*/ layout).
-If you only have old-style h<N>/ dirs, run migrate_artifacts.py first:
-
     python migrate_artifacts.py --execute
 
 Then run this demo:

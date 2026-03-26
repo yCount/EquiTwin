@@ -1,7 +1,5 @@
 """
-Open-Meteo weather client for EquiTwin MPC integration.
-
-Provides current conditions, hourly forecast, and historical data to accompany training.
+Open-Meteo weather client integration.
 """
 from __future__ import annotations
 
@@ -17,8 +15,6 @@ from urllib.request import urlopen
 
 import pandas as pd
 
-
-# WMO weather code - closed category string
 
 _WMO_MAP = {
     0:  "sunny",
@@ -42,28 +38,22 @@ for _c in [95, 96, 99]:
 def _wmo_to_condition(code: int) -> str:
     """
     Map weather interpretation code to a fixed categorical string.
-
-    The set is closed (7 categories + fallback "cloudy") so OneHotEncoder
-    never encounters an unknown category.
     """
     return _WMO_MAP.get(int(code), "cloudy")
 
-# Data container
-
-@dataclass
+96@dataclass
 class WeatherSnapshot:
     """Instantaneous weather observation or forecast."""
-    outdoor_temp: float       # °C  (float("nan") on API failure)
+    outdoor_temp: float       # C  (float("nan") on API failure)
     weather_condition: str    # "sunny"|"mostly_sunny"|"cloudy"|"fog"|"rain"|"snow"|"thunderstorm"
-    sunlight: float           # W/m² shortwave radiation (float("nan") on failure)
-    timestamp: datetime       # UTC-aware
+    sunlight: float           # W/m^2 shortwave radiation (float("nan") on failure)
+    timestamp: datetime       # UTC
 
 
 def _nan_snapshot(ts: Optional[datetime] = None) -> WeatherSnapshot:
-    """Graceful-degradation snapshot with NaN numerics."""
     return WeatherSnapshot(
         outdoor_temp=float("nan"),
-        weather_condition="cloudy",   # most common; OHE will have seen it during training
+        weather_condition="cloudy",
         sunlight=float("nan"),
         timestamp=ts or datetime.now(timezone.utc),
     )

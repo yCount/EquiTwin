@@ -18,7 +18,7 @@ from equitwin_mpc.types import InnerAction, OuterPlan
 from equitwin_integration.bootstrap import EquiTwinConfig, EquiTwinStack
 
 _DT_H = 15.0 / 60.0   # 0.25 h per tick
-_BLOCK_TICKS = 16      # 16 × 15 min = 4 h outer block
+_BLOCK_TICKS = 16      # 16 x 15 min = 4 h outer block
 _BASE_LOAD_W = 380.0   # must stay in sync with equitwin_mpc/hierarchical.py
 
 # Config
@@ -31,9 +31,7 @@ class TickRunnerConfig:
     group_id      : sensor_id to use when pulling forecasts (single-zone default).
     temp_target   : Default comfort temperature setpoint [°C]. Can be overridden
                     per tick via the 'state' dict.
-    min_warm_rows : Deprecated compatibility field. Forecasts are attempted
-                    immediately; missing lags are handled by the predictor
-                    pipelines and LT forecasts degrade gracefully.
+    min_warm_rows : Deprecated compatibility field.
     """
     group_id: str = "1"
     temp_target: float = 21.0
@@ -134,9 +132,7 @@ class TickRunner:
                 weather_forecast = self._weather_client.get_forecast(hours=24)
             outer_plan = self._outer_mpc.solve(bundle, eff_state, weather_forecast=weather_forecast)
 
-            # Bug 1 fix: compute remaining HVAC+vent energy budget for the current block.
-            # Subtract BASE_LOAD_W first (always-on load is not controlled by MPC).
-            # energy_budget_lt[1] = total avg power (W) for next 4h block including base load.
+            # Bug fix: compute remaining HVAC+vent energy budget for the current block.
             energy_budget_lt = outer_plan.refs.get("energy_budget_lt") or {}
             if energy_budget_lt and 1 in energy_budget_lt:
                 hvac_avg_w = max(0.0, float(energy_budget_lt[1]) - _BASE_LOAD_W)
@@ -147,7 +143,7 @@ class TickRunner:
             eff_state["outer_block_phase"] = self._steps_in_block
             inner_action = self._inner_mpc.solve(bundle, eff_state, outer_plan)
 
-            # Bug 1 fix: accumulate energy consumed; reset counter at block boundary.
+            # Bug fix: accumulate energy consumed; reset counter at block boundary.
             hvac_w = float(inner_action.u.get("hvac_power_w", 0.0))
             vent_w = float(inner_action.u.get("vent_fan_w", 0.0))
             self._block_energy_consumed_wh += (hvac_w + vent_w) * _DT_H
@@ -188,8 +184,7 @@ def _enrich_with_weather(
     Return a copy of sensor_row with current weather values merged in.
 
     Calls weather_client.get_current() (15-min cached) to obtain outdoor_temp,
-    weather_condition, and sunlight.  Always sets all three keys so the buffer
-    never receives a row that is missing weather columns.
+    weather_condition, and sunlight.
 
     If weather_client is None or the call raises, NaN / "cloudy" defaults are
     used — the buffer stores them and the sklearn SimpleImputer absorbs them.

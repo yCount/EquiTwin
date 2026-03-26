@@ -24,7 +24,7 @@ class FeatureSpec:
     # During inference: populated from WeatherClient.get_forecast().
     # Only consumed by build_features_longterm() - ST ignores the Lead.
     lead_cols: Sequence[str] = ()
-    leads: Sequence[int] = ()     # lead steps in LT-block units (4h each)
+    leads: Sequence[int] = ()     # lead steps in LT-block (4h)
 
 def add_time_features(df: pd.DataFrame, ts_col: str) -> pd.DataFrame:
     out = df.copy()
@@ -97,11 +97,6 @@ def add_lead_features(
 
     col_lead1 = value at t+1 block, col_lead2 = t+2 ...
 
-    During LT training these are actual future values - a valid oracle proxy
-    for the weather forecast that would be available at inference time.
-    The model learns to exploit known-future weather; at inference the
-    FeatureBuffer4h populates them from WeatherClient.get_forecast().
-
     Rows at the end of the series that have no future data get NaN.
     """
     if not lead_cols or not leads:
@@ -160,7 +155,7 @@ def build_features_longterm(
     lt_lags: Sequence[int] = (1,2,3),
 ) -> pd.DataFrame:
     """
-    Build features at a long-term cadence by aggregating the raw (typically 15m) data
+    Build features at a long-term cadence by aggregating the raw (15m) data
     into fixed blocks (default: 4 hours = 240 minutes).
 
     Output schema matches `FeatureBuffer4h`:

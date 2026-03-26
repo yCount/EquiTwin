@@ -7,7 +7,7 @@ Sensor types:
   sensor_type_id=5  - air-quality  (NORMAL_AQ)
 
 Steps applied by 'preprocess_raw_table()'
--------------------------------------------
+---
 1. Numeric coercion   -=object-dtype columns that should be numeric are cast
                          with pd.to_numeric(errors='coerce').
 2. Sensor-ID fill     = NULL sensor_id on occupancy rows is borrowed from
@@ -29,9 +29,8 @@ import pandas as pd
 from typing import List, Optional
 
 
-# Constants
+# CONSTANTS
 
-# Event-type strings that indicate an occupancy-sensor row.
 _OCCUPANCY_EVENTS: frozenset = frozenset({
     "NO_MOVEMENT",
     "EXIT_DETECTED",
@@ -44,7 +43,6 @@ _OCCUPANCY_EVENTS: frozenset = frozenset({
 _ENERGY_EVENTS: frozenset = frozenset({"NORMAL_EM"})
 _AQ_EVENTS:     frozenset = frozenset({"NORMAL_AQ"})
 
-# Columns that should be numeric but may arrive as object/varchar.
 _NUMERIC_COLS: List[str] = [
     # Energy meter
     "total_act_power", "total_current", "total_aprt_power",
@@ -72,23 +70,10 @@ _FFILL_COLS: List[str] = [
     "num_targets", "entries", "exits",
 ]
 
-# Step 1 – numeric coercion
-
 def coerce_numeric(
     df: pd.DataFrame,
     cols: Optional[List[str]] = None,
 ) -> pd.DataFrame:
-    """
-    Cast object-dtype columns to float64 using pd.to_numeric(errors='coerce').
-
-    Only columns that are *currently* object/string dtype are touched; columns
-    already numeric are left unchanged.
-
-    Parameters
-    ----------
-    df   : Input DataFrame (not modified in place).
-    cols : Columns to attempt coercion on.  Defaults to ``_NUMERIC_COLS``.
-    """
     out = df.copy()
     targets = cols if cols is not None else _NUMERIC_COLS
     for c in targets:
@@ -96,20 +81,9 @@ def coerce_numeric(
             out[c] = pd.to_numeric(out[c], errors="coerce")
     return out
 
-
-# Step 2 – sensor-ID normalisation
-
 def fill_sensor_id(df: pd.DataFrame) -> pd.DataFrame:
     """
     Fill NULL "sensor_id" values from alternative device-identifier columns.
-
-    Occupancy rows often store the device MAC in a column called ``device_id``
-    or ``mac_address`` while ``sensor_id`` is left NULL.  This function tries
-    a list of candidate column names and copies the first non-NULL value found.
-
-    If sensor_id is still NULL after all candidates are exhausted, the rows
-    are tagged with a synthetic id "occ_default" so that groupby-based lag
-    features are at least computed consistently.
     """
     if "sensor_id" not in df.columns:
         return df
@@ -143,8 +117,6 @@ def fill_sensor_id(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-# Step 3 – occupancy num_targets derivation
-
 def compute_occupancy_num_targets(
     df: pd.DataFrame,
     *,
@@ -152,27 +124,16 @@ def compute_occupancy_num_targets(
     group_col: str = "sensor_id",
 ) -> pd.DataFrame:
     """
-    Populate ``num_targets`` for occupancy sensor rows using a three-step strategy.
+    Populate num_targets for occupancy sensor rows using a three-step strategy.
 
-    Step A: VARCHAR coerce
-        If ``num_targets`` is stored as a text column (e.g. the string "18"),
-        ``pd.to_numeric`` converts it to 18.0.  This is the most common case
-        when the occupancy sensor embeds the person count in a varchar field.
+    VARCHAR coerce
+        If num_targets is stored as a text column
 
-    Step B: cumulative entries / exits (daily reset)
-        If ``num_targets`` is still all-NULL for occupancy rows after step A,
-        compute a running occupancy count per sensor group **per calendar day**:
-            num_targets = cumsum(entries) - cumsum(exits), clipped ≥ 0.
-        The cumulation resets to zero at the start of each UTC calendar day so
-        that undetected exits (e.g. people leaving through emergency exits or
-        tail-gating) do not cause the count to drift upward indefinitely across
-        multiple days.  By midnight the building is empty, so starting each day
-        from zero is the correct prior.
-        ``entries`` and ``exits`` are also coerced to numeric first.
+    cumulative entries / exits (daily reset)
+        Plus, ``entries`` and ``exits`` are also coerced to numeric first.
 
-    Step C: forward-fill
-        Any remaining NaN values in ``num_targets`` (within occupancy rows)
-        are forward-filled so that lag features can be computed.
+    forward-fill
+        Any remaining NaN values in ``num_targets`` (within occupancy rows) are forward-filled.
     """
     out = df.copy()
 
@@ -185,14 +146,14 @@ def compute_occupancy_num_targets(
     if not occ_mask.any():
         return out
 
-    # Step A: coerce num_targets to float
+    # coerce num_targets to float
     if "num_targets" not in out.columns:
         out["num_targets"] = np.nan
     out["num_targets"] = pd.to_numeric(out["num_targets"], errors="coerce")
 
     occ_idx = out.index[occ_mask]
 
-    # Step B: derive from entries/exits if still all-null
+    # derive from entries/exits if still all-null
     if out.loc[occ_idx, "num_targets"].isna().all():
         for col in ("entries", "exits"):
             if col in out.columns:
@@ -207,8 +168,6 @@ def compute_occupancy_num_targets(
         if has_entries and has_exits:
             occ_df = out.loc[occ_idx].sort_values(ts_col).copy()
 
-            # Calendar-day key: truncate timestamp to UTC midnight so the
-            # cumulative count resets to 0 at the start of each day.
             occ_df["_occ_day"] = (
                 pd.to_datetime(occ_df[ts_col], utc=True, errors="coerce")
                 .dt.normalize()
@@ -220,10 +179,10 @@ def compute_occupancy_num_targets(
             )
 
             if grp_available:
-                # Group by (sensor, day) → cumsum resets every day per sensor
+                # Group by (sensor, day) to cumsum resets every day per sensor
                 g = occ_df.groupby([group_col, "_occ_day"], sort=False)
             else:
-                # Group by day only → still resets daily even without sensor grouping
+                # Group by day only to still resets daily even without sensor grouping
                 g = occ_df.groupby("_occ_day", sort=False)
 
             net = (
@@ -233,7 +192,7 @@ def compute_occupancy_num_targets(
             # Write back in the sorted order
             out.loc[occ_df.index, "num_targets"] = net.values
 
-    # Step C: forward-fill within each sensor group
+    # forward-fill within each sensor group
     out = out.sort_values(ts_col)
 
     if group_col in out.columns and out[group_col].notna().any():
@@ -246,9 +205,6 @@ def compute_occupancy_num_targets(
 
     return out
 
-
-# Step 4 cross-sensor forward-fill
-
 def cross_sensor_ffill(
     df: pd.DataFrame,
     *,
@@ -257,27 +213,17 @@ def cross_sensor_ffill(
     max_gap_minutes: Optional[int] = None,
 ) -> pd.DataFrame:
     """
-    Forward-fill sensor readings across row types so that occupancy rows
-    inherit the most-recent AQ reading, and energy rows inherit the
-    most-recent occupancy count, etc.
-
-    Rows are sorted by timestamp before filling; only forward propagation is
-    used so there is no future data leakage.
-
     Parameters
-    ----------
+    ---
     df              : Input DataFrame.
     ts_col          : Name of the timestamp column.
-    cols            : Columns to forward-fill.  Defaults to ``_FFILL_COLS``.
+    cols            : Columns to forward-fill.
     max_gap_minutes : If given, NaN is reintroduced when the gap to the last
-                      known value exceeds this many minutes.  Useful to avoid
-                      propagating stale data from hours ago.
-                      None (default) = no gap limit.
+                      known value exceeds this many minutes.
     """
     ffill_cols = cols if cols is not None else _FFILL_COLS
     out = df.sort_values(ts_col).copy()
 
-    # Coerce to numeric first so that string NULLs become real NaN
     for c in ffill_cols:
         if c in out.columns and out[c].dtype == object:
             out[c] = pd.to_numeric(out[c], errors="coerce")
@@ -293,8 +239,7 @@ def cross_sensor_ffill(
 
         if max_gap_minutes is not None:
             # Mask positions where the cumulative gap since last non-NaN
-            # exceeds max_gap_minutes.  Simple approach: find runs of NaN
-            # longer than the threshold.
+            # exceeds max_gap_minutes. 
             was_nan = out[c].isna()
             # Cumulative gap resets at each non-NaN value
             cum_gap = gap.copy()
@@ -307,7 +252,6 @@ def cross_sensor_ffill(
 
     return out
 
-# Columns that should NOT be outlier-clipped (counts, IDs, flags).
 _NO_CLIP_COLS: frozenset = frozenset({
     "entries", "exits", "num_targets", "sensor_id",
     "quality_score", "battery_v",
@@ -322,15 +266,7 @@ def clip_outliers_iqr(
     k: float = 3.0,
 ) -> pd.DataFrame:
     """
-    Clip sensor readings that fall beyond k × IQR from Q1/Q3.
-
-    Applies per column, per sensor group if group_col is present,
-    otherwise globally.  Only columns in _NUMERIC_COLS that are not
-    in _NO_CLIP_COLS are touched.
-
-    k=3.0 is intentionally conservative — only genuine outliers (e.g.
-    power-meter resets, CO2 sensor glitches) are clipped, not normal
-    peaks in occupancy or energy.
+    Clip sensor readings that fall beyond k x IQR from Q1/Q3.
 
     Columns with zero IQR (constants) are left untouched.
     """
@@ -366,7 +302,7 @@ def clip_outliers_iqr(
 
     return out
 
-# Step 5 – 15-minute downsampling
+# ### 15-minute downsampling ###
 
 # Columns that represent event counts - sum within the window.
 _SUM_COLS: frozenset = frozenset({"entries", "exits"})
@@ -389,26 +325,25 @@ def resample_to_15min(
     Downsample high-frequency sensor data to 15-minute (or other) buckets.
 
     - Aggregation rules:
-        - ``entries``, ``exits`` : **sum**  - event counts accumulate in the window.
-        - ``num_targets``        : **last** - point-in-time occupancy at window end.
-        - categorical / object   : **last** - keep most recent string value.
-        - all other numeric      : **mean** - average reading over the window.
+        - entries, exits         : sum  - event counts accumulate in the window.
+        - num_targets            : last - point-in-time occupancy at window end.
+        - categorical / object   : last - keep most recent string value.
+        - all other numeric      :*mean - average reading over the window.
 
     Empty 15-minute buckets (no sensor rows in that window) are dropped so
     that downstream lag computation is not distorted by artificial NaN rows.
 
     - Parameters:
-    df        : Preprocessed DataFrame (output of ``preprocess_raw_table()``).
+    df        : Preprocessed DataFrame (output of preprocess_raw_table()).
     ts_col    : Timestamp column name.
     group_col : Sensor-group column; resampling is done per-group so that
                 different sensor groups don't bleed into each other.
-    freq      : pandas offset alias for the target cadence (default ``"15min"``).
+    freq      : pandas offset alias for the target cadence (default "15min").
 
     - Returns:
     pd.DataFrame
         One row per (group, 15-min bucket) containing aggregated readings.
-        The timestamp column holds the *left edge* of each bucket (pandas
-        resample default).
+        The timestamp column holds the *left edge* of each bucket.
     """
     df = df.copy()
     df[ts_col] = pd.to_datetime(df[ts_col], utc=True, errors="coerce")
@@ -477,11 +412,11 @@ def preprocess_raw_table(
     """
     Apply all preprocessing steps to the raw sensor table.
 
-    This function is designed to be called immediately after ``load_table()``
-    and before any call to ``build_features()`` or ``build_features_longterm()``.
+    This function is designed to be called immediately after load_table()
+    and before any call to build_features() or build_features_longterm().
 
     Parameters
-    ----------
+    ---
     df                    : Raw DataFrame from ``core.data.load_table()``.
     feature_name          : Name of the feature being trained (informational;
                             all steps are applied regardless).
@@ -489,30 +424,29 @@ def preprocess_raw_table(
     group_col             : Sensor grouping column name (used for lag/group ops).
     do_cross_sensor_ffill : Forward-fill AQ / energy values into all row types.
     max_ffill_gap_minutes : Maximum gap (minutes) over which values are
-                            forward-filled.  Set None for unlimited.
-                            Default 60 minutes.
+                            forward-filled.
 
     Returns
-    -------
+    ---
     pd.DataFrame
-        Cleaned DataFrame ready for ``build_features()``.
+        Cleaned DataFrame ready for build_features().
     """
     out = df.copy()
 
-    # 1. Numeric coercion
+    # Numeric coercion
     out = coerce_numeric(out)
 
     # Outlier clipping, runs before ffill so we don't clip filled values
     if do_clip_outliers:
         out = clip_outliers_iqr(out, group_col=group_col)
 
-    # 2. Sensor-ID normalisation
+    # Sensor-ID normalisation
     out = fill_sensor_id(out)
 
-    # 3. Occupancy: derive num_targets when it is all-NULL
+    # Occupancy: derive num_targets when it is all-NULL
     out = compute_occupancy_num_targets(out, ts_col=ts_col, group_col=group_col)
 
-    # 4. Cross-sensor forward-fill
+    # Cross-sensor forward-fill
     if do_cross_sensor_ffill:
         out = cross_sensor_ffill(
             out,

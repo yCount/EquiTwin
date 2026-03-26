@@ -327,12 +327,12 @@ def matches_row_to_ingest(row: Dict[str, Any]) -> Dict[str, Any]:
     defensive coercion.
 
     Parameters
-    ----------
+    ---
     row : dict
         One row from ``SELECT * FROM matches`` or equivalent SQLAlchemy result.
 
     Returns
-    -------
+    ---
     dict
         Ready for ForecastService.ingest().
     """

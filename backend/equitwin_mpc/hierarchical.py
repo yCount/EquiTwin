@@ -13,9 +13,7 @@ except ImportError:
 from equitwin_forecasting.types import ForecastBundle
 from equitwin_mpc.types import OuterPlan, InnerAction
 
-# ---------------------------------------------------------------------------
 # Physical constants — must stay in sync with simulate_house.py
-# ---------------------------------------------------------------------------
 _DT_H        = 15.0 / 60.0           # 0.25 h per 15-min step
 _TAU_H       = 3.0                    # building thermal time-constant [h]
 _A           = 1.0 - _DT_H / _TAU_H  # ≈ 0.9167  discrete-time thermal pole
@@ -32,17 +30,13 @@ _SOLAR_GAIN_W_PER_WM2 = 0.12          # lumped solar heat gain [W] per W/m² sun
 _SOLAR_THRESHOLD_WM2     = 200.0
 _SOLAR_EFFICIENCY_FACTOR = _SOLAR_GAIN_W_PER_WM2
 
-# ---------------------------------------------------------------------------
 # Comfort / setpoint scheduling
-# ---------------------------------------------------------------------------
 _T_ECONOMY      = 17.0   # economy setpoint when building is unoccupied [°C]
 _PREHEAT_STEPS  = 6      # 15-min steps (90 min) of pre-conditioning before occupancy
 _N_OCC_THRESH   = 0.5    # people count threshold to treat a step as "occupied"
 
 # ---------------------------------------------------------------------------
-# Ventilation control (independent from heating/cooling)
 # v[k] is a dimensionless fraction: 0 = closed, VENT_MAX_FRAC = full fresh-air rate
-# ---------------------------------------------------------------------------
 _CO2_OUTDOOR    = 420.0                           # outdoor CO2 baseline [ppm]
 _CO2_REF        = 800.0                           # default CO2 reference / target [ppm]
 _VENT_BASE_FRAC = 1 - math.exp(-15 / 120)         # standby ventilation fraction ≈ 0.117
@@ -51,9 +45,7 @@ _VENT_FAN_W     = 200.0                           # electrical draw at max venti
 _A_CO2          = 1.0 - _VENT_BASE_FRAC           # CO2 decay pole ≈ 0.883
 _OUTER_BLOCK_STEPS = 16                           # 4h / 15min = 16 inner steps
 
-# ---------------------------------------------------------------------------
 # QP cost weights  (2D state-space: temperature + CO2)
-# ---------------------------------------------------------------------------
 # _W_COMFORT  — temperature error weight, scaled per-step by occupancy Q_T[k]
 # _W_AIRQUAL  — CO2 error weight (ppm² scale)
 # _W_ENERGY   — linear electricity cost per Wh (heating + ventilation fan)
@@ -74,9 +66,7 @@ _Q_EMPTY_SCALE = 0.35   # Q_T = 0.35 when empty        → effective weight = 42
 _Q_TERMINAL    = 1.5    # terminal step multiplier (reduced from 3.0 to soften horizon-end aggression)
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 def _sensitivity_matrix(N: int, B: float) -> np.ndarray:
     """
@@ -264,14 +254,14 @@ def _occupancy_weights(n_occ_st: np.ndarray, n_max: float = 10.0) -> np.ndarray:
 
 def _co2_sensitivity_matrix(N: int, co2_hat: np.ndarray) -> np.ndarray:
     """
-    Lower-triangular N×N CO2 sensitivity to ventilation fraction.
+    Lower-triangular NxN CO2 sensitivity to ventilation fraction.
 
-        S[k, j] = -(co2_hat[j] − CO2_outdoor) · A_co2^(k−j)   for k ≥ j, else 0
+        S[k, j] = -(co2_hat[j] - CO2_outdoor) · A_co2^(k-j)   for k ≥ j, else 0
 
     Negative because more ventilation → lower CO2.
     Linearised around the forecast CO2 trajectory co2_hat.
 
-    Derivation: CO2[k+1] = CO2[k] + src[k] − v[k]·(CO2[k] − CO2_out)
+    Derivation: CO2[k+1] = CO2[k] + src[k] - v[k]·(CO2[k] - CO2_out)
     Linearising around v_baseline ≈ _VENT_BASE_FRAC and CO2_hat[k]:
         ∂CO2[k] / ∂v[j] ≈ S[k, j]
     """
@@ -282,20 +272,18 @@ def _co2_sensitivity_matrix(N: int, co2_hat: np.ndarray) -> np.ndarray:
     return S
 
 
-# ---------------------------------------------------------------------------
 # Outer MPC  (slow 4-hour loop)
-# ---------------------------------------------------------------------------
 
 class OuterMPC:
     """
-    Slow planning loop (4h cadence, 24h horizon).
+    Slow planning loop (4h, 24h horizon).
 
     Consumes LT ML forecasts for all four features and the 24-hour weather
     forecast to produce the OuterPlan that constrains and guides the InnerMPC:
 
       energy_budget_lt   — total-power budget per 4h block [W], occupancy-
                            and solar-adjusted
-      u_max_lt           — HVAC power ceiling per block (budget − base_load)
+      u_max_lt           — HVAC power ceiling per block (budget - base_load)
       temp_ref_lt        — 4h comfort temperature reference [°C]
       t_star_lt          — occupancy-aware dynamic setpoint per block [°C]
       co2_ref_lt         — forecast CO2 [ppm] for informational display
@@ -315,7 +303,7 @@ class OuterMPC:
         refs: Dict[str, Any] = {}
         T_comfort = float(state.get("temp_target", 21.0))
 
-        # ── 1. LT energy budget (raw ML forecast) ───────────────────────────
+        # LT energy budget (raw ML forecast)
         budget: Optional[Dict[int, float]] = None
         if "energy" in forecasts.by_feature:
             budget = {
@@ -323,14 +311,14 @@ class OuterMPC:
                 for k in sorted(forecasts.by_feature["energy"].lt)
             }
 
-        # ── 2. LT temperature reference ─────────────────────────────────────
+        # LT temperature reference
         if "temperature" in forecasts.by_feature:
             refs["temp_ref_lt"] = {
                 k: float(forecasts.by_feature["temperature"].lt[k][0])
                 for k in sorted(forecasts.by_feature["temperature"].lt)
             }
 
-        # ── 3. LT occupancy forecast ─────────────────────────────────────────
+        # LT occupancy forecast
         occ_ref: Optional[Dict[int, float]] = None
         if "occupancy" in forecasts.by_feature:
             occ_ref = {
@@ -339,7 +327,7 @@ class OuterMPC:
             }
         refs["occupancy_ref_lt"] = occ_ref
 
-        # ── 4. LT CO2 forecast ───────────────────────────────────────────────
+        # 4. LT CO2 forecast
         co2_ref: Optional[Dict[int, float]] = None
         if "airquality" in forecasts.by_feature:
             co2_ref = {
@@ -348,7 +336,7 @@ class OuterMPC:
             }
         refs["co2_ref_lt"] = co2_ref
 
-        # ── 5. Occupancy-adjusted energy budget ──────────────────────────────
+        # Occupancy-adjusted energy budget
         # Occupants generate ~80 W of metabolic heat, reducing the heating
         # demand the HVAC needs to supply in that block.
         if budget is not None and occ_ref is not None:
@@ -359,7 +347,7 @@ class OuterMPC:
                 adj[step]   = max(_HVAC_MIN_W + _BASE_LOAD_W, base_w - occ_heat_w)
             budget = adj
 
-        # ── 6. Weather feedforward + solar gain correction ───────────────────
+        # Weather feedforward + solar gain correction
         if weather_forecast:
             wf_by_step: Dict[int, Any] = {
                 i + 1: snap for i, snap in enumerate(weather_forecast)
@@ -400,7 +388,7 @@ class OuterMPC:
 
         refs["energy_budget_lt"] = budget
 
-        # ── 7. Per-step HVAC power bounds for InnerMPC ───────────────────────
+        # Per-step HVAC power bounds for InnerMPC
 
         # Upper bound: budget − base load
         if budget:
@@ -409,7 +397,7 @@ class OuterMPC:
                 for step, w in budget.items()
             }
 
-        # ── 8. Occupancy-aware dynamic temperature setpoint per block ─────────
+        # Occupancy-aware dynamic temperature setpoint per block
         # Pre-conditioning: blocks that are empty but precede an occupied block
         # get a ramped-up setpoint so the outer plan already anticipates heating.
         if occ_ref:
@@ -421,9 +409,7 @@ class OuterMPC:
         return OuterPlan(refs=refs)
 
 
-# ---------------------------------------------------------------------------
 # Inner MPC  (fast 15-minute loop)
-# ---------------------------------------------------------------------------
 
 class InnerMPC:
     """
@@ -436,13 +422,13 @@ class InnerMPC:
 
     Cost function (4 named weights):
     ---------------------------------
-        J = W_comfort · Σ_k Q_T[k] · (T̂[k] + (S_T·δu)[k] − T*[k])²   [temperature]
-          + W_airqual · Σ_k         · (CO2̂[k] + (S_CO2·δv)[k] − co2_ref)²  [CO2]
+        J = W_comfort · Σ_k Q_T[k] · (T̂[k] + (S_T·δu)[k] - T*[k])²   [temperature]
+          + W_airqual · Σ_k         · (CO2̂[k] + (S_CO2·δv)[k] - co2_ref)²  [CO2]
           + W_energy  · Σ_k         · (u[k]·dt + v[k]·VENT_FAN_W·dt)        [energy]
           + W_smooth  · Σ_k         · (Δu[k]² + Δv[k]²)                     [smoothness]
 
     Per-step occupancy scaling Q_T[k]:
-        0.25× when empty → 1.8× at full occupancy
+        0.25x when empty → 1.8x at full occupancy
 
     Energy budget hard constraint (from OuterMPC):
         Σ (u[k] + v[k]·VENT_FAN_W) · dt ≤ E_budget_Wh
@@ -474,9 +460,7 @@ class InnerMPC:
                                       extra={"qp_error": str(exc)})
         return self._fallback(forecasts, state, outer)
 
-    # ------------------------------------------------------------------
     # QP solver
-    # ------------------------------------------------------------------
 
     def _solve_qp(
         self,
@@ -486,7 +470,7 @@ class InnerMPC:
     ) -> InnerAction:
         N = self.N
 
-        # ── Current state ────────────────────────────────────────────────
+        # Current state
         T_now     = float(state.get("temp", 20.0))
         T_comfort = float(state.get("temp_target", 21.0))
         H_now     = float(state.get("humidity", 45.0))
@@ -504,9 +488,9 @@ class InnerMPC:
         outdoor_now = float(state.get("outdoor_temp", float("nan")))
         sunlight_now = float(state.get("sunlight", 0.0))
 
-        # ── Thermal sensitivity sign ────────────────────────────────────
+        # Thermal sensitivity sign
         # Heating mode (T < target or heating-only): B > 0 → more power raises T
-        # Cooling mode (T ≥ target and cooling allowed): B < 0 → more power lowers T
+        # Cooling mode (T >= target and cooling allowed): B < 0 → more power lowers T
         # Must stay in sync with simulate_house.py step() which uses the same threshold.
         # A dead-band here would create a model-physics mismatch in the overlap zone,
         # causing the disturbance observer to accumulate a systematic bias every tick.
@@ -551,7 +535,7 @@ class InnerMPC:
             sunlight_ref,
         )
 
-        # ── Dense ST forecasts ──────────────────────────────────────────
+        # Dense ST forecasts
         # Use ML forecast when available; otherwise synthesise a physics-based
         # cold-start trajectory so the QP works from the very first tick.
         if "temperature" in forecasts.by_feature:
@@ -564,25 +548,6 @@ class InnerMPC:
             T_hat = T_phys.copy()
 
         # Disturbance observer (offset-free MPC).
-        #
-        # _last_T1hat stores the PURE PHYSICS prediction for this tick from the
-        # previous solve: A·T_prev + (1−A)·T_out_prev + B_prev·u_applied.
-        # It does NOT include any ML correction or prior disturbance term.
-        #
-        # d = T_now − _last_T1hat  captures only genuine model errors and
-        # unmeasured disturbances (solar gain, metabolic heat, draughts, etc.).
-        #
-        # Why pure physics and NOT T_pred[0]?
-        #   T_pred[0] = T_hat_ML + d_prev + B·δu   already contains d_prev.
-        #   Using it as reference gives  d_next = T_actual − T_pred[0] = −d_prev,
-        #   an eigenvalue −1 oscillator that flips T_hat up/down every tick and
-        #   is the primary cause of the zigzag Comfort Trajectory.
-        #
-        # The correction is applied with geometric decay A^k:
-        #   • Full correction at step 1 (most recent, most reliable)
-        #   • Decays ~55 % by step 8 (2 h horizon end)
-        # This prevents a one-time transient disturbance from permanently
-        # distorting far-horizon predictions.
         if self._last_T1hat is not None:
             d = float(np.clip(T_now - self._last_T1hat, -_T_OBSERVER_CLIP, _T_OBSERVER_CLIP))
             T_hat = T_hat + (_T_OBSERVER_GAIN * d) * (_A ** np.arange(N))
@@ -627,7 +592,7 @@ class InnerMPC:
         # CO2 sensitivity matrix (linearised around forecast trajectory)
         S_CO2 = _co2_sensitivity_matrix(N, co2_st)
 
-        # ── 1. Per-step dynamic temperature setpoints T*[k] ─────────────
+        # Per-step dynamic temperature setpoints T*[k]
         # Economy setpoint is bounded by T_comfort so night mode (T_comfort=15°C)
         # never causes unnecessary heating toward the hardcoded 17°C economy value.
         T_economy = min(_T_ECONOMY, T_comfort)
@@ -640,7 +605,7 @@ class InnerMPC:
         # cold-start or poor training) and the building is significantly below
         # the comfort setpoint, override economy-level steps to T_comfort so
         # the QP still pre-heats correctly regardless of system type.
-        # Bug 4 fix: removed `cooling_allowed and` — pre-heat applies to both
+        # Bug fix: removed `cooling_allowed and` — pre-heat applies to both
         # heating-only and full-HVAC systems when temperature is far below setpoint.
         if T_now < T_comfort - 2.0:
             T_star = np.where(T_star < T_comfort - 1.0, T_comfort, T_star)
@@ -654,7 +619,7 @@ class InnerMPC:
             else:
                 T_star[valid] = np.minimum(T_star[valid], outer_t_star[valid])
 
-        # ── User-overridable QP cost weights ────────────────────────────
+        # User-overridable QP cost weights
         # These can be tuned from the UI via the SimConfig weight sliders.
         # Defaults fall back to the module-level constants.
         # UI sends integer "dial" values; app.py scales them to real weights:
@@ -667,14 +632,14 @@ class InnerMPC:
         W_smooth   = float(state.get("w_smooth",   _W_SMOOTH))
         Q_terminal = float(state.get("q_terminal", _Q_TERMINAL))
 
-        # ── 2. Per-step comfort weights Q_T[k] ──────────────────────────
+        # Per-step comfort weights Q_T[k]
         # Occupancy scale: 0.25 (empty) → 1.8 (full).  Terminal step gets boost.
         n_max = float(state.get("n_occupants_max", 10.0))
         occ_for_weights = np.maximum(n_occ_st, n_occ_outer)
         Q_T   = _occupancy_weights(occ_for_weights, n_max)
         Q_T[-1] *= Q_terminal
 
-        # ── 3. HVAC power bounds (no CO2 u_min floor — CO2 via cost) ────
+        # HVAC power bounds (no CO2 u_min floor — CO2 via cost)
         u_max_lt     = outer.refs.get("u_max_lt") or {}
         u_max_vec = np.clip(
             _expand_outer_ref(u_max_lt, N, block_phase, default=_HVAC_MAX_W),
@@ -684,7 +649,7 @@ class InnerMPC:
         u_max_global = float(np.max(u_max_vec))
         u_min_vec    = np.full(N, _HVAC_MIN_W)
 
-        # ── 4. Energy budget hard constraint ─────────────────────────────
+        # Energy budget hard constraint
         # Accounts for both heating power and ventilation fan draw.
         # Bug 1 fix: TickRunner tracks block-level consumption and injects
         # remaining_energy_budget_wh so the constraint tightens across ticks.
@@ -713,7 +678,7 @@ class InnerMPC:
             if budget_wh < min_hvac_wh and steps > 0:
                 u_min_vec[start_idx:end_idx] = max(0.0, budget_wh / (steps * _DT_H))
 
-        # ── Build combined 2N decision vector w = [δu_heat(N), δv(N)] ───
+        # Build combined 2N decision vector w = [δu_heat(N), δv(N)]
         u_baseline = np.full(N, u_now)
         v_baseline = np.full(N, v_now)
 
@@ -877,9 +842,7 @@ class InnerMPC:
             },
         )
 
-    # ------------------------------------------------------------------
     # Proportional fallback  (when scipy absent or QP fails)
-    # ------------------------------------------------------------------
 
     def _fallback(
         self,

@@ -15,7 +15,7 @@ import {
   AirQualityIcon,
 } from "./components/Icons";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types --------------------------------------------------------------------
 
 interface HorizonMeta {
   model:    string | null;
@@ -93,7 +93,7 @@ const defaultProgress = (): TrainingProgress => ({
   currentStep: null, recentModels: [],
 });
 
-// ─── Static config ────────────────────────────────────────────────────────────
+// --- Static config ------------------------------------------------------------
 
 const FEATURE_CONFIG: Omit<ProcessModel, "status"|"statusMsg"|"bestModelType"|"r2"|"mae"|"rmse"|"mase"|"nRows"|"stHorizons"|"ltHorizons"|"hasQuantile"|"coverage">[] = [
   { id: "temp-model",   featureKey: "temperature", name: "Indoor Temperature", featureLabel: <TemperatureIcon className="feature-icon" />   },
@@ -114,7 +114,7 @@ function makeDefaultModel(cfg: typeof FEATURE_CONFIG[0]): ProcessModel {
   };
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers ------------------------------------------------------------------
 
 const fmt = (v: number | null, d = 3) =>
   v == null ? "—" : v.toFixed(d);
@@ -148,7 +148,7 @@ function buildHorizonProfile(
     .sort((a, b) => a.h - b.h);
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// --- Component ----------------------------------------------------------------
 
 const ForecastTab: React.FC = () => {
   const [processModels, setProcessModels]     = useState<ProcessModel[]>(
@@ -173,7 +173,7 @@ const ForecastTab: React.FC = () => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [trainingLog]);
 
-  // ── Fetch artifact data ──────────────────────────────────────────────────────
+  // -- Fetch artifact data ------------------------------------------------------
   const applyArtifacts = useCallback(async () => {
     try {
       const res = await fetch("http://localhost:8000/api/artifacts/status");
@@ -229,7 +229,7 @@ const ForecastTab: React.FC = () => {
 
   useEffect(() => { applyArtifacts(); }, [applyArtifacts]);
 
-  // ── WebSocket training ───────────────────────────────────────────────────────
+  // -- WebSocket training -------------------------------------------------------
   const handleRetrain = useCallback((modelId: string) => {
     const cfg = FEATURE_CONFIG.find(m => m.id === modelId);
     if (!cfg) return;
@@ -375,7 +375,7 @@ const ForecastTab: React.FC = () => {
     setTrainingProgress(defaultProgress());
   }, []);
 
-  // ── Derived ──────────────────────────────────────────────────────────────────
+  // -- Derived ------------------------------------------------------------------
   const activeModel  = processModels.find(m => m.id === activeModelId)!;
   const inspectFeat  = inspectingKey ? artifacts[inspectingKey] : null;
   const inspectModel = processModels.find(m => m.featureKey === inspectingKey);
@@ -404,7 +404,7 @@ const ForecastTab: React.FC = () => {
     }), 200);
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // -- Render -------------------------------------------------------------------
   return (
     <div className="forecast-container">
       <Topbar
@@ -519,7 +519,7 @@ const ForecastTab: React.FC = () => {
       >
         <ContentArea padding="compact" gap="16px">
 
-          {/* ── Dataset Health ── */}
+          {/* -- Dataset Health -- */}
           <div className="kpi-section-header">
             <h3>Dataset Health</h3>
           </div>
@@ -564,7 +564,7 @@ const ForecastTab: React.FC = () => {
             </div>
           </div>
 
-          {/* ── Model Cards ── */}
+          {/* -- Model Cards -- */}
           <Section title="Active Models" className="models-section">
             <div className="models-grid">
               {processModels.map(model => (
@@ -743,7 +743,7 @@ const ForecastTab: React.FC = () => {
             </div>
           </Section>
 
-          {/* ── Horizon RMSE Profile ── */}
+          {/* -- Horizon RMSE Profile -- */}
           <Section className="forecast-chart-section">
             <div className="section-header-custom">
               <div className="header-title">
@@ -815,7 +815,7 @@ const ForecastTab: React.FC = () => {
         </ContentArea>
       </MainContent>
 
-      {/* ── Ingest Modal ── */}
+      {/* -- Ingest Modal -- */}
       {showIngestModal && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -854,7 +854,7 @@ const ForecastTab: React.FC = () => {
         </div>
       )}
 
-      {/* ── Inspect Modal ── */}
+      {/* -- Inspect Modal -- */}
       {inspectingKey && inspectFeat && inspectModel && (
         <div className="modal-overlay" onClick={() => setInspectingKey(null)}>
           <div className="modal-content inspect-modal" onClick={e => e.stopPropagation()}>
@@ -891,7 +891,7 @@ const ForecastTab: React.FC = () => {
 
             <div className="modal-body inspect-body">
 
-              {/* ── Horizon Profile tab ── */}
+              {/* -- Horizon Profile tab -- */}
               {inspectTab === "profile" && (() => {
                 const horizons = inspectLevel === "st" ? inspectFeat.st : inspectFeat.lt;
                 const profile = buildHorizonProfile(horizons, inspectLevel);
@@ -997,7 +997,7 @@ const ForecastTab: React.FC = () => {
                 );
               })()}
 
-              {/* ── All Models tab ── */}
+              {/* -- All Models tab -- */}
               {inspectTab === "table" && (() => {
                 const rows = (inspectLevel === "st"
                   ? inspectFeat.all_models_st

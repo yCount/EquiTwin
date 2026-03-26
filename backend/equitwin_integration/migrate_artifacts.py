@@ -7,7 +7,7 @@ to the new two-level layout expected by training.service and equitwin_forecastin
 Run once before using the new EquiTwin integration code.
 
 Usage
------
+---
     python migrate_artifacts.py
     python migrate_artifacts.py --execute
     python migrate_artifacts.py --root /path/to/artifacts

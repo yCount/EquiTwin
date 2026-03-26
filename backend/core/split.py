@@ -16,9 +16,6 @@ def rolling_splits(df: pd.DataFrame, spec: SplitSpec) -> List[Tuple[pd.Index, pd
     n_test = max(1, int(n * spec.test_size))
 
     if n < spec.min_train + 1:
-        # Not enough data even for one fold - return a single split using
-        # whatever train rows are available, as long as there is at least 1
-        # train row and 1 test row.
         n_te = max(1, min(n_test, n - 1))
         n_tr = n - n_te
         if n_tr < 1:

@@ -88,7 +88,7 @@ def check_feature_drift(
     (newest) windows of a training DataFrame.
 
     Parameters
-    ----------
+    ---
     df                  : Featurized or raw training DataFrame.
     cols                : Numeric column names to check.
     ts_col              : Timestamp column used to sort rows chronologically.
@@ -99,7 +99,7 @@ def check_feature_drift(
     feature_name        : Label used in warning messages.
 
     Returns
-    -------
+    ---
     dict mapping column name → PSI value (nan for non-numeric / empty cols).
     """
     if df.empty or len(df) < 20:

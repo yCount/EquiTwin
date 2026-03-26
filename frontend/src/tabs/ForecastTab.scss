@@ -211,7 +211,7 @@
         }
       }
 
-      // ── MASE + coverage chips ──
+      // -- MASE + coverage chips --
       .chip-row {
         display: flex; gap: 8px; flex-wrap: wrap;
       }
@@ -247,7 +247,7 @@
       .btn { flex: 1; font-size: 11px; padding: 6px; }
     }
 
-    // ── Training state ──
+    // -- Training state --
     &.training-mode {
       border-color: $warning; background: rgba($warning,0.02); cursor: default;
 
@@ -462,7 +462,7 @@
                    &:hover { color: $text-main; } }
     }
 
-    // ── Inspect controls (level + tab switchers) ──
+    // -- Inspect controls (level + tab switchers) --
     .inspect-controls {
       display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
       padding: 10px 20px; border-bottom: 1px solid rgba(255,255,255,0.06);
@@ -487,7 +487,7 @@
         padding: 0; overflow: hidden; display: flex; flex-direction: column; flex: 1; min-height: 0;
       }
 
-      // ── Ingest options ──
+      // -- Ingest options --
       .ingest-options {
         display: flex; flex-direction: column; gap: 12px;
         .source-btn {
@@ -518,7 +518,7 @@
   }
 }
 
-// ── Horizon profile layout (inside inspect modal) ──
+// -- Horizon profile layout (inside inspect modal) --
 .profile-layout {
   display: grid; grid-template-columns: 1fr 1.3fr; gap: 0;
   overflow: hidden; flex: 1; min-height: 0;
@@ -563,7 +563,7 @@
   }
 }
 
-// ── Multi-output comparison ──
+// -- Multi-output comparison --
 .mo-section {
   border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px;
   .mo-title { font-size: 10px; text-transform: uppercase; color: $text-dim; font-weight: 700; margin-bottom: 10px; }
@@ -580,7 +580,7 @@
   }
 }
 
-// ── All-models comparison table ──
+// -- All-models comparison table --
 .all-models-table-wrap {
   overflow-y: auto; padding: 16px; max-height: 56vh;
   display: flex; flex-direction: column; gap: 20px;

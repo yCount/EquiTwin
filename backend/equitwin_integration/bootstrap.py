@@ -39,20 +39,15 @@ class EquiTwinConfig:
     # Path to the artifacts root (must contain <feature>/best/st_h*/ and lt_h*/).
     artifacts_root: str = "artifacts"
 
-    # Which features to load. None = load all four defaults.
     features: Optional[List[str]] = None
 
-    # Horizons to expose. None = use default_horizons().
     horizons: Optional[HorizonConfig] = None
 
-    # 15-minute buffer signal columns. Must cover every column referenced in
-    # FeatureConfig.st_lag_cols and FeatureConfig.lt_lag_cols.
     signal_cols: List[str] = field(default_factory=lambda: [
         "total_current", "total_act_power", "total_aprt_power",
         "temp", "humidity", "co2", "voc",
         "pm2p5", "pm10", "pm1", "pm4",
         "entries", "exits", "num_targets",
-        # Weather exogenous - injected per tick by WeatherClient (NaN when unavailable)
         "outdoor_temp", "weather_condition", "sunlight",
     ])
 
@@ -65,7 +60,6 @@ class EquiTwinConfig:
     # 4h aggregation strategy: "mean" | "sum" | "last"
     lt_agg: str = "mean"
 
-    # Sensor group column name and default group_id for single-zone deployments.
     group_col: str = "sensor_id"
     default_group_id: str = "1"
 

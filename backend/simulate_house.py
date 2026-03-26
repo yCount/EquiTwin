@@ -239,13 +239,13 @@ class HouseState:
         """Advance physics by one 15-minute tick.
 
         vent_rate:    independent ventilation fraction [0, VENT_MAX_FRAC].
-                      None → use standby baseline (CO2_VENT_FRAC).
+                      None -> use standby baseline (CO2_VENT_FRAC).
                       Controlled directly by the MPC; decoupled from HVAC power.
         heating_only: if True the HVAC can only heat (POST / NIGHT mode).
                       When indoor_temp >= temp_target the unit idles at standby
                       (fan only) so q_hvac = 0 — no thermal extraction.
                       Without this flag the physics model would incorrectly apply
-                      COP_COOL × hvac_w of cooling even in standby (80 W × 2.6
+                      COP_COOL x hvac_w of cooling even in standby (80 W x 2.6
                       = 208 W extracted), causing the temperature to drift down
                       and the MPC to over-heat on the next tick.
         """

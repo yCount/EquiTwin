@@ -43,8 +43,6 @@ class FeatureBuffer15m:
         self.lags = sorted(set(int(x) for x in lags))
         self.max_lag = max(self.lags) if self.lags else 0
 
-        # Default: enough for LT aggregation (64) + slack; also must be >= max_lag+1
-        # If user provides keep_rows, still enforce >= max_lag+1
         if keep_rows is None:
             keep_rows = 128
         self.keep_rows = max(int(keep_rows), self.max_lag + 1)

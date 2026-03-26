@@ -21,20 +21,8 @@ def _align_columns(X: pd.DataFrame, model) -> pd.DataFrame:
 
     Two problems are solved here:
 
-    1. Missing columns  (absent from X, expected by the model):
-       Added with a dtype-appropriate fill value so the pipeline's SimpleImputer
-       can handle them without a dtype mismatch:
-         - Numeric columns  -> np.nan  (float64 - compatible with constant-0 imputer)
-         - Categorical columns -> None (object dtype - compatible with most_frequent imputer)
-
-       Root cause this guards against: columns in `drop_cols` (e.g. 'quality',
-       'version') were included during training but are absent at inference time.
-
-    2. Extra columns  (present in X, unknown to the model):
-       Dropped before passing to the pipeline.  sklearn ≥1.6 raises ValueError
-       in ColumnTransformer.transform() when the input DataFrame has feature names
-       not seen during fit.  Extra weather columns added to the inference row for
-       newer models would otherwise break older trained models.
+    1. Missing columns
+    2. Extra columns
     """
     try:
         ct = getattr(model, "named_steps", {}).get("pre")
@@ -42,7 +30,6 @@ def _align_columns(X: pd.DataFrame, model) -> pd.DataFrame:
             return X
 
         # Collect num_cols and cat_cols from named transformers only.
-        # The "remainder" transformer stores integer column indices — skip it.
         num_cols: List[str] = []
         cat_cols: List[str] = []
         for name, _, cols in ct.transformers_:
@@ -66,14 +53,10 @@ def _align_columns(X: pd.DataFrame, model) -> pd.DataFrame:
                 out[c] = np.nan
 
         # Add missing categorical columns as None (object dtype).
-        # np.nan would create a float64 column, which the string-fitted
-        # SimpleImputer(strategy="most_frequent") cannot accept.
         for c in cat_cols:
             if c not in out.columns:
                 out[c] = None
 
-        # Return ONLY the expected columns, dropping any extras that would cause
-        # sklearn ≥1.6 feature-name validation to raise ValueError.
         return out[expected]
 
     except Exception:
@@ -154,12 +137,6 @@ def _sanitize_inference_frame(X: pd.DataFrame, model) -> pd.DataFrame:
 def _set_n_jobs_1(estimator) -> None:
     """
     Recursively set n_jobs=1 on any estimator that supports it.
-
-    Models saved with n_jobs=-1 (RF, LGBM, XGB, VotingRegressor, etc.) trigger
-    a sklearn ≥1.3 UserWarning during predict() because joblib's `delayed` is
-    used without sklearn's `Parallel` context.  For single-row MPC predictions
-    parallelism provides no speedup, so n_jobs=1 eliminates both the warning
-    and the thread-pool overhead.
     """
     try:
         if hasattr(estimator, "n_jobs"):
@@ -187,12 +164,6 @@ def _set_n_jobs_1(estimator) -> None:
 def _patch_loaded_model(model) -> None:
     """
     Fix sklearn version-mismatch: models trained on sklearn ≥1.7 store
-    SimpleImputer.statistics_ as dtype('O').  sklearn 1.6.x _validate_input
-    requires statistics_ dtype to match the input data dtype, so numeric
-    imputers (transformer name != 'cat') need their statistics_ cast to float64.
-
-    Also sets n_jobs=1 on all sub-estimators to avoid sklearn ≥1.3 parallelism
-    warnings during single-row MPC predictions.
     """
     _set_n_jobs_1(model)
     try:

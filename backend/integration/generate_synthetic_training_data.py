@@ -2,9 +2,6 @@
 Generates a physically realistic synthetic 15-minute timeseries dataset
 for training the EquiTwin forecasting models.
 
-This script generates a complete dataset from scratch with proper physical
-relationships between variables.
-
 Physical model:
   Occupancy  - trapezoid profile (arrival 7-9am, peak 9am-5pm, leave 5-7pm)
               - weekend 10% of weekday capacity, sporadic

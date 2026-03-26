@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 
 
-# Single switch for the whole backend:
 #   "postgres" -> use DATABASE_URL + matches table
 #   "csv"      -> use synthetic dashboard CSV as the source of truth
 DATA_SOURCE_MODE = "csv"

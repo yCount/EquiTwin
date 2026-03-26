@@ -24,7 +24,7 @@ def regression_metrics(
     Compute MAE, RMSE, R^2 and (optional) MASE.
 
     Parameters
-    ----------
+    ---
     y_true  : ground-truth targets
     y_pred  : model predictions
     y_naive : predictions from the naive lag-1 baseline (optional).
