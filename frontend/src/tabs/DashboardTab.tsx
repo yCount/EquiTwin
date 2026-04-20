@@ -332,7 +332,7 @@ const convertApiToSensorData = (api: TimeseriesApiResponse): SensorData => {
 const DashboardTab = () => {
   const [activeTimeRange, setActiveTimeRange] = useState<string>("24hr");
   const [selectedFloors, setSelectedFloors] = useState<string[]>(["Level 3", "Level 4"]);
-  const [timeRange, setTimeRange] = useState<TimeRange>({ start: null, end: null });
+  const [manualTimeRange, setManualTimeRange] = useState<TimeRange>({ start: null, end: null });
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const EMPTY_SENSOR_DATA: SensorData = {
     temperature: [], occupancy: [], airQuality: [],
@@ -345,19 +345,24 @@ const DashboardTab = () => {
 
   // Fetch real sensor data from the backend on mount and on manual refresh.
   useEffect(() => {
+    const controller = new AbortController();
     setChartsLoading(true);
     setChartsError(null);
-    fetch(`${DB_API}/api/db/timeseries`)
+    fetch(`${DB_API}/api/db/timeseries`, { signal: controller.signal })
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`); return r.json(); })
       .then((api: TimeseriesApiResponse) => {
+        setManualTimeRange({ start: null, end: null });
+        setTimelineViewRange(null);
         setSensorData(convertApiToSensorData(api));
         setChartsLoading(false);
       })
       .catch(err => {
+        if (err.name === 'AbortError') return;
         console.error("Timeseries fetch failed:", err);
         setChartsError(err.message);
         setChartsLoading(false);
       });
+    return () => controller.abort();
   }, [refreshKey]);
 
   const allSeriesBounds = useMemo(
@@ -372,19 +377,19 @@ const DashboardTab = () => {
     [sensorData]
   );
 
-  useEffect(() => {
-    if (!allSeriesBounds) {
-      setTimeRange({ start: null, end: null });
-      setTimelineViewRange(null);
-      return;
-    }
+  const autoTimeRange = useMemo((): TimeRange => {
+    if (!allSeriesBounds) return { start: null, end: null };
     const config = getRangeConfig(activeTimeRange);
-    setTimeRange({
+    return {
       start: allSeriesBounds.end - config.selectedHours * 3600000,
       end: allSeriesBounds.end,
-    });
-    setTimelineViewRange(null);
+    };
   }, [allSeriesBounds, activeTimeRange]);
+
+  // Manual override (timeline drag) takes priority; falls back to auto-derived range.
+  const timeRange = useMemo((): TimeRange =>
+    manualTimeRange.start !== null ? manualTimeRange : autoTimeRange,
+  [manualTimeRange, autoTimeRange]);
 
   const filteredData = useMemo(() => {
     if (!timeRange.start || !timeRange.end) return sensorData;
@@ -439,11 +444,11 @@ const DashboardTab = () => {
   }, [sensorData?.weather, timelineViewRange]);
 
   const handleTimelineChange = useCallback((start: number, end: number) => {
-    setTimeRange({ start, end });
+    setManualTimeRange({ start, end });
   }, []);
 
   const resetTimeline = useCallback(() => {
-    setTimeRange({ start: null, end: null });
+    setManualTimeRange({ start: null, end: null });
     setTimelineViewRange(null);
   }, []);
 
@@ -461,9 +466,10 @@ const [level3Active, setLevel3Active] = useState(true);
   const [dbColPickerOpen, setDbColPickerOpen] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
     setDbLoading(true);
     setDbError(null);
-    fetch(`${DB_API}/api/db/rows?page=${dbPage}&page_size=${dbPageSize}`)
+    fetch(`${DB_API}/api/db/rows?page=${dbPage}&page_size=${dbPageSize}`, { signal: controller.signal })
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
         return r.json() as Promise<DbResponse>;
@@ -478,9 +484,11 @@ const [level3Active, setLevel3Active] = useState(true);
         setDbLoading(false);
       })
       .catch(err => {
+        if (err.name === 'AbortError') return;
         setDbError(err.message);
         setDbLoading(false);
       });
+    return () => controller.abort();
   }, [dbPage, dbPageSize]);
 
   const ChartCard = React.memo(({
