@@ -11,6 +11,7 @@ import math
 import os
 import sys
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Request, WebSocket, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -49,6 +50,14 @@ def _get_db_engine():
             return None
         _db_engine = create_engine(db_url, pool_pre_ping=True)
     return _db_engine
+
+
+def _as_utc(ts: Optional[datetime]) -> Optional[datetime]:
+    if ts is None:
+        return None
+    if ts.tzinfo is None:
+        return ts.replace(tzinfo=timezone.utc)
+    return ts.astimezone(timezone.utc)
 
 
 # ---- ForecastService lifecycle ----------------------------------------------
@@ -542,7 +551,12 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
     else:
         result["energy"] = []
 
-    # --- Outdoor weather (DB column preferred; Open-Meteo archive as fallback) -
+    # --- Outdoor weather ------------------------------------------------------
+    # Prefer stored weather rows when present, then extend them only through
+    # the last timestamp available in the other categories so the series stays
+    # aligned with the provided dataset.
+    latest_weather_ts = None
+    result["weather"] = []
     if "outdoor_temp" in schema:
         rows = run(f"""
             SELECT {bkt()} AS ts, AVG(outdoor_temp) AS v
@@ -550,35 +564,51 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
             WHERE outdoor_temp IS NOT NULL
             GROUP BY {grp()} ORDER BY ts
         """)
-        result["weather"] = [
-            {"ts": r[0].isoformat(), "value": round(float(r[1]), 1), "condition": "cloudy"}
-            for r in rows if r[0] and r[1] is not None
-        ]
-    else:
-        # No stored weather column; fetch historical data from Open-Meteo archive
-        # for the same time span as the sensor data so the chart lines up.
-        result["weather"] = []
-        if ts_range and ts_range[0] and ts_range[1]:
-            try:
-                from core.weather_client import WeatherClient
-                import math as _math
+        for r in rows:
+            if not r[0] or r[1] is None:
+                continue
+            ts = _as_utc(r[0])
+            if ts is None:
+                continue
+            result["weather"].append(
+                {"ts": ts.isoformat(), "value": round(float(r[1]), 1), "condition": "cloudy"}
+            )
+            if latest_weather_ts is None or ts > latest_weather_ts:
+                latest_weather_ts = ts
+
+    if ts_range and ts_range[0]:
+        try:
+            from core.weather_client import WeatherClient
+
+            weather_start = latest_weather_ts or _as_utc(ts_range[0])
+            weather_end = _as_utc(ts_range[1]) if ts_range[1] else None
+            if weather_start is not None and weather_start < weather_end:
                 wc = WeatherClient(55.8617, -4.2583)          # Glasgow (also see bootstrap.py)
-                start_str = ts_range[0].strftime("%Y-%m-%d")
-                end_str   = ts_range[1].strftime("%Y-%m-%d")
-                df = wc.get_historical_df(start_str, end_str)
-                if not df.empty:
-                    result["weather"] = [
+                df = wc.get_historical_df(
+                    weather_start.strftime("%Y-%m-%d"),
+                    weather_end.strftime("%Y-%m-%d"),
+                    end_ts=weather_end,
+                )
+                existing_ts = {point["ts"] for point in result["weather"]}
+                for _, row in df.iterrows():
+                    if row["outdoor_temp"] is None or math.isnan(float(row["outdoor_temp"])):
+                        continue
+                    ts = row["timestamp"]
+                    if ts is None:
+                        continue
+                    ts_iso = str(ts.isoformat())
+                    if ts_iso in existing_ts:
+                        continue
+                    result["weather"].append(
                         {
-                            "ts":        str(row["timestamp"].isoformat()),
-                            "value":     round(float(row["outdoor_temp"]), 1),
+                            "ts": ts_iso,
+                            "value": round(float(row["outdoor_temp"]), 1),
                             "condition": str(row["weather_condition"]),
                         }
-                        for _, row in df.iterrows()
-                        if row["outdoor_temp"] is not None
-                        and not _math.isnan(float(row["outdoor_temp"]))
-                    ]
-            except Exception as _exc:
-                print(f"[timeseries] WeatherClient archive failed: {_exc}")
+                    )
+                result["weather"].sort(key=lambda point: point["ts"])
+        except Exception as _exc:
+            print(f"[timeseries] WeatherClient archive failed: {_exc}")
 
     result["source_mode"] = "postgres"
     return result

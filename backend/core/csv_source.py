@@ -30,12 +30,17 @@ _CACHE: Dict[str, Any] = {
 }
 
 
-def _load_archive_weather_rows(start_date: str, end_date: str) -> List[Dict[str, Any]]:
+def _load_archive_weather_rows(
+    start_date: str,
+    end_date: str,
+    *,
+    end_ts=None,
+) -> List[Dict[str, Any]]:
     try:
         from core.weather_client import WeatherClient
 
         wc = WeatherClient(55.8617, -4.2583)  # Glasgow (same backend default)
-        wdf = wc.get_historical_df(start_date, end_date)
+        wdf = wc.get_historical_df(start_date, end_date, end_ts=end_ts)
         if wdf.empty:
             return []
 
@@ -65,6 +70,7 @@ def _build_weather_payload(
 ) -> List[Dict[str, Any]]:
     weather_by_ts: Dict[str, Dict[str, Any]] = {}
     latest_weather_ts = None
+    sensor_ts = pd.to_datetime(df["timestamp"], utc=True, errors="coerce")
 
     if "weather" in df.columns:
         weather = pd.to_numeric(df["weather"], errors="coerce")
@@ -92,7 +98,8 @@ def _build_weather_payload(
                 errors="coerce",
             ).max()
 
-    max_sensor_ts = pd.to_datetime(df["timestamp"], utc=True, errors="coerce").max()
+    earliest_sensor_ts = sensor_ts.min()
+    max_sensor_ts = sensor_ts.max()
     needs_backfill = (
         max_sensor_ts is not None
         and not pd.isna(max_sensor_ts)
@@ -103,13 +110,16 @@ def _build_weather_payload(
         )
     )
     if needs_backfill:
-        start_ts = latest_weather_ts if latest_weather_ts is not None and not pd.isna(latest_weather_ts) else pd.to_datetime(
-            df["timestamp"], utc=True, errors="coerce"
-        ).min()
-        if start_ts is not None and not pd.isna(start_ts):
+        start_ts = (
+            latest_weather_ts
+            if latest_weather_ts is not None and not pd.isna(latest_weather_ts)
+            else earliest_sensor_ts
+        )
+        if start_ts is not None and not pd.isna(start_ts) and start_ts <= max_sensor_ts:
             archive_rows = _load_archive_weather_rows(
                 start_ts.strftime("%Y-%m-%d"),
                 max_sensor_ts.strftime("%Y-%m-%d"),
+                end_ts=max_sensor_ts.to_pydatetime(),
             )
             for row in archive_rows:
                 weather_by_ts.setdefault(row["ts"], row)
