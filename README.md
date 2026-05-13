@@ -2,14 +2,14 @@
 
 EquiTwin is an AI-driven digital twin platform for building monitoring, forecasting, and hierarchical model predictive control.
 
-- `backend/` — FastAPI service (ingestion, forecasting, MPC, training APIs)
-- `frontend/` — React app with iTwin-based 3D UI
+- `backend/`L FastAPI service (ingestion, forecasting, MPC, training APIs)
+- `frontend/`: React app with iTwin-based 3D UI
 
 ---
 
 ## Prerequisites
 
-- Python 3.10+ with [Anaconda](https://www.anaconda.com/) (recommended: `DDMPC` conda env)
+- Python 3.10+
 - Node.js 18+ and npm
 - PostgreSQL (required for database-backed features and model training)
 
