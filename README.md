@@ -13,8 +13,6 @@ EquiTwin is an AI-driven digital twin platform for building monitoring, forecast
 - Node.js 18+ and npm
 - PostgreSQL (required for database-backed features and model training)
 
----
-
 ## 1. Database
 
 Set the database URL as an environment variable before starting the backend.
@@ -28,8 +26,6 @@ $env:DATABASE_URL = "postgresql+psycopg2://<USER>:<PASSWORD>@<HOST>:<PORT>/<DBNA
 ```bash
 export DATABASE_URL="postgresql+psycopg2://<USER>:<PASSWORD>@<HOST>:<PORT>/<DBNAME>"
 ```
-
----
 
 ## 2. Backend
 
@@ -56,8 +52,6 @@ uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 
 - API docs: http://localhost:8000/docs
 
----
-
 ## 3. Train Forecast Models
 
 Models must be trained before MPC and forecasting endpoints become available.
@@ -75,18 +69,16 @@ python -m equitwin_integration.train_all --db-url $env:DATABASE_URL --table matc
 
 Trained artefacts are saved to `artifacts/{feature}/best/{level}_h{N}/model.joblib`.
 
----
-
 ## 4. Synthetic Data (optional)
 
 Use when real sensor data is sparse or unavailable.
 
-**Step 1 — Export real data to CSV:**
+**4.1: Export real data to CSV:**
 ```bash
 python -m integration.export_dashboard_csv --out exports/dashboard_exact.csv
 ```
 
-**Step 2 — Generate a synthetic extension:**
+**4.2: Generate a synthetic extension:**
 ```bash
 python -m integration.generate_synthetic_training_data \
     --weeks 40 --start-date 2024-07-01 \
@@ -102,7 +94,7 @@ python -m integration.synthesize_dashboard_timeseries \
     --seed 42
 ```
 
-**Step 3 — Train with synthetic augmentation:**
+**4.3: Train with synthetic augmentation:**
 ```powershell
 $env:SYNTHETIC_AUGMENT = "1"
 $env:SYNTHETIC_TIMESERIES_CSV = "exports/dashboard_exact_synthetic.csv"
@@ -113,8 +105,6 @@ python -m equitwin_integration.train_all --db-url $env:DATABASE_URL --table matc
 ```powershell
 $env:SYNTHETIC_AUGMENT = "0"
 ```
-
----
 
 ## 5. Frontend
 
@@ -142,8 +132,6 @@ npm run start
 
 - App: http://localhost:3000
 
----
-
 ## 6. Full Stack (quick reference)
 
 ```powershell
@@ -157,8 +145,6 @@ cd frontend
 npm run start
 ```
 
----
-
 ## 7. Simulation (withot the UI - on terminal only)
 
 Run a standalone closed-loop building simulation (no database required):
@@ -166,8 +152,6 @@ Run a standalone closed-loop building simulation (no database required):
 ```bash
 python simulate_house.py --setpoint 22 --night-setpoint 12 --occupants 50
 ```
-
----
 
 ## Notes
 
