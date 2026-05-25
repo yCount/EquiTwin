@@ -1,31 +1,15 @@
 # EquiTwin
 
-**An AI-Driven Digital Twin for Predictive Energy Monitoring and Hierarchical Model Predictive Control of Smart Buildings**
+*Honours Individual Project - Yiğit Sayar · University of Glasgow*
 
-*Honours Individual Project - Yiğit Sayar · University of Glasgow, School of Computing Science · March 2026*
-
-*Supervised by Dr. Awais Shah and Harsh Vivek Shah*
+Supervised by Dr. Awais Shah and Harsh Vivek Shah
 
 ![EquiTwin Home](home_page.png)
 
-## Overview
+Most building control systems react for the immediate state. EquiTwin takes the reaction to a wider horizon (via Multi-Layered Model Prodictive Controller). It is trained by the building's data. It learns its patterns, and tries to act ahead of time.
 
-EquiTwin is a digital twin for smart buildings that monitors energy use, forecasts future building conditions, and controls heating and ventilation in a simulated environment. It was built and built for deployment at the Sir Alwyn Williams Building (SAWB), University of Glasgow.
+As a full-stack, EquiTwin combines a live 3D model of the building, a historical data dashboard, short and long-term forecasting, and a model predictive controller that runs closed-loop simulations to plan heating and ventilation decisions before they are immediately optimising energy and comfort for the user's liking.
 
-
-Special thanks for my supervisors.
-
-## System Layers
-
-| Layer | Description |
-|-------|-------------|
-| **Home** | Interactive BIM viewer with live sensor overlays and telemetry status cards |
-| **Dashboard** | Historical time-series monitoring, anomaly review, and database inspection |
-| **Forecast** | Model training, per-horizon accuracy rankings, and artefact inspection |
-| **Controller** | Closed-loop MPC thermal model simulation with solver diagnostics and HVAC output |
-
-## Operational Robustness
-
-Repeated sensor disruptions at SAWB (LoRaWAN timeouts, firmware issues) motivated three design responses: **synthetic data generation** preserving cross-variable physical structure; **PSI drift detection** flagging distribution shift before each training session; and **graceful degradation** ensuring monitoring remains operational under missing artefacts, solver failure, or sensor outage.
+![Full Day](full_day.png)
 
 *For setup instructions, see [setup.md](setup.md)*
