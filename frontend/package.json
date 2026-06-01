@@ -41,6 +41,7 @@
     "@types/node": "^22.19.0",
     "@types/react": "^18.3.26",
     "@types/react-dom": "^18.3.7",
+    "@types/three": "^0.184.1",
     "apexcharts": "^5.3.6",
     "history": "^5.3.0",
     "rc-slider": "^11.1.9",
@@ -50,7 +51,10 @@
     "react-redux": "^9.2.0",
     "recharts": "^3.5.1",
     "redux": "^5.0.1",
-    "typescript": "~5.6.2"
+    "three": "^0.184.0",
+    "typescript": "~5.6.2",
+    "web-ifc": "^0.0.77",
+    "web-ifc-three": "^0.0.126"
   },
   "scripts": {
     "start": "react-scripts --max_old_space_size=4096 start",

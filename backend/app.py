@@ -6,12 +6,16 @@ Glues: services/* + adapters/* + security
 """
 
 import asyncio
+import base64
 import json
 import math
 import os
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import quote as url_quote, unquote as url_unquote
+import httpx
 from fastapi import FastAPI, HTTPException, Request, WebSocket, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -441,7 +445,7 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
     result: dict = {}
     has_et = "event_type" in schema  # some schemas omit this column
 
-    # --- Temperature (indoor, from AQ sensor) --------------------------------
+    # Temperature (indoor, from AQ sensor)
     if "temp" in schema:
         et_filter = "event_type = 'NORMAL_AQ' AND " if has_et else ""
         rows = run(f"""
@@ -457,7 +461,7 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
     else:
         result["temperature"] = []
 
-    # --- Air quality (CO2 from AQ sensor) ------------------------------------
+    # Air quality (CO2 from AQ sensor)
     if "co2" in schema:
         et_filter = "event_type = 'NORMAL_AQ' AND " if has_et else ""
         rows = run(f"""
@@ -506,7 +510,7 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
     else:
         result["occupancy"] = []
 
-    # --- Energy (average active power in kW, split by circuit) ---------------
+    #      Energy (average active power in kW, split by circuit)
     # Use AVG (not SUM) so the chart shows power level, not energy total.
     # Divide by 1000 to convert W to kW.
     if "total_act_power" in schema:
@@ -551,10 +555,7 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
     else:
         result["energy"] = []
 
-    # --- Outdoor weather ------------------------------------------------------
-    # Prefer stored weather rows when present, then extend them only through
-    # the last timestamp available in the other categories so the series stays
-    # aligned with the provided dataset.
+    # Outdoor weather
     latest_weather_ts = None
     result["weather"] = []
     if "outdoor_temp" in schema:
@@ -614,7 +615,7 @@ def get_db_timeseries(table: str = "matches", bucket_minutes: int = 15):
     return result
 
 
-# ---- Forecast endpoints ------------------------------------
+# Forecast endpoints
 
 @app.get("/api/mpc/status", response_model=ForecastStatusResponse)
 def mpc_status(request: Request):
@@ -714,7 +715,7 @@ def get_forecast(request: Request):
     }
 
 
-# ---- Building simulation WebSocket -----------------------------------------
+# Building simulation WebSocket
 
 @app.websocket("/simulation/ws")
 async def simulation_ws(ws: WebSocket):
@@ -1001,7 +1002,7 @@ async def simulation_ws(ws: WebSocket):
             pass
 
 
-# ---- Artifacts status --------------------------------------------------------
+# Artifacts status
 
 _KNOWN_FEATURES = ["energy", "temperature", "airquality", "occupancy"]
 
@@ -1179,7 +1180,7 @@ def artifacts_status():
     return result
 
 
-# ---- Training WebSocket ------------------------------------------------------
+# Training WebSocket
 
 @app.websocket("/training/ws")
 async def training_ws(ws: WebSocket):
@@ -1375,7 +1376,7 @@ async def training_ws(ws: WebSocket):
             pass
 
 
-# ---- WebSocket for live telemetry push --------------------------------------
+# WebSocket for live telemetry push
 @app.websocket("/telemetry/ws")
 async def telemetry_ws(ws: WebSocket):
     await ws.accept()
@@ -1397,3 +1398,183 @@ async def telemetry_ws(ws: WebSocket):
         await asyncio.sleep(2)
     except Exception:
       pass
+
+
+# RVT to IFC conversion via Autodesk Platform Services
+
+_APS_BASE   = "https://developer.api.autodesk.com"
+_MODELS_DIR = Path(os.environ.get("MODELS_DIR", "../frontend/public/models")).resolve()
+
+# In-memory dedup: filename -> {"urn": str, "ifc_name": str} while a job is running
+_active_rvt_jobs: dict[str, dict] = {}
+
+
+async def _aps_token() -> str:
+    client_id     = os.environ.get("APS_CLIENT_ID", "")
+    client_secret = os.environ.get("APS_CLIENT_SECRET", "")
+    if not client_id or not client_secret:
+        raise HTTPException(
+            503,
+            "APS_CLIENT_ID and APS_CLIENT_SECRET must be set. "
+            "Get free credentials at https://aps.autodesk.com/",
+        )
+    async with httpx.AsyncClient(timeout=30) as c:
+        r = await c.post(
+            f"{_APS_BASE}/authentication/v2/token",
+            data={
+                "client_id":     client_id,
+                "client_secret": client_secret,
+                "grant_type":    "client_credentials",
+                "scope":         "data:read data:write data:create bucket:read bucket:create",
+            },
+        )
+        r.raise_for_status()
+        return r.json()["access_token"]
+
+
+def _bucket_key() -> str:
+    raw = os.environ.get("APS_CLIENT_ID", "equitwin").lower()
+    safe = "".join(c for c in raw if c.isalnum() or c == "-")
+    return f"equitwin-{safe}"[:128]
+
+
+@app.get("/api/models/rvt-capable")
+async def rvt_capable():
+    """Returns whether APS credentials are present so the frontend can show setup instructions early."""
+    ok = bool(os.environ.get("APS_CLIENT_ID") and os.environ.get("APS_CLIENT_SECRET"))
+    return {
+        "capable": ok,
+        "reason": None if ok else (
+            "APS_CLIENT_ID and APS_CLIENT_SECRET are not set in the backend environment. "
+            "Get free credentials at https://aps.autodesk.com/"
+        ),
+    }
+
+
+@app.post("/api/models/rvt-convert")
+async def rvt_convert(file_url: str):
+    """
+    Convert a .rvt file to IFC via Autodesk Platform Services.
+
+    file_url  — full URL the browser can reach (e.g. http://localhost:3000/models/Level 4.rvt).
+                The backend downloads the file over HTTP so the caller never has to
+                worry about MODELS_DIR or local paths.
+
+    Returns immediately. Poll GET /api/models/rvt-status/{urn}?filename=…
+    until status == "complete"; the resulting IFC is then served from /models/.
+    """
+    # Derive a clean filename from the URL (handles %20-style encoding)
+    filename = url_unquote(file_url.rstrip("/").split("/")[-1])
+    ifc_name = Path(filename).stem + ".ifc"
+    ifc_path = _MODELS_DIR / ifc_name
+
+    # Already converted — return immediately
+    if ifc_path.exists():
+        return {"status": "cached", "path": f"/models/{ifc_name}"}
+
+    # Job already in flight — return the existing URN
+    if filename in _active_rvt_jobs:
+        job = _active_rvt_jobs[filename]
+        return {"status": "processing", "urn": job["urn"], "filename": filename}
+
+    token      = await _aps_token()
+    bucket_key = _bucket_key()
+    headers    = {"Authorization": f"Bearer {token}"}
+
+    # Download the .rvt from wherever the browser can see it (dev server, file server …)
+    async with httpx.AsyncClient(timeout=300) as c:
+        dl = await c.get(file_url)
+        if dl.status_code == 404:
+            raise HTTPException(
+                404,
+                f"Could not fetch '{filename}' from {file_url}. "
+                "Make sure the file is in frontend/public/models/ and the dev server is running.",
+            )
+        dl.raise_for_status()
+        file_bytes = dl.content
+
+    # Upload to APS Object Storage
+    async with httpx.AsyncClient(timeout=600) as c:
+        await c.post(                                          # 409 = bucket exists, fine
+            f"{_APS_BASE}/oss/v2/buckets",
+            headers=headers,
+            json={"bucketKey": bucket_key, "policyKey": "transient"},
+        )
+        up = await c.put(
+            f"{_APS_BASE}/oss/v2/buckets/{bucket_key}/objects/{url_quote(filename)}",
+            headers={**headers, "Content-Type": "application/octet-stream"},
+            content=file_bytes,
+        )
+        up.raise_for_status()
+        object_id = up.json()["objectId"]
+
+    urn = base64.urlsafe_b64encode(object_id.encode()).decode().rstrip("=")
+
+    # Submit IFC translation job
+    async with httpx.AsyncClient(timeout=30) as c:
+        job = await c.post(
+            f"{_APS_BASE}/modelderivative/v2/designdata/job",
+            headers=headers,
+            json={"input": {"urn": urn}, "output": {"formats": [{"type": "ifc"}]}},
+        )
+        job.raise_for_status()
+
+    _active_rvt_jobs[filename] = {"urn": urn, "ifc_name": ifc_name}
+    return {"status": "processing", "urn": urn, "filename": filename}
+
+
+@app.get("/api/models/rvt-status/{urn}")
+async def rvt_status(urn: str, filename: str):
+    """
+    Poll APS translation status.
+    When the job succeeds the IFC derivative is downloaded and saved to MODELS_DIR
+    so the React dev server can serve it at /models/{stem}.ifc.
+    """
+    token   = await _aps_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    async with httpx.AsyncClient(timeout=30) as c:
+        r = await c.get(
+            f"{_APS_BASE}/modelderivative/v2/designdata/{urn}/manifest",
+            headers=headers,
+        )
+        r.raise_for_status()
+        manifest = r.json()
+
+    overall_status   = manifest.get("status", "pending")
+    overall_progress = manifest.get("progress", "0%")
+
+    if overall_status == "failed":
+        _active_rvt_jobs.pop(filename, None)
+        msgs = [str(m) for d in manifest.get("derivatives", []) for m in d.get("messages", [])]
+        return {"status": "failed", "error": "; ".join(msgs) or "Unknown APS error"}
+
+    if overall_status != "success":
+        return {"status": "processing", "progress": overall_progress}
+
+    # Locate the IFC child derivative
+    ifc_urn: str | None = None
+    for deriv in manifest.get("derivatives", []):
+        if deriv.get("outputType") == "ifc":
+            for child in deriv.get("children", []):
+                if child.get("role") == "ifc" and child.get("status") == "success":
+                    ifc_urn = child.get("urn")
+                    break
+
+    if not ifc_urn:
+        return {"status": "failed", "error": "IFC derivative not found in APS manifest"}
+
+    # Download and cache the IFC next to the original .rvt
+    async with httpx.AsyncClient(timeout=300, follow_redirects=True) as c:
+        dl = await c.get(
+            f"{_APS_BASE}/modelderivative/v2/designdata/{urn}/manifest/{url_quote(ifc_urn, safe='')}",
+            headers=headers,
+        )
+        dl.raise_for_status()
+
+    ifc_name = Path(filename).stem + ".ifc"
+    _MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    (_MODELS_DIR / ifc_name).write_bytes(dl.content)
+    _active_rvt_jobs.pop(filename, None)
+
+    return {"status": "complete", "path": f"/models/{ifc_name}"}

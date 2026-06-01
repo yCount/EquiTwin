@@ -1,0 +1,124 @@
+.three-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  cursor: crosshair;
+
+  // Three.js sets canvas.style.width/height in exact pixels via setSize(w,h,true).
+  // Do NOT set width/height here — that would fight Three.js's inline styles.
+  &__canvas {
+    display: block;
+  }
+
+  // All overlays (loading, error, hint, RVT setup) share this base.
+  // They sit on top of the canvas via absolute positioning.
+  &__overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    pointer-events: none;
+    color: #c8d0e0;
+    font-size: 13px;
+    z-index: 10;
+
+    &--error {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.06);
+
+      span {
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        padding: 12px 20px;
+        border-radius: 8px;
+        max-width: 420px;
+        text-align: center;
+        white-space: pre-line;
+      }
+    }
+
+    &--hint {
+      color: #4a5568;
+      text-align: center;
+
+      code {
+        font-family: "Courier New", monospace;
+        color: #28f6ff;
+        font-size: 12px;
+      }
+    }
+
+    &--rvt-setup {
+      pointer-events: auto;
+      background: rgba(10, 12, 18, 0.82);
+      backdrop-filter: blur(8px);
+    }
+  }
+
+  &__bar-track {
+    width: 240px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+  }
+
+  &__bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #28f6ff, #00aacc);
+    border-radius: 2px;
+    transition: width 0.15s ease;
+  }
+
+  &__overlay-text {
+    font-size: 12px;
+    color: #8a9bb0;
+    letter-spacing: 0.03em;
+  }
+
+  // RVT setup card
+  &__rvt-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 24px 28px;
+    max-width: 480px;
+    width: 90%;
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: #e6edf3;
+    }
+
+    p {
+      margin: 0 0 16px;
+      font-size: 12px;
+      color: #8b949e;
+      line-height: 1.6;
+    }
+
+    ol {
+      margin: 0 0 16px;
+      padding-left: 18px;
+      font-size: 12px;
+      color: #8b949e;
+      line-height: 1.8;
+
+      code {
+        font-family: "Courier New", monospace;
+        color: #28f6ff;
+        font-size: 11px;
+      }
+    }
+
+    &-divider {
+      border: none;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      margin: 16px 0;
+    }
+  }
+}
