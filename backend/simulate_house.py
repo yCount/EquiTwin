@@ -27,6 +27,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Tuple
 
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 
@@ -590,6 +592,7 @@ def main() -> None:
 
     # Main loop
     mpc_tick_count = 0
+    history: list[dict] = []
 
     for tick in range(args.ticks):
         sim_ts = sim_start + pd.Timedelta(minutes=15 * tick)
@@ -666,6 +669,23 @@ def main() -> None:
             heating_only=heating_only,
         )
 
+        history.append({
+            "ts":         sim_ts,
+            "t_in":       house.indoor_temp,
+            "t_out":      outdoor_temp_phys,
+            "setpoint":   setpoint,
+            "band":       band,
+            "max_hvac_w": max_hvac_w,
+            "hvac_w":     hvac_w,
+            "vent_rate":  house.vent_rate,
+            "co2":        house.co2,
+            "humidity":   house.humidity,
+            "n_people":   n_people,
+            "kwh":        house.cumulative_kwh,
+            "mpc":        mpc_active,
+            "mode":       b_mode,
+        })
+
         if args.speed > 0:
             time.sleep(args.speed)
 
@@ -686,6 +706,106 @@ def main() -> None:
     print(f"  MPC ticks          : {mpc_tick_count} / {args.ticks}")
     print()
 
+    _plot_simulation(history)
+
+
+def _plot_simulation(history: list[dict]) -> None:
+    if not history:
+        return
+
+    ts         = [h["ts"] for h in history]
+    t_in       = [h["t_in"] for h in history]
+    t_out      = [h["t_out"] for h in history]
+    setpoint   = [h["setpoint"] for h in history]
+    band       = [h["band"] for h in history]
+    max_hvac_w = [h["max_hvac_w"] for h in history]
+    hvac_w     = [h["hvac_w"] for h in history]
+    vent_rate  = [h["vent_rate"] for h in history]
+    co2        = [h["co2"] for h in history]
+    humidity   = [h["humidity"] for h in history]
+    n_people   = [h["n_people"] for h in history]
+    kwh        = [h["kwh"] for h in history]
+    mpc_on     = [h["mpc"] for h in history]
+    mode       = [h["mode"] for h in history]
+
+    mode_colors = {
+        BuildingMode.NIGHT:     "#c7d9f1",
+        BuildingMode.PRE:       "#fde9a9",
+        BuildingMode.WORKSHIFT: "#d4f7d4",
+        BuildingMode.POST:      "#f6d4d4",
+    }
+
+    def _mode_segments():
+        segments = []
+        current_mode = mode[0]
+        start_ts = ts[0]
+        for idx, current_ts in enumerate(ts[1:], start=1):
+            if mode[idx] != current_mode:
+                segments.append((current_mode, start_ts, current_ts))
+                start_ts = current_ts
+                current_mode = mode[idx]
+        segments.append((current_mode, start_ts, ts[-1] + pd.Timedelta(minutes=15)))
+        return segments
+
+    fig, axes = plt.subplots(3, 1, figsize=(15, 11), sharex=True)
+    fig.suptitle("EquiTwin MPC Simulation — Control, Comfort, and Energy", fontsize=14, fontweight="bold")
+
+    # Panel 1: Temperature and setpoint band
+    ax = axes[0]
+    for seg_mode, start_ts, end_ts in _mode_segments():
+        ax.axvspan(start_ts, end_ts, facecolor=mode_colors.get(seg_mode, "#eeeeee"), alpha=0.18, linewidth=0)
+    ax.plot(ts, t_in, label="Indoor Temp", color="tab:red", linewidth=1.8)
+    ax.plot(ts, t_out, label="Outdoor Temp", color="tab:blue", linewidth=1.2, linestyle="--")
+    ax.plot(ts, setpoint, label="Setpoint", color="tab:green", linewidth=1.5, linestyle=":" )
+    lower = [s - b for s, b in zip(setpoint, band)]
+    upper = [s + b for s, b in zip(setpoint, band)]
+    ax.fill_between(ts, lower, upper, color="tab:green", alpha=0.08, label="Control band")
+    for i, active in enumerate(mpc_on):
+        if active:
+            ax.axvspan(ts[i], ts[min(i + 1, len(ts) - 1)], color="gold", alpha=0.08, linewidth=0)
+    ax.set_ylabel("Temperature (°C)")
+    ax.set_title("Indoor climate, MPC activation, and mode schedule")
+    ax.legend(loc="upper left", fontsize=8)
+    ax.grid(True, alpha=0.25)
+
+    # Panel 2: HVAC power, mode capacity, and ventilation rate
+    ax = axes[1]
+    ax.bar(ts, hvac_w, width=pd.Timedelta(minutes=14), color="tab:orange", alpha=0.75, label="HVAC Power")
+    ax.plot(ts, max_hvac_w, color="gray", linestyle="--", linewidth=1.2, label="Mode cap")
+    ax.set_ylabel("HVAC Power (W)")
+    ax.set_title("HVAC command vs mode power cap")
+    ax.grid(True, alpha=0.25)
+    ax2 = ax.twinx()
+    ax2.plot(ts, [v * 100.0 for v in vent_rate], color="tab:cyan", linewidth=1.3, linestyle="-.", label="Ventilation rate (%)")
+    ax2.set_ylabel("Ventilation rate (%)", color="tab:cyan")
+    ax2.tick_params(axis="y", labelcolor="tab:cyan")
+    ax.legend(loc="upper left", fontsize=8)
+    ax2.legend(loc="upper right", fontsize=8)
+
+    # Panel 3: CO₂, humidity, and occupancy
+    ax = axes[2]
+    ax.plot(ts, co2, color="tab:brown", linewidth=1.6, label="CO₂ (ppm)")
+    ax3 = ax.twinx()
+    ax3.plot(ts, humidity, color="tab:purple", linewidth=1.3, linestyle="--", label="Humidity (%RH)")
+    ax3.set_ylabel("Humidity (%RH)", color="tab:purple")
+    ax3.tick_params(axis="y", labelcolor="tab:purple")
+    ax.set_ylabel("CO₂ (ppm)")
+    ax.set_title("Indoor air quality and occupancy")
+    ax.grid(True, alpha=0.25)
+    ax4 = ax.twinx()
+    ax4.spines["right"].set_position(("axes", 1.12))
+    ax4.plot(ts, n_people, color="tab:green", linewidth=1.2, label="Occupants")
+    ax4.set_ylabel("Occupants", color="tab:green")
+    ax4.tick_params(axis="y", labelcolor="tab:green")
+    ax.legend(loc="upper left", fontsize=8)
+    ax3.legend(loc="upper right", fontsize=8)
+    ax4.legend(loc="lower right", fontsize=8)
+
+    fig.autofmt_xdate(rotation=30, ha="right")
+    plt.tight_layout()
+    plt.show()
+
 
 if __name__ == "__main__":
     main()
+
