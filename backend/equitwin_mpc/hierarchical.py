@@ -244,31 +244,39 @@ def _occupancy_weights(n_occ_st: np.ndarray, n_max: float = 10.0) -> np.ndarray:
     Used as a per-step multiplier inside the temperature cost:
         cost_temp = _W_COMFORT · Σ_k Q_T[k] · (T_pred[k] − T*[k])²
 
-    - Empty (n=0):      Q_T = 0.25  → effective weight = 50
-    - Full  (n=n_max):  Q_T = 1.8   → effective weight = 360
+    - Empty (n=0):      Q_T = 0.35  → effective weight = 42
+    - Full  (n=n_max):  Q_T = 1.4   → effective weight = 168
     """
     frac = np.clip(n_occ_st / max(1.0, n_max), 0.0, 1.0)
     scale = _Q_EMPTY_SCALE + frac * (_Q_OCC_SCALE - _Q_EMPTY_SCALE)
     return scale.astype(float)
 
 
-def _co2_sensitivity_matrix(N: int, co2_hat: np.ndarray) -> np.ndarray:
+def _co2_sensitivity_matrix(N: int, co2_hat: np.ndarray, co2_now: float) -> np.ndarray:
     """
     Lower-triangular NxN CO2 sensitivity to ventilation fraction.
 
-        S[k, j] = -(co2_hat[j] - CO2_outdoor) · A_co2^(k-j)   for k ≥ j, else 0
+        S[k, j] = -(co2_bar[j] - CO2_outdoor) · A_co2^(k-j)   for k ≥ j, else 0
+
+    where co2_bar[j] is the CO2 **at the start of step j** (before v[j] is applied):
+        j = 0  →  co2_now   (current measured CO2)
+        j ≥ 1  →  co2_hat[j-1]  (ML forecast at horizon h=j, 0-indexed)
 
     Negative because more ventilation → lower CO2.
-    Linearised around the forecast CO2 trajectory co2_hat.
 
-    Derivation: CO2[k+1] = CO2[k] + src[k] - v[k]·(CO2[k] - CO2_out)
-    Linearising around v_baseline ≈ _VENT_BASE_FRAC and CO2_hat[k]:
-        ∂CO2[k] / ∂v[j] ≈ S[k, j]
+    Derivation: CO2[k+1] = A_co2·CO2[k] + src[k] − (CO2[k] − CO2_out)·δv[k]
+    Linearising around v̄ ≈ _VENT_BASE_FRAC and co2_bar[j]:
+        ∂CO2[k+1] / ∂δv[j] = −(co2_bar[j] − CO2_out) · A_co2^(k−j)
+
+    The baseline CO2 at step j is the state immediately before v[j] is applied.
+    For j=0 that is the measured state; for j≥1 it is the h=j ML prediction
+    (co2_hat[j-1] in 0-indexed terms), not the h=j+1 prediction (co2_hat[j]).
     """
     S = np.zeros((N, N))
     for k in range(N):
         for j in range(k + 1):
-            S[k, j] = -(co2_hat[j] - _CO2_OUTDOOR) * (_A_CO2 ** (k - j))
+            co2_at_j = co2_now if j == 0 else co2_hat[j - 1]
+            S[k, j] = -(co2_at_j - _CO2_OUTDOOR) * (_A_CO2 ** (k - j))
     return S
 
 
@@ -378,7 +386,7 @@ class OuterMPC:
                             and not math.isnan(sun)
                             and sun > _SOLAR_THRESHOLD_WM2
                         ):
-                            offset_w = (sun / 1000.0) * _SOLAR_EFFICIENCY_FACTOR * 1000.0
+                            offset_w = sun * _SOLAR_EFFICIENCY_FACTOR
                             solar_adj[step] = max(0.0, base_w - offset_w)
                         else:
                             solar_adj[step] = base_w
@@ -428,7 +436,7 @@ class InnerMPC:
           + W_smooth  · Σ_k         · (Δu[k]² + Δv[k]²)                     [smoothness]
 
     Per-step occupancy scaling Q_T[k]:
-        0.25x when empty → 1.8x at full occupancy
+        0.35x when empty → 1.4x at full occupancy
 
     Energy budget hard constraint (from OuterMPC):
         Σ (u[k] + v[k]·VENT_FAN_W) · dt ≤ E_budget_Wh
@@ -590,7 +598,7 @@ class InnerMPC:
             co2_st = np.full(N, co2_now)
 
         # CO2 sensitivity matrix (linearised around forecast trajectory)
-        S_CO2 = _co2_sensitivity_matrix(N, co2_st)
+        S_CO2 = _co2_sensitivity_matrix(N, co2_st, co2_now)
 
         # Per-step dynamic temperature setpoints T*[k]
         # Economy setpoint is bounded by T_comfort so night mode (T_comfort=15°C)
@@ -627,7 +635,7 @@ class InnerMPC:
         #   W_energy  = wEnergy  * 1e-5  (UI: 0–100, default 30 → 3e-4)
         #   W_comfort and Q_terminal passed as-is
         W_comfort  = float(state.get("w_comfort",  _W_COMFORT))
-        W_airqual  = float(state.get("w_airqual",  0.0))
+        W_airqual  = float(state.get("w_airqual",  _W_AIRQUAL))
         W_energy   = float(state.get("w_energy",   _W_ENERGY))
         W_smooth   = float(state.get("w_smooth",   _W_SMOOTH))
         Q_terminal = float(state.get("q_terminal", _Q_TERMINAL))
@@ -786,15 +794,29 @@ class InnerMPC:
         v_next = float(v_opt[0])
         T_pred = T_hat + S_T @ w_opt[:N]
 
-        # Store the PURE PHYSICS prediction for the next tick using the actual
-        # applied HVAC power (u_next) and the forecast outdoor temperature.
-        # This is used as the disturbance-observer reference next tick.
+        # Store the nominal physics prediction for the next tick.
+        # This is the disturbance-observer reference: d[k+1] = T_measured - _last_T1hat.
+        # Must include ALL terms of the nominal model (_temperature_baseline) so the
+        # observer only captures true unmodeled disturbances, not known internal gains
+        # (Pannocchia & Rawlings 2003 §3 — reference must use the same nominal model).
         # Do NOT store T_pred[0] here — that already contains the ML correction
         # and prior disturbance, which would create a d(k+1) = -d(k) oscillator.
         outdoor_next = float(outdoor_ref[0]) if not math.isnan(float(outdoor_ref[0])) else (
             outdoor_now if not math.isnan(outdoor_now) else T_now
         )
-        self._last_T1hat = _A * T_now + (1.0 - _A) * outdoor_next + B * _thermal_actuation_w(u_next)
+        n_occ_next   = float(n_occ_st[0]) if len(n_occ_st) > 0 else 0.0
+        sun_next     = float(sunlight_ref[0]) if not math.isnan(float(sunlight_ref[0])) else sunlight_now
+        q_int_next   = (
+            _BASE_LOAD_W * _BASE_LOAD_HEAT_FRAC
+            + n_occ_next * _META_W_PPL
+            + sun_next * _SOLAR_GAIN_W_PER_WM2
+        )
+        self._last_T1hat = (
+            _A * T_now
+            + (1.0 - _A) * outdoor_next
+            + B * _thermal_actuation_w(u_next)
+            + q_int_next * _DT_H / 800.0
+        )
 
         # ── Convert to metered quantities ────────────────────────────────
         total_act  = u_next + _BASE_LOAD_W

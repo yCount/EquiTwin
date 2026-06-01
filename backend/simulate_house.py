@@ -661,7 +661,7 @@ def main() -> None:
             outdoor_temp=outdoor_temp_phys,
             n_people=n_people,
             temp_target=setpoint,
-            sunlight=sunlight,
+            sunlight=sun_synth,
             vent_rate=vent_rate,
             heating_only=heating_only,
         )

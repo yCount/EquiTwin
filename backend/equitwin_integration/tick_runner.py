@@ -218,7 +218,7 @@ def _build_state(
     """Merge sensor row into state dict, then apply explicit overrides."""
     passthrough_keys = {
         "total_act_power", "total_current", "total_aprt_power",
-        "temp", "num_targets", "outdoor_temp", "sunlight",
+        "temp", "co2", "humidity", "num_targets", "outdoor_temp", "sunlight",
     }
     state: Dict[str, Any] = {"temp_target": cfg.temp_target}
     for k in passthrough_keys:
