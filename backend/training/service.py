@@ -57,7 +57,7 @@ def _maybe_join_weather(raw: pd.DataFrame, ts_col: str) -> pd.DataFrame:
         end_date   = ts_series.max().strftime("%Y-%m-%d")
 
         client = WeatherClient(float(lat_str), float(lon_str))
-        weather_df = client.get_historical_df(start_date, end_date)
+        weather_df = client.get_historical_df(start_date, end_date, end_ts=ts_series.max())
 
         if weather_df.empty:
             warnings.warn(
